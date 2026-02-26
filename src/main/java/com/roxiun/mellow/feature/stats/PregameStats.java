@@ -15,6 +15,7 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.Locale;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,9 +33,19 @@ public class PregameStats {
     private final BlacklistManager blacklistManager;
 
     private final Set<String> alreadyLookedUp = ConcurrentHashMap.newKeySet();
+    private boolean autoLeaveTriggeredThisPregame;
 
     private static final Pattern BEDWARS_CHAT_PATTERN = Pattern.compile(
         "^(?:\\[.*?\\]\\s*)*(\\w{3,16})(?::| ») (.*)$"
+    );
+    private static final Pattern START_SECONDS_PATTERN = Pattern.compile(
+        "(?i).*start(?:s|ing)?\\s+in\\s+(\\d{1,2})\\s*s.*"
+    );
+    private static final Pattern START_CLOCK_PATTERN = Pattern.compile(
+        "(?i).*start(?:s|ing)?\\s+in\\s+(\\d{1,2}):(\\d{2}).*"
+    );
+    private static final Pattern START_WORD_SECONDS_PATTERN = Pattern.compile(
+        "(?i).*start(?:s|ing)?\\s+in\\s+(\\d{1,2})\\s*seconds?.*"
     );
 
     public PregameStats(
@@ -49,6 +60,7 @@ public class PregameStats {
 
     public void onWorldChange() {
         alreadyLookedUp.clear();
+        autoLeaveTriggeredThisPregame = false;
     }
 
     public void onChat(ClientChatReceivedEvent event) {
@@ -199,6 +211,7 @@ public class PregameStats {
                     "§c" + username + " is on your blacklist"
                 );
                 mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
+                maybeAutoLeavePregameForBlacklistedChat(username);
             });
         }
 
@@ -270,6 +283,96 @@ public class PregameStats {
             partyState.isInParty() &&
             partyState.getMembers().containsKey(uuid)
         );
+    }
+
+    private void maybeAutoLeavePregameForBlacklistedChat(String username) {
+        if (!config.autoLeaveBlacklistedPregameChat || autoLeaveTriggeredThisPregame) {
+            return;
+        }
+
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        if (
+            snapshot == null ||
+            !snapshot.isOnHypixel() ||
+            snapshot.getGameType() != GameType.BEDWARS ||
+            !snapshot.isPregame()
+        ) {
+            return;
+        }
+
+        int secondsUntilStart = extractPregameStartSeconds(snapshot.getScoreboardLines());
+        if (secondsUntilStart <= 2) {
+            return;
+        }
+
+        autoLeaveTriggeredThisPregame = true;
+
+        ChatUtils.sendMessage(
+            "§eBlacklisted chatter detected (" +
+            username +
+            ") with §f" +
+            secondsUntilStart +
+            "§es until start. Leaving pregame."
+        );
+
+        if (mc.thePlayer != null) {
+            mc.thePlayer.sendChatMessage(getAutoLeaveCommand());
+        }
+    }
+
+    private String getAutoLeaveCommand() {
+        String configured = config.autoLeaveBlacklistedPregameCommand;
+        if (configured == null) {
+            return "/lobby";
+        }
+
+        String command = configured.trim();
+        if (command.isEmpty()) {
+            return "/lobby";
+        }
+
+        if (!command.startsWith("/")) {
+            return "/" + command;
+        }
+
+        return command;
+    }
+
+    private int extractPregameStartSeconds(List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return -1;
+        }
+
+        for (String line : lines) {
+            if (line == null || line.isEmpty()) {
+                continue;
+            }
+
+            Matcher mmss = START_CLOCK_PATTERN.matcher(line);
+            if (mmss.matches()) {
+                try {
+                    int minutes = Integer.parseInt(mmss.group(1));
+                    int seconds = Integer.parseInt(mmss.group(2));
+                    return minutes * 60 + seconds;
+                } catch (NumberFormatException ignored) {}
+            }
+
+            Matcher secondsShort = START_SECONDS_PATTERN.matcher(line);
+            if (secondsShort.matches()) {
+                try {
+                    return Integer.parseInt(secondsShort.group(1));
+                } catch (NumberFormatException ignored) {}
+            }
+
+            Matcher secondsWord = START_WORD_SECONDS_PATTERN.matcher(line);
+            if (secondsWord.matches()) {
+                try {
+                    return Integer.parseInt(secondsWord.group(1));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        return -1;
     }
 
     private static class ParsedChatMessage {

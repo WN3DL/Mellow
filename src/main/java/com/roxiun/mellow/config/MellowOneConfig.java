@@ -373,6 +373,20 @@ public class MellowOneConfig extends Config {
     )
     public boolean partyBlacklistWarning = true;
 
+    @Switch(
+        name = "Auto Leave on Blacklisted Chat",
+        subcategory = "Pregame",
+        description = "Automatically runs /lobby in BedWars pregame when a blacklisted chatter is detected and more than 2 seconds remain."
+    )
+    public boolean autoLeaveBlacklistedPregameChat = false;
+
+    @Text(
+        name = "Auto Leave Command",
+        subcategory = "Pregame",
+        multiline = false
+    )
+    public String autoLeaveBlacklistedPregameCommand = "/lobby";
+
     @Switch(name = "Auto Skin Denicker", subcategory = "Denicker")
     public boolean autoSkinDenick = true;
 
