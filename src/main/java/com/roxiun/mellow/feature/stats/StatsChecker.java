@@ -145,15 +145,11 @@ public class StatsChecker {
                 // Check if player is on blacklist and print a message if they are
                 java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
                 if (blacklistManager.isBlacklisted(uuid)) {
-                    String reason = blacklistManager
-                        .getBlacklistedPlayer(uuid)
-                        .getReason();
                     mc.addScheduledTask(() -> {
                         ChatUtils.sendMessage(
                             "§c" +
                                 profile.getName() +
-                                " is on your blacklist: " +
-                                reason
+                                " is on your blacklist"
                         );
                         // Play pling sound when blacklisted player is detected
                         mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);

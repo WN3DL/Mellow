@@ -184,12 +184,9 @@ public class PregameStats {
 
         UUID uuid = UUIDUtils.fromString(profile.getUuid());
         if (blacklistManager.isBlacklisted(uuid)) {
-            String reason = blacklistManager
-                .getBlacklistedPlayer(uuid)
-                .getReason();
             MainThreadDispatcher.run(() -> {
                 ChatUtils.sendMessage(
-                    "§c" + username + " is on your blacklist: " + reason
+                    "§c" + username + " is on your blacklist"
                 );
                 mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
             });
