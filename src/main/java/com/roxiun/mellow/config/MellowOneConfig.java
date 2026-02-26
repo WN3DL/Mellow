@@ -366,6 +366,13 @@ public class MellowOneConfig extends Config {
     )
     public boolean mentionLobbyStats = false;
 
+    @Switch(
+        name = "Warn for Blacklisted Party Members",
+        subcategory = "Pregame",
+        description = "Shows a warning when your Hypixel party contains one or more blacklisted players."
+    )
+    public boolean partyBlacklistWarning = true;
+
     @Switch(name = "Auto Skin Denicker", subcategory = "Denicker")
     public boolean autoSkinDenick = true;
 

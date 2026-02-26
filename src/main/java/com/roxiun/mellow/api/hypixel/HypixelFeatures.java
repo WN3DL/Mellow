@@ -7,6 +7,7 @@ import com.roxiun.mellow.gamestate.query.GameContext;
 import com.roxiun.mellow.module.ModuleManager;
 import com.roxiun.mellow.module.bedwars.BedwarsModule;
 import java.util.List;
+import java.util.function.Consumer;
 import net.hypixel.data.type.GameType;
 
 public class HypixelFeatures {
@@ -53,6 +54,10 @@ public class HypixelFeatures {
 
     public GameSnapshot getGameSnapshot() {
         return gameStateManager.getSnapshot();
+    }
+
+    public void addGameStateListener(Consumer<GameSnapshot> listener) {
+        gameStateManager.addListener(listener);
     }
 
     public GameContext getGameContext() {

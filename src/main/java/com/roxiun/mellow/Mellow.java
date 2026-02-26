@@ -21,6 +21,7 @@ import com.roxiun.mellow.core.event.WorldLifecycleRouter;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.feature.nicks.NumberDenicker;
+import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.feature.stats.StatsChecker;
 import com.roxiun.mellow.feature.tags.TagUtils;
@@ -60,6 +61,11 @@ public class Mellow {
 
         anticheatManager = new AnticheatManager(this);
         blacklistManager = new BlacklistManager();
+        PartyBlacklistWarningService partyBlacklistWarningService =
+            new PartyBlacklistWarningService(blacklistManager, config);
+        HypixelFeatures
+            .getInstance()
+            .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);
 
         mojangApi = new MojangApi();
         providerManager = new ProviderManager();
