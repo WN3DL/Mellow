@@ -136,6 +136,8 @@ public class AnticheatManager {
                     mainMessage.appendSibling(reportButton);
                 }
 
+                appendBlacklistButton(mainMessage, player, check);
+
                 ChatUtils.sendMessage(mainMessage);
 
                 checkData.lastAlertTime = System.currentTimeMillis();
@@ -168,5 +170,40 @@ public class AnticheatManager {
             info,
             violations
         );
+    }
+
+    private void appendBlacklistButton(
+        IChatComponent message,
+        EntityPlayer player,
+        Check check
+    ) {
+        if (Mellow.blacklistManager == null || player == null) {
+            return;
+        }
+
+        if (Mellow.blacklistManager.isBlacklisted(player.getUniqueID())) {
+            message.appendSibling(new ChatComponentText(" §8[§4LIST§8]"));
+            return;
+        }
+
+        String plainName = player.getName().replaceAll("§.", "").trim();
+        String reason = "Anticheat flag: " + check.getName();
+        String command = "/blacklist add " + plainName + " " + reason;
+
+        IChatComponent blacklistButton = new ChatComponentText(" §8[§cBL§8]");
+        ChatStyle style = new ChatStyle();
+        style.setChatClickEvent(
+            new ClickEvent(ClickEvent.Action.RUN_COMMAND, command)
+        );
+        style.setChatHoverEvent(
+            new HoverEvent(
+                HoverEvent.Action.SHOW_TEXT,
+                new ChatComponentText(
+                    "Click to add " + plainName + " to your local blacklist"
+                )
+            )
+        );
+        blacklistButton.setChatStyle(style);
+        message.appendSibling(blacklistButton);
     }
 }
