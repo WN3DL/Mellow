@@ -1,16 +1,12 @@
-package com.roxiun.mellow.util.bedwars;
+package com.roxiun.mellow.module.bedwars;
 
-import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class BedwarsUpgradesTrapsManager {
-
-    private static final BedwarsUpgradesTrapsManager INSTANCE =
-        new BedwarsUpgradesTrapsManager();
+public class BedwarsUpgradesService {
 
     // Track team upgrades
     private int sharpSwords = 0; // Sharpened Swords
@@ -31,15 +27,7 @@ public class BedwarsUpgradesTrapsManager {
         "Molten Forge", // 4
     };
 
-    public static BedwarsUpgradesTrapsManager getInstance() {
-        return INSTANCE;
-    }
-
-    private BedwarsUpgradesTrapsManager() {
-        // Singleton
-    }
-
-    public void resetUpgradesAndTraps() {
+    public void reset() {
         sharpSwords = 0;
         reinforcedArmor = 0;
         maniacMiner = 0;
@@ -119,7 +107,7 @@ public class BedwarsUpgradesTrapsManager {
         }
 
         // deadShot (Armed)
-        if (item.toLowerCase().startsWith("deadShot")) {
+        if (item.toLowerCase().startsWith("deadshot")) {
             int level = extractLevel(item);
             deadShot = Math.max(deadShot, level > 0 ? level : 1);
         }

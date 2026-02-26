@@ -5,6 +5,8 @@ import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.List;
@@ -56,11 +58,11 @@ public class SeraphCommand extends CommandBase {
             sender,
             "§r§3Fetching Seraph tags for §b" + username + "§3..."
         );
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             try {
                 String uuid = mojangApi.fetchUUID(username);
                 if (uuid == null || uuid.isEmpty()) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§cFailed to fetch UUID for: §r" + username
@@ -74,7 +76,7 @@ public class SeraphCommand extends CommandBase {
                     config.seraphKey
                 );
 
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+                MainThreadDispatcher.run(() -> {
                     if (tags == null || tags.isEmpty()) {
                         ChatUtils.sendCommandMessage(
                             sender,
@@ -119,7 +121,7 @@ public class SeraphCommand extends CommandBase {
                     }
                 });
             } catch (Exception e) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cAn error occurred while fetching Seraph tags for " +
@@ -128,8 +130,7 @@ public class SeraphCommand extends CommandBase {
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     @Override

@@ -1,5 +1,8 @@
 package com.roxiun.mellow.gamestate;
 
+import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import net.hypixel.data.type.GameType;
 
 public class GameSnapshot {
@@ -12,7 +15,11 @@ public class GameSnapshot {
         "",
         false,
         false,
+        PregameReason.NONE,
+        "",
+        Collections.emptyList(),
         PartyState.empty(),
+        0L,
         0L
     );
 
@@ -23,8 +30,12 @@ public class GameSnapshot {
     private final String map;
     private final boolean lobby;
     private final boolean pregame;
+    private final PregameReason pregameReason;
+    private final String scoreboardTitle;
+    private final List<String> scoreboardLines;
     private final PartyState partyState;
     private final long updatedAt;
+    private final long stateVersion;
 
     public GameSnapshot(
         boolean onHypixel,
@@ -34,8 +45,12 @@ public class GameSnapshot {
         String map,
         boolean lobby,
         boolean pregame,
+        PregameReason pregameReason,
+        String scoreboardTitle,
+        List<String> scoreboardLines,
         PartyState partyState,
-        long updatedAt
+        long updatedAt,
+        long stateVersion
     ) {
         this.onHypixel = onHypixel;
         this.serverName = serverName;
@@ -44,8 +59,17 @@ public class GameSnapshot {
         this.map = map;
         this.lobby = lobby;
         this.pregame = pregame;
+        this.pregameReason = pregameReason;
+        this.scoreboardTitle = scoreboardTitle == null ? "" : scoreboardTitle;
+        if (scoreboardLines == null) {
+            this.scoreboardLines = Collections.emptyList();
+        } else {
+            this.scoreboardLines =
+                Collections.unmodifiableList(new ArrayList<>(scoreboardLines));
+        }
         this.partyState = partyState;
         this.updatedAt = updatedAt;
+        this.stateVersion = stateVersion;
     }
 
     public static GameSnapshot empty() {
@@ -80,12 +104,28 @@ public class GameSnapshot {
         return pregame;
     }
 
+    public PregameReason getPregameReason() {
+        return pregameReason;
+    }
+
+    public String getScoreboardTitle() {
+        return scoreboardTitle;
+    }
+
+    public List<String> getScoreboardLines() {
+        return scoreboardLines;
+    }
+
     public PartyState getPartyState() {
         return partyState;
     }
 
     public long getUpdatedAt() {
         return updatedAt;
+    }
+
+    public long getStateVersion() {
+        return stateVersion;
     }
 
     public boolean isInBedwars() {
@@ -105,8 +145,12 @@ public class GameSnapshot {
             map,
             lobby,
             inPregame,
+            inPregame ? PregameReason.PLAYERS_LINE : PregameReason.NONE,
+            scoreboardTitle,
+            scoreboardLines,
             partyState,
-            System.currentTimeMillis()
+            System.currentTimeMillis(),
+            stateVersion + 1
         );
     }
 
@@ -119,8 +163,12 @@ public class GameSnapshot {
             map,
             lobby,
             pregame,
+            pregameReason,
+            scoreboardTitle,
+            scoreboardLines,
             newPartyState,
-            System.currentTimeMillis()
+            System.currentTimeMillis(),
+            stateVersion + 1
         );
     }
 
@@ -133,8 +181,82 @@ public class GameSnapshot {
             map,
             lobby,
             pregame,
+            pregameReason,
+            scoreboardTitle,
+            scoreboardLines,
             partyState,
-            System.currentTimeMillis()
+            System.currentTimeMillis(),
+            stateVersion + 1
         );
+    }
+
+    public GameSnapshot withScoreboard(String title, List<String> lines) {
+        return new GameSnapshot(
+            onHypixel,
+            serverName,
+            gameType,
+            mode,
+            map,
+            lobby,
+            pregame,
+            pregameReason,
+            title,
+            lines,
+            partyState,
+            System.currentTimeMillis(),
+            stateVersion + 1
+        );
+    }
+
+    public GameSnapshot withLocation(
+        String newServerName,
+        GameType newGameType,
+        String newMode,
+        String newMap,
+        boolean inLobby,
+        boolean inPregame,
+        PregameReason reason,
+        String title,
+        List<String> lines
+    ) {
+        return new GameSnapshot(
+            onHypixel,
+            newServerName,
+            newGameType,
+            newMode,
+            newMap,
+            inLobby,
+            inPregame,
+            reason,
+            title,
+            lines,
+            partyState,
+            System.currentTimeMillis(),
+            stateVersion + 1
+        );
+    }
+
+    public boolean hasSameState(GameSnapshot other) {
+        if (other == null) {
+            return false;
+        }
+
+        return (
+            onHypixel == other.onHypixel &&
+            lobby == other.lobby &&
+            pregame == other.pregame &&
+            gameType == other.gameType &&
+            pregameReason == other.pregameReason &&
+            safe(serverName).equals(safe(other.serverName)) &&
+            safe(mode).equals(safe(other.mode)) &&
+            safe(map).equals(safe(other.map)) &&
+            safe(scoreboardTitle).equals(safe(other.scoreboardTitle)) &&
+            scoreboardLines.equals(other.scoreboardLines) &&
+            partyState.equals(other.partyState)
+        );
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 }

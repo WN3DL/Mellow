@@ -1,11 +1,12 @@
 package com.roxiun.mellow.util.player;
 
-import cc.polyfrost.oneconfig.utils.hypixel.HypixelUtils;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
@@ -49,10 +50,7 @@ public class PregameStats {
         if (!config.pregameStats) {
             return;
         }
-        if (!HypixelUtils.INSTANCE.isHypixel()) {
-            return;
-        }
-        if (!HypixelFeatures.getInstance().isInPregameLobby()) {
+        if (!HypixelFeatures.getInstance().getGameContext().isPregameBedwarsLobby()) {
             return;
         }
 
@@ -71,10 +69,7 @@ public class PregameStats {
             return;
         }
 
-        new Thread(
-            () -> handlePlayer(username),
-            "Mellow-PregameThread"
-        ).start();
+        AsyncExecutor.getInstance().profileIo(() -> handlePlayer(username));
     }
 
     private String extractUsernameFromChat(String message) {
@@ -120,11 +115,11 @@ public class PregameStats {
 
         if (profile == null || profile.getBedwarsPlayer() == null) {
             if (config.pregameStats) {
-                mc.addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendMessage(
                         "§cFailed to fetch stats for: §r" +
-                        username +
-                        " (possibly nicked)"
+                            username +
+                            " (possibly nicked)"
                     )
                 );
             }
@@ -136,7 +131,7 @@ public class PregameStats {
             String reason = blacklistManager
                 .getBlacklistedPlayer(uuid)
                 .getReason();
-            mc.addScheduledTask(() -> {
+            MainThreadDispatcher.run(() -> {
                 ChatUtils.sendMessage(
                     "§c" + username + " is on your blacklist: " + reason
                 );
@@ -153,14 +148,14 @@ public class PregameStats {
                 " §7|§r FKDR: " +
                 player.getFkdrColor() +
                 player.getFormattedFkdr();
-            mc.addScheduledTask(() -> ChatUtils.sendMessage(stats));
+            MainThreadDispatcher.run(() -> ChatUtils.sendMessage(stats));
         }
 
         if (config.urchin && profile.isUrchinTagged()) {
             String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + username + " is tagged on §5Urchin§c for: " + tags;
-            mc.addScheduledTask(() -> ChatUtils.sendMessage(urchinMessage));
+            MainThreadDispatcher.run(() -> ChatUtils.sendMessage(urchinMessage));
         }
 
         if (config.seraph && profile.isSeraphTagged()) {
@@ -171,11 +166,11 @@ public class PregameStats {
             if (tagMessages.length > 0 && !tagMessages[0].trim().isEmpty()) {
                 String firstMessage =
                     "§c" + username + " is tagged on §3Seraph§c for: " + tagMessages[0];
-                mc.addScheduledTask(() -> ChatUtils.sendMessage(firstMessage));
+                MainThreadDispatcher.run(() -> ChatUtils.sendMessage(firstMessage));
                 for (int i = 1; i < tagMessages.length; i++) {
                     if (!tagMessages[i].trim().isEmpty()) {
                         String additionalMessage = "§c" + tagMessages[i];
-                        mc.addScheduledTask(() ->
+                        MainThreadDispatcher.run(() ->
                             ChatUtils.sendMessage(additionalMessage)
                         );
                     }

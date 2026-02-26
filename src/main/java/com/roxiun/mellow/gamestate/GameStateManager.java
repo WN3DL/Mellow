@@ -1,14 +1,19 @@
 package com.roxiun.mellow.gamestate;
 
 import cc.polyfrost.oneconfig.utils.hypixel.HypixelUtils;
+import com.roxiun.mellow.gamestate.query.GameContext;
+import com.roxiun.mellow.util.scoreboard.ScoreboardUtils;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import net.hypixel.data.type.GameType;
 import net.hypixel.data.type.ServerType;
 import net.hypixel.modapi.HypixelModAPI;
@@ -16,7 +21,26 @@ import net.hypixel.modapi.packet.impl.clientbound.ClientboundPartyInfoPacket;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.hypixel.modapi.packet.impl.serverbound.ServerboundPartyInfoPacket;
 
-public class GameStateManager {
+public class GameStateManager implements GameContext {
+
+    private static final Pattern GENERIC_TIMER_PATTERN = Pattern.compile(
+        "(?i).+\\s+in\\s+\\d{1,2}:\\d{2}"
+    );
+    private static final Set<String> BEDWARS_STAGE_EVENTS = new HashSet<>();
+
+    static {
+        BEDWARS_STAGE_EVENTS.add("diamond ii");
+        BEDWARS_STAGE_EVENTS.add("emerald ii");
+        BEDWARS_STAGE_EVENTS.add("diamond iii");
+        BEDWARS_STAGE_EVENTS.add("emerald iii");
+        BEDWARS_STAGE_EVENTS.add("bed gone");
+        BEDWARS_STAGE_EVENTS.add("beds gone");
+        BEDWARS_STAGE_EVENTS.add("bed destroyed");
+        BEDWARS_STAGE_EVENTS.add("beds destroyed");
+        BEDWARS_STAGE_EVENTS.add("sudden death");
+        BEDWARS_STAGE_EVENTS.add("game end");
+        BEDWARS_STAGE_EVENTS.add("end game");
+    }
 
     private final AtomicReference<GameSnapshot> snapshot =
         new AtomicReference<>(GameSnapshot.empty());
@@ -40,6 +64,7 @@ public class GameStateManager {
         initialized = true;
     }
 
+    @Override
     public GameSnapshot getSnapshot() {
         return snapshot.get();
     }
@@ -56,8 +81,8 @@ public class GameStateManager {
             return;
         }
 
-        boolean onHypixel = HypixelUtils.INSTANCE.isHypixel();
         GameSnapshot current = snapshot.get();
+        boolean onHypixel = HypixelUtils.INSTANCE.isHypixel();
 
         if (!onHypixel) {
             if (current.isOnHypixel()) {
@@ -66,18 +91,39 @@ public class GameStateManager {
             return;
         }
 
-        if (!current.isOnHypixel()) {
-            publish(current.withConnection(true));
-            current = snapshot.get();
-        }
+        ScoreboardState scoreboard = readScoreboard();
+        GameType resolvedGameType = resolveGameType(current, scoreboard);
+        boolean resolvedLobby = resolveLobby(current, resolvedGameType, scoreboard);
+        boolean pregame = detectBedwarsPregame(
+            resolvedGameType,
+            resolvedLobby,
+            scoreboard.lines
+        );
 
-        if (current.getGameType() == GameType.BEDWARS && !current.isLobby()) {
-            boolean pregame = detectBedwarsPregame();
-            if (pregame != current.isPregame()) {
-                publish(current.withPregame(pregame));
-            }
-        }
+        PregameReason pregameReason = pregame &&
+        current.getGameType() == null
+            ? PregameReason.FALLBACK
+            : pregame
+            ? PregameReason.PLAYERS_LINE
+            : PregameReason.NONE;
 
+        GameSnapshot next = new GameSnapshot(
+            true,
+            current.getServerName(),
+            resolvedGameType,
+            current.getMode(),
+            current.getMap(),
+            resolvedLobby,
+            pregame,
+            pregameReason,
+            scoreboard.title,
+            scoreboard.lines,
+            current.getPartyState(),
+            System.currentTimeMillis(),
+            current.getStateVersion() + 1
+        );
+
+        publish(next);
         requestPartyInfo(false);
     }
 
@@ -97,20 +143,40 @@ public class GameStateManager {
         }
 
         boolean lobby = packet.getLobbyName().isPresent();
-        boolean pregame = gameType == GameType.BEDWARS &&
-        !lobby &&
-        detectBedwarsPregame();
+        ScoreboardState scoreboard = readScoreboard();
+        GameType resolvedGameType = gameType == null
+            ? inferGameTypeFromScoreboard(scoreboard)
+            : gameType;
+        boolean resolvedLobby = lobby;
+        if (resolvedGameType == GameType.BEDWARS && gameType == null) {
+            resolvedLobby = inferBedwarsLobby(scoreboard.lines);
+        }
+        boolean pregame = detectBedwarsPregame(
+            resolvedGameType,
+            resolvedLobby,
+            scoreboard.lines
+        );
+
+        PregameReason pregameReason = pregame
+            ? PregameReason.PLAYERS_LINE
+            : (resolvedGameType == GameType.BEDWARS && !resolvedLobby
+                ? PregameReason.MODAPI_TRANSITION
+                : PregameReason.NONE);
 
         GameSnapshot next = new GameSnapshot(
             true,
             packet.getServerName(),
-            gameType,
+            resolvedGameType,
             packet.getMode().orElse(""),
             packet.getMap().orElse(""),
-            lobby,
+            resolvedLobby,
             pregame,
+            pregameReason,
+            scoreboard.title,
+            scoreboard.lines,
             current.getPartyState(),
-            System.currentTimeMillis()
+            System.currentTimeMillis(),
+            current.getStateVersion() + 1
         );
 
         publish(next);
@@ -168,15 +234,25 @@ public class GameStateManager {
         } catch (Exception ignored) {}
     }
 
-    private boolean detectBedwarsPregame() {
-        List<String> lines = com.roxiun.mellow.util.scoreboard.ScoreboardUtils.getSidebarLines();
-        if (lines.isEmpty()) {
+    private boolean detectBedwarsPregame(
+        GameType gameType,
+        boolean lobby,
+        List<String> lines
+    ) {
+        if (gameType != GameType.BEDWARS || lobby || lines.isEmpty()) {
             return false;
         }
 
         for (String line : lines) {
-            String normalized = line.toLowerCase(Locale.ROOT).trim();
-            if (normalized.startsWith("players:")) {
+            String normalized = line
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
+            if (
+                normalized.startsWith("players:") ||
+                normalized.startsWith("players ") ||
+                normalized.equals("players")
+            ) {
                 return true;
             }
         }
@@ -184,12 +260,120 @@ public class GameStateManager {
         return false;
     }
 
+    private GameType resolveGameType(
+        GameSnapshot current,
+        ScoreboardState scoreboard
+    ) {
+        if (current.getGameType() != null) {
+            return current.getGameType();
+        }
+        return inferGameTypeFromScoreboard(scoreboard);
+    }
+
+    private GameType inferGameTypeFromScoreboard(ScoreboardState scoreboard) {
+        String title = scoreboard.title == null
+            ? ""
+            : scoreboard.title.toLowerCase(Locale.ROOT);
+        if (title.contains("bed wars")) {
+            return GameType.BEDWARS;
+        }
+        return null;
+    }
+
+    private boolean resolveLobby(
+        GameSnapshot current,
+        GameType resolvedGameType,
+        ScoreboardState scoreboard
+    ) {
+        if (resolvedGameType != GameType.BEDWARS) {
+            return current.isLobby();
+        }
+
+        boolean hasPlayersLine = hasPlayersLine(scoreboard.lines);
+        boolean hasStageTimer = hasBedwarsStageTimer(scoreboard.lines);
+
+        if (hasPlayersLine || hasStageTimer) {
+            return false;
+        }
+
+        if (current.getGameType() == null) {
+            return true;
+        }
+
+        return current.isLobby();
+    }
+
+    private boolean inferBedwarsLobby(List<String> lines) {
+        return !hasPlayersLine(lines) && !hasBedwarsStageTimer(lines);
+    }
+
+    private boolean hasPlayersLine(List<String> lines) {
+        for (String line : lines) {
+            String normalized = line
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
+            if (
+                normalized.startsWith("players:") ||
+                normalized.startsWith("players ") ||
+                normalized.equals("players")
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasBedwarsStageTimer(List<String> lines) {
+        for (String line : lines) {
+            String normalized = line
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
+            if (!GENERIC_TIMER_PATTERN.matcher(normalized).matches()) {
+                continue;
+            }
+
+            String eventName = normalized.substring(0, normalized.indexOf(" in ")).trim();
+            if (eventName.startsWith("next event:")) {
+                eventName = eventName.substring("next event:".length()).trim();
+            }
+            if (BEDWARS_STAGE_EVENTS.contains(eventName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ScoreboardState readScoreboard() {
+        return new ScoreboardState(
+            ScoreboardUtils.getSidebarTitle(),
+            ScoreboardUtils.getSidebarLines()
+        );
+    }
+
     private void publish(GameSnapshot next) {
+        GameSnapshot current = snapshot.get();
+        if (current.hasSameState(next)) {
+            return;
+        }
+
         snapshot.set(next);
         for (Consumer<GameSnapshot> listener : listeners) {
             try {
                 listener.accept(next);
             } catch (Exception ignored) {}
+        }
+    }
+
+    private static class ScoreboardState {
+
+        private final String title;
+        private final List<String> lines;
+
+        private ScoreboardState(String title, List<String> lines) {
+            this.title = title == null ? "" : title;
+            this.lines = lines;
         }
     }
 }

@@ -2,6 +2,8 @@ package com.roxiun.mellow.commands;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
@@ -71,7 +73,7 @@ public class SkinDenickCommand extends CommandBase {
                 "§7Fetching stats for §a" + realName + "§7..."
             );
 
-            new Thread(() -> {
+            AsyncExecutor.getInstance().command(() -> {
                 PlayerProfile profile = playerCache.getProfile(realName);
                 String resolvedDisplay = "§a" + realName;
                 String starsPrefix = "";
@@ -84,7 +86,7 @@ public class SkinDenickCommand extends CommandBase {
 
                 final String finalResolvedDisplay = resolvedDisplay;
                 final String finalStarsPrefix = starsPrefix;
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         nickedPlayerDisplay +
@@ -93,8 +95,7 @@ public class SkinDenickCommand extends CommandBase {
                             finalResolvedDisplay
                     )
                 );
-            })
-                .start();
+            });
         } else {
             ChatUtils.sendCommandMessage(
                 sender,

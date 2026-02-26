@@ -1,12 +1,10 @@
 package com.roxiun.mellow.commands;
 
-import cc.polyfrost.oneconfig.utils.hypixel.HypixelUtils;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
-import com.roxiun.mellow.util.scoreboard.ScoreboardUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,7 +75,7 @@ public class DebugStateCommand extends CommandBase {
         ChatUtils.sendCommandMessage(sender, "§d§lMellow Debug §7(State)");
         ChatUtils.sendMultilineCommandMessage(
             sender,
-            "§7Hypixel detected: §f" + HypixelUtils.INSTANCE.isHypixel()
+            "§7Hypixel detected: §f" + snapshot.isOnHypixel()
         );
         ChatUtils.sendMultilineCommandMessage(
             sender,
@@ -105,8 +103,16 @@ public class DebugStateCommand extends CommandBase {
         );
         ChatUtils.sendMultilineCommandMessage(
             sender,
+            "§7Pregame reason: §f" + snapshot.getPregameReason()
+        );
+        ChatUtils.sendMultilineCommandMessage(
+            sender,
             "§7Bedwars session: §f" + features.isInBedwarsSession() +
             " §7| Bedwars match: §f" + features.isInBedwars()
+        );
+        ChatUtils.sendMultilineCommandMessage(
+            sender,
+            "§7State version: §f" + snapshot.getStateVersion()
         );
         ChatUtils.sendMultilineCommandMessage(
             sender,
@@ -128,8 +134,9 @@ public class DebugStateCommand extends CommandBase {
     }
 
     private void sendScoreboard(ICommandSender sender) {
-        List<String> lines = ScoreboardUtils.getSidebarLines();
-        String title = ScoreboardUtils.getSidebarTitle();
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        List<String> lines = snapshot.getScoreboardLines();
+        String title = snapshot.getScoreboardTitle();
 
         ChatUtils.sendCommandMessage(sender, "§d§lMellow Debug §7(Scoreboard)");
         ChatUtils.sendMultilineCommandMessage(
@@ -159,12 +166,20 @@ public class DebugStateCommand extends CommandBase {
         HypixelFeatures features = HypixelFeatures.getInstance();
         features.onClientTick();
 
-        List<String> lines = ScoreboardUtils.getSidebarLines();
+        GameSnapshot snapshot = features.getGameSnapshot();
+        List<String> lines = snapshot.getScoreboardLines();
         List<String> playerLines = new ArrayList<>();
 
         for (String line : lines) {
-            String normalized = line.toLowerCase(Locale.ROOT).trim();
-            if (normalized.startsWith("players:")) {
+            String normalized = line
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ")
+                .trim();
+            if (
+                normalized.startsWith("players:") ||
+                normalized.startsWith("players ") ||
+                normalized.equals("players")
+            ) {
                 playerLines.add(line);
             }
         }
@@ -176,7 +191,7 @@ public class DebugStateCommand extends CommandBase {
         );
         ChatUtils.sendMultilineCommandMessage(
             sender,
-            "§7Hypixel detected: §f" + HypixelUtils.INSTANCE.isHypixel()
+            "§7Hypixel detected: §f" + snapshot.isOnHypixel()
         );
         ChatUtils.sendMultilineCommandMessage(
             sender,
@@ -190,15 +205,15 @@ public class DebugStateCommand extends CommandBase {
             sender,
             "§7Players: lines found: §f" + playerLines.size()
         );
+        ChatUtils.sendMultilineCommandMessage(
+            sender,
+            "§7Pregame reason: §f" + snapshot.getPregameReason()
+        );
 
         if (playerLines.isEmpty()) {
             ChatUtils.sendMultilineCommandMessage(
                 sender,
-                "§cNo scoreboard line starts with 'Players:'"
-            );
-            ChatUtils.sendMultilineCommandMessage(
-                sender,
-                "§7Tip: if your scoreboard says 'Players' without colon, pregame will currently be false."
+                "§cNo scoreboard line starts with 'Players'/'Players:'"
             );
         } else {
             for (String line : playerLines) {

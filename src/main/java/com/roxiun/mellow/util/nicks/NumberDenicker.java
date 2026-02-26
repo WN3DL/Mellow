@@ -2,6 +2,7 @@ package com.roxiun.mellow.util.nicks;
 
 import com.roxiun.mellow.api.aurora.AuroraApi;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.util.ChatUtils;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -130,7 +131,7 @@ public class NumberDenicker {
         PotentialNick player = nickToPotentials.get(nickName);
         if (player == null) return;
 
-        new Thread(() -> {
+        AsyncExecutor.getInstance().profileIo(() -> {
             try {
                 int[] rangeValues = { 0, 50, 100, 200, 500, 1000 };
                 int[] maxValues = { 5, 10, 20 };
@@ -271,8 +272,7 @@ public class NumberDenicker {
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     private void sendAlert(String playerName, String realName) {

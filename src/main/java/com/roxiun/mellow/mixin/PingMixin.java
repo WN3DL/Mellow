@@ -1,7 +1,7 @@
 package com.roxiun.mellow.mixin;
 
-import cc.polyfrost.oneconfig.utils.hypixel.HypixelUtils;
 import com.roxiun.mellow.Mellow;
+import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.ping.PolsuApi;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,7 +36,7 @@ public class PingMixin {
         // pingProvider: 0 = None, 1 = Polsu, 2 = Urchin
         if (
             Mellow.config.pingProvider == 0 ||
-            !HypixelUtils.INSTANCE.isHypixel()
+            !HypixelFeatures.getInstance().getGameSnapshot().isOnHypixel()
         ) {
             cir.setReturnValue(original);
             return;

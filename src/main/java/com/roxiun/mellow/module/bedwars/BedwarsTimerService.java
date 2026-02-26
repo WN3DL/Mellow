@@ -1,7 +1,6 @@
 package com.roxiun.mellow.module.bedwars;
 
 import com.roxiun.mellow.gamestate.GameSnapshot;
-import com.roxiun.mellow.util.scoreboard.ScoreboardUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -42,13 +41,12 @@ public class BedwarsTimerService {
     }
 
     public void update(GameSnapshot snapshot) {
-        if (!snapshot.isInBedwarsMatch()) {
+        List<String> sidebarLines = snapshot.getScoreboardLines();
+        StageTimer stage = parseStageTimer(sidebarLines);
+        if (!snapshot.isInBedwarsMatch() && stage == null) {
             reset();
             return;
         }
-
-        List<String> sidebarLines = ScoreboardUtils.getSidebarLines();
-        StageTimer stage = parseStageTimer(sidebarLines);
         if (stage == null) {
             return;
         }

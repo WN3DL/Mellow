@@ -1,4 +1,4 @@
-package com.roxiun.mellow.events;
+package com.roxiun.mellow.core.event;
 
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.util.nicks.NickUtils;
@@ -7,13 +7,13 @@ import com.roxiun.mellow.util.player.PregameStats;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-public class WorldLoadHandler {
+public class WorldLifecycleRouter {
 
     private final NumberDenicker numberDenicker;
     private final PregameStats pregameStats;
     private final NickUtils nickUtils;
 
-    public WorldLoadHandler(
+    public WorldLifecycleRouter(
         NumberDenicker numberDenicker,
         PregameStats pregameStats,
         NickUtils nickUtils

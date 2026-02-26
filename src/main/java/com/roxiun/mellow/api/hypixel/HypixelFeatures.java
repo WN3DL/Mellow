@@ -3,8 +3,10 @@ package com.roxiun.mellow.api.hypixel;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.GameStateManager;
 import com.roxiun.mellow.gamestate.PartyState;
+import com.roxiun.mellow.gamestate.query.GameContext;
 import com.roxiun.mellow.module.ModuleManager;
 import com.roxiun.mellow.module.bedwars.BedwarsModule;
+import java.util.List;
 import net.hypixel.data.type.GameType;
 
 public class HypixelFeatures {
@@ -51,6 +53,10 @@ public class HypixelFeatures {
 
     public GameSnapshot getGameSnapshot() {
         return gameStateManager.getSnapshot();
+    }
+
+    public GameContext getGameContext() {
+        return gameStateManager;
     }
 
     public PartyState getPartyState() {
@@ -105,6 +111,34 @@ public class HypixelFeatures {
 
     public int getDiamondSpawnCount() {
         return bedwarsModule.getTimerState().getDiamondCount();
+    }
+
+    public List<String> getBedwarsUpgradesDisplayLines(
+        boolean useShortNames,
+        boolean useRomanNumerals,
+        int headingRed,
+        int headingGreen,
+        int headingBlue,
+        int headingAlpha,
+        int textRed,
+        int textGreen,
+        int textBlue,
+        int textAlpha
+    ) {
+        return bedwarsModule
+            .getUpgradesService()
+            .getDisplayLinesWithFormatting(
+                useShortNames,
+                useRomanNumerals,
+                headingRed,
+                headingGreen,
+                headingBlue,
+                headingAlpha,
+                textRed,
+                textGreen,
+                textBlue,
+                textAlpha
+            );
     }
 
     // Compatibility methods retained for legacy call-sites.

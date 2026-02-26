@@ -5,6 +5,8 @@ import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.io.IOException;
@@ -52,11 +54,11 @@ public class UrchinCommand extends CommandBase {
         }
 
         String username = args[0];
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             try {
                 String uuid = mojangApi.fetchUUID(username);
                 if (uuid == null || uuid.isEmpty()) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§cCould not find UUID for: §r" + username
@@ -72,7 +74,7 @@ public class UrchinCommand extends CommandBase {
                 );
 
                 if (tags == null || tags.isEmpty()) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§aNo Urchin tags found for: §r" + username
@@ -84,12 +86,12 @@ public class UrchinCommand extends CommandBase {
                     );
                     String urchinMessage =
                         "§c" + username + " is tagged for: " + formattedTags;
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(sender, urchinMessage)
                     );
                 }
             } catch (IOException e) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cAn error occurred while fetching Urchin tags for " +
@@ -98,8 +100,7 @@ public class UrchinCommand extends CommandBase {
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     @Override

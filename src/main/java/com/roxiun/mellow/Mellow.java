@@ -15,10 +15,10 @@ import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.event.ChatEventRouter;
+import com.roxiun.mellow.core.event.ClientTickRouter;
+import com.roxiun.mellow.core.event.WorldLifecycleRouter;
 import com.roxiun.mellow.data.TabStats;
-import com.roxiun.mellow.events.ChatHandler;
-import com.roxiun.mellow.events.EmeraldTimerHandler;
-import com.roxiun.mellow.events.WorldLoadHandler;
 import com.roxiun.mellow.task.StatsChecker;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.nicks.NickUtils;
@@ -106,21 +106,20 @@ public class Mellow {
         );
 
         MinecraftForge.EVENT_BUS.register(
-            new ChatHandler(
+            new ChatEventRouter(
                 config,
                 nickUtils,
                 numberDenicker,
                 pregameStats,
                 planckeApi,
-                statsChecker,
-                playerCache
+                statsChecker
             )
         );
         MinecraftForge.EVENT_BUS.register(
-            new WorldLoadHandler(numberDenicker, pregameStats, nickUtils)
+            new WorldLifecycleRouter(numberDenicker, pregameStats, nickUtils)
         );
         MinecraftForge.EVENT_BUS.register(
-            new EmeraldTimerHandler(HypixelFeatures.getInstance())
+            new ClientTickRouter(HypixelFeatures.getInstance())
         );
 
         ClientCommandHandler.instance.registerCommand(

@@ -1,14 +1,14 @@
-package com.roxiun.mellow.events;
+package com.roxiun.mellow.core.event;
 
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-public class EmeraldTimerHandler {
+public class ClientTickRouter {
 
     private final HypixelFeatures hypixelFeatures;
 
-    public EmeraldTimerHandler(HypixelFeatures hypixelFeatures) {
+    public ClientTickRouter(HypixelFeatures hypixelFeatures) {
         this.hypixelFeatures = hypixelFeatures;
     }
 

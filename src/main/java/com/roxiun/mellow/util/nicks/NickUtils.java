@@ -3,6 +3,8 @@ package com.roxiun.mellow.util.nicks;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
@@ -67,7 +69,7 @@ public class NickUtils {
                                 );
 
                                 final String finalRealName = realName;
-                                new Thread(() -> {
+                                AsyncExecutor.getInstance().profileIo(() -> {
                                     PlayerProfile profile =
                                         playerCache.getProfile(finalRealName);
 
@@ -75,7 +77,7 @@ public class NickUtils {
                                         profile == null ||
                                         profile.getBedwarsPlayer() == null
                                     ) {
-                                        mc.addScheduledTask(() ->
+                                        MainThreadDispatcher.run(() ->
                                             ChatUtils.sendMessage(
                                                 "§cFailed to fetch stats for: §r" +
                                                     finalRealName
@@ -94,7 +96,7 @@ public class NickUtils {
                                         bwPlayer.getFkdrColor() +
                                         bwPlayer.getFormattedFkdr();
 
-                                    mc.addScheduledTask(() ->
+                                    MainThreadDispatcher.run(() ->
                                         ChatUtils.sendMessage(statsMessage)
                                     );
 
@@ -111,7 +113,7 @@ public class NickUtils {
                                             finalRealName +
                                             " is tagged on §5Urchin§c for: " +
                                             tags;
-                                        mc.addScheduledTask(() ->
+                                        MainThreadDispatcher.run(() ->
                                             ChatUtils.sendMessage(urchinMessage)
                                         );
                                     }
@@ -137,7 +139,7 @@ public class NickUtils {
                                                 finalRealName +
                                                 " is tagged on §3Seraph§c for: " +
                                                 tagMessages[0];
-                                            mc.addScheduledTask(() ->
+                                            MainThreadDispatcher.run(() ->
                                                 ChatUtils.sendMessage(
                                                     firstMessage
                                                 )
@@ -153,7 +155,7 @@ public class NickUtils {
                                                 ) {
                                                     String additionalMessage =
                                                         "§c" + tagMessages[i];
-                                                    mc.addScheduledTask(() ->
+                                                    MainThreadDispatcher.run(() ->
                                                         ChatUtils.sendMessage(
                                                             additionalMessage
                                                         )
@@ -162,8 +164,7 @@ public class NickUtils {
                                             }
                                         }
                                     }
-                                })
-                                    .start();
+                                });
                             }
                         }
                     }

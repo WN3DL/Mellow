@@ -1,6 +1,8 @@
 package com.roxiun.mellow.commands;
 
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
@@ -156,8 +158,8 @@ public class BlacklistCommand extends CommandBase {
                 syncFile = new File(configDir, filename);
             }
 
-            new Thread(() -> {
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+            AsyncExecutor.getInstance().command(() -> {
+                MainThreadDispatcher.run(() -> {
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§eImporting blacklist with file: " +
@@ -183,25 +185,24 @@ public class BlacklistCommand extends CommandBase {
                     } else {
                         message =
                             "§cFile not found: " + syncFile.getAbsolutePath();
-                        Minecraft.getMinecraft().addScheduledTask(() ->
+                        MainThreadDispatcher.run(() ->
                             ChatUtils.sendCommandMessage(sender, message)
                         );
                         return;
                     }
 
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(sender, message)
                     );
                 } catch (Exception e) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§cError importing file: " + e.getMessage()
                         )
                     );
                 }
-            })
-                .start();
+            });
             return;
         }
 
@@ -215,14 +216,14 @@ public class BlacklistCommand extends CommandBase {
 
         String playerName = args[1];
 
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             String uuidString = mojangApi.getUUIDFromName(playerName);
             if (uuidString == null) {
                 uuidString = mojangApi.fetchUUID(playerName);
             }
 
             if (uuidString == null || uuidString.equals("ERROR")) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cCould not find player: " + playerName
@@ -250,14 +251,14 @@ public class BlacklistCommand extends CommandBase {
                     reason
                 );
                 if (playerAdded) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§aAdded " + playerName + " to the blacklist."
                         )
                     );
                 } else {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§c" +
@@ -271,22 +272,21 @@ public class BlacklistCommand extends CommandBase {
                 }
             } else if ("remove".equalsIgnoreCase(subCommand)) {
                 blacklistManager.removePlayer(uuid);
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§aRemoved " + playerName + " from the blacklist."
                     )
                 );
             } else {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cInvalid subcommand! Use 'add', 'remove', or 'list'."
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     @Override

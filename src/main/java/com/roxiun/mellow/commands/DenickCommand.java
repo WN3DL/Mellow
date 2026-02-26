@@ -2,11 +2,12 @@ package com.roxiun.mellow.commands;
 
 import com.roxiun.mellow.api.aurora.AuroraApi;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
-import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
@@ -65,7 +66,7 @@ public class DenickCommand extends CommandBase {
 
         ChatUtils.sendCommandMessage(sender, "§aSearching for players...");
 
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             try {
                 int[] rangeValues = { 100, 200, 500, 1000 };
                 int[] maxValues = { 5, 10, 20 };
@@ -91,7 +92,7 @@ public class DenickCommand extends CommandBase {
                     config.auroraApiKey
                 );
 
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+                MainThreadDispatcher.run(() -> {
                     if (response != null && response.success) {
                         if (response.data.isEmpty()) {
                             ChatUtils.sendCommandMessage(
@@ -123,7 +124,7 @@ public class DenickCommand extends CommandBase {
                     }
                 });
             } catch (IOException e) {
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+                MainThreadDispatcher.run(() -> {
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cAn error occurred while fetching data."
@@ -131,8 +132,7 @@ public class DenickCommand extends CommandBase {
                 });
                 e.printStackTrace();
             }
-        })
-            .start();
+        });
     }
 
     @Override
