@@ -8,10 +8,12 @@ import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.gamestate.GameSnapshot;
+import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -85,6 +87,10 @@ public class PregameStats {
         containsSelfMention(parsedMessage.content);
         boolean shouldLookup = pregameTriggerEnabled || isMention;
         if (!shouldLookup) {
+            return;
+        }
+
+        if (isPartyMemberByName(username)) {
             return;
         }
 
@@ -183,6 +189,10 @@ public class PregameStats {
         }
 
         UUID uuid = UUIDUtils.fromString(profile.getUuid());
+        if (isPartyMember(uuid)) {
+            return;
+        }
+
         if (blacklistManager.isBlacklisted(uuid)) {
             MainThreadDispatcher.run(() -> {
                 ChatUtils.sendMessage(
@@ -230,6 +240,36 @@ public class PregameStats {
                 }
             }
         }
+    }
+
+    private boolean isPartyMemberByName(String username) {
+        if (username == null || username.isEmpty()) {
+            return false;
+        }
+
+        String compactUuid = PlayerUtils.getUUIDFromPlayerName(username);
+        if (compactUuid == null || compactUuid.isEmpty()) {
+            return false;
+        }
+
+        try {
+            return isPartyMember(UUIDUtils.fromString(compactUuid));
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isPartyMember(UUID uuid) {
+        if (uuid == null) {
+            return false;
+        }
+
+        PartyState partyState = HypixelFeatures.getInstance().getPartyState();
+        return (
+            partyState != null &&
+            partyState.isInParty() &&
+            partyState.getMembers().containsKey(uuid)
+        );
     }
 
     private static class ParsedChatMessage {
