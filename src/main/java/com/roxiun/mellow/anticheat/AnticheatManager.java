@@ -108,15 +108,7 @@ public class AnticheatManager {
             if (timeSinceLastAlert >= cooldown) {
                 // Main message component
                 IChatComponent mainMessage = new ChatComponentText(
-                    String.format(
-                        "§8[§cAC§8] §7%s §ffailed §c%s §7(%s) §c[VL: %.1f]",
-                        FormattingUtils.formatNickedPlayerName(
-                            player.getName()
-                        ),
-                        check.getName(),
-                        info,
-                        checkData.violations
-                    )
+                    buildAlertMessage(player, check, info, checkData.violations)
                 );
 
                 // Add WDR button if on Hypixel
@@ -149,5 +141,32 @@ public class AnticheatManager {
                 checkData.lastAlertTime = System.currentTimeMillis();
             }
         }
+    }
+
+    private String buildAlertMessage(
+        EntityPlayer player,
+        Check check,
+        String info,
+        double violations
+    ) {
+        String formattedName = FormattingUtils.formatNickedPlayerName(
+            player.getName()
+        );
+
+        if (!Mellow.config.anticheatVerbose) {
+            return String.format(
+                "§8[§cAC§8] §7%s §ffailed §c%s",
+                formattedName,
+                check.getName()
+            );
+        }
+
+        return String.format(
+            "§8[§cAC§8] §7%s §ffailed §c%s §7(%s) §c[VL: %.1f]",
+            formattedName,
+            check.getName(),
+            info,
+            violations
+        );
     }
 }

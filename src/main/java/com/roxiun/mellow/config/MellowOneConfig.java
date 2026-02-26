@@ -564,6 +564,13 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Scaffold Check", category = "Anticheat")
     public boolean scaffoldCheckEnabled = false;
 
+    @Switch(
+        name = "Verbose Alerts",
+        category = "Anticheat",
+        description = "Show detailed anticheat info (debug reason + VL) in alerts."
+    )
+    public boolean anticheatVerbose = false;
+
     @Number(
         name = "Violation Level",
         category = "Anticheat",
