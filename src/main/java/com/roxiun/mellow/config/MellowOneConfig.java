@@ -332,10 +332,26 @@ public class MellowOneConfig extends Config {
 
     @Dropdown(
         name = "Stats Provider",
-        options = { "Nadeshiko", "Abyss" },
+        options = { "Hypixel Public API", "Nadeshiko", "Abyss" },
         subcategory = "Stats"
     )
-    public int statsProvider = 0;
+    public int statsProvider = 2;
+
+    @Info(
+        text = "Hypixel provider requires an API key from developer.hypixel.net. Other providers do not require a key.",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        subcategory = "Stats"
+    )
+    public static boolean ignoredHypixelApiInfo;
+
+    @Text(
+        name = "Hypixel API Key",
+        subcategory = "Stats",
+        secure = true,
+        multiline = false
+    )
+    public String hypixelApiKey = "";
 
     @Switch(name = "Print Blacklist Tags in /who", subcategory = "General")
     public boolean printBlacklistTags = true;

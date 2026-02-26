@@ -2,12 +2,13 @@ package com.roxiun.mellow;
 
 import com.roxiun.mellow.anticheat.AnticheatManager;
 import com.roxiun.mellow.api.aurora.AuroraApi;
-import com.roxiun.mellow.api.bedwars.HypixelApi;
 import com.roxiun.mellow.api.duels.PlanckeApi;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.AbyssApi;
+import com.roxiun.mellow.api.provider.HypixelPublicApi;
 import com.roxiun.mellow.api.provider.NadeshikoApi;
+import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.urchin.UrchinApi;
@@ -36,7 +37,7 @@ public class Mellow {
 
     public static final String MODID = "mellow";
     public static final String NAME = "Mellow";
-    public static final String VERSION = "5.2.1";
+    public static final String VERSION = "6.0.0";
 
     public static MellowOneConfig config;
     public static final Map<String, TabStats> tabStats = new HashMap<>();
@@ -49,33 +50,31 @@ public class Mellow {
     public static BlacklistManager blacklistManager;
     private static AnticheatManager anticheatManager;
 
-    private Map<String, StatsProvider> statsProviders;
+    private ProviderManager providerManager;
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         config = new MellowOneConfig();
 
-        // Anticheat
-        anticheatManager = new AnticheatManager(this);
+        HypixelFeatures.getInstance().initialize();
 
-        // Blacklist
+        anticheatManager = new AnticheatManager(this);
         blacklistManager = new BlacklistManager();
 
-        // APIs
         mojangApi = new MojangApi();
-        statsProviders = new HashMap<>();
-        statsProviders.put("Nadeshiko", new NadeshikoApi(mojangApi));
-        statsProviders.put("Abyss", new AbyssApi(mojangApi));
+        providerManager = new ProviderManager();
+        providerManager.register(new HypixelPublicApi(mojangApi, config));
+        providerManager.register(new NadeshikoApi(mojangApi));
+        providerManager.register(new AbyssApi(mojangApi));
 
         urchinApi = new UrchinApi(mojangApi);
         seraphApi = new SeraphApi(mojangApi);
         PlanckeApi planckeApi = new PlanckeApi();
         AuroraApi auroraApi = new AuroraApi();
 
-        // Cache
         playerCache = new PlayerCache(
             mojangApi,
-            getStatsProvider(),
+            providerManager,
             urchinApi,
             seraphApi,
             config.urchinKey,
@@ -85,9 +84,7 @@ public class Mellow {
 
         nickUtils = new NickUtils(playerCache, config);
 
-        // Utils
         TagUtils tagUtils = new TagUtils(this, blacklistManager);
-        HypixelApi hypixelApi = new HypixelApi(this, tagUtils);
         NumberDenicker numberDenicker = new NumberDenicker(
             config,
             nickUtils,
@@ -99,7 +96,6 @@ public class Mellow {
             blacklistManager
         );
 
-        // Tasks
         StatsChecker statsChecker = new StatsChecker(
             playerCache,
             nickUtils,
@@ -109,7 +105,6 @@ public class Mellow {
             blacklistManager
         );
 
-        // Event Handlers
         MinecraftForge.EVENT_BUS.register(
             new ChatHandler(
                 config,
@@ -128,18 +123,20 @@ public class Mellow {
             new EmeraldTimerHandler(HypixelFeatures.getInstance())
         );
 
-        // Commands
         ClientCommandHandler.instance.registerCommand(
             new BedwarsCommand(playerCache, config)
         );
         ClientCommandHandler.instance.registerCommand(new MellowCommand());
+        ClientCommandHandler.instance.registerCommand(new DebugStateCommand());
         ClientCommandHandler.instance.registerCommand(
             new ClearCacheCommand(playerCache, tabStats)
         );
         ClientCommandHandler.instance.registerCommand(
             new DenickCommand(config, auroraApi)
         );
-        ClientCommandHandler.instance.registerCommand(new SkinDenickCommand());
+        ClientCommandHandler.instance.registerCommand(
+            new SkinDenickCommand(playerCache)
+        );
         ClientCommandHandler.instance.registerCommand(
             new BlacklistCommand(blacklistManager, mojangApi)
         );
@@ -152,11 +149,10 @@ public class Mellow {
     }
 
     public StatsProvider getStatsProvider() {
-        if (config != null && config.statsProvider == 1) {
-            return statsProviders.get("Abyss");
-        } else {
-            return statsProviders.get("Nadeshiko");
+        if (providerManager == null) {
+            return null;
         }
+        return providerManager.getSelectedProvider(config);
     }
 
     public static AnticheatManager getAnticheatManager() {

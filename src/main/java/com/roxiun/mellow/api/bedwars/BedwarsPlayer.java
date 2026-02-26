@@ -5,6 +5,7 @@ import java.text.DecimalFormat;
 public class BedwarsPlayer {
 
     private final String name;
+    private final String formattedNameWithRank;
     private final String stars;
     private final double fkdr;
     private final int winstreak;
@@ -29,7 +30,38 @@ public class BedwarsPlayer {
         int bedsLost,
         int finals
     ) {
+        this(
+            name,
+            name,
+            stars,
+            fkdr,
+            winstreak,
+            finalKills,
+            finalDeaths,
+            wins,
+            losses,
+            bedsBroken,
+            bedsLost,
+            finals
+        );
+    }
+
+    public BedwarsPlayer(
+        String name,
+        String formattedNameWithRank,
+        String stars,
+        double fkdr,
+        int winstreak,
+        int finalKills,
+        int finalDeaths,
+        int wins,
+        int losses,
+        int bedsBroken,
+        int bedsLost,
+        int finals
+    ) {
         this.name = name;
+        this.formattedNameWithRank = formattedNameWithRank;
         this.stars = stars;
         this.fkdr = fkdr;
         this.winstreak = winstreak;
@@ -44,6 +76,13 @@ public class BedwarsPlayer {
 
     public String getName() {
         return name;
+    }
+
+    public String getFormattedNameWithRank() {
+        if (formattedNameWithRank == null || formattedNameWithRank.isEmpty()) {
+            return name;
+        }
+        return formattedNameWithRank;
     }
 
     public String getStars() {

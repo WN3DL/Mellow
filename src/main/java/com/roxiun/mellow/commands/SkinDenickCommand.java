@@ -1,5 +1,8 @@
 package com.roxiun.mellow.commands;
 
+import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.skins.SkinUtils;
@@ -10,6 +13,12 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 
 public class SkinDenickCommand extends CommandBase {
+
+    private final PlayerCache playerCache;
+
+    public SkinDenickCommand(PlayerCache playerCache) {
+        this.playerCache = playerCache;
+    }
 
     @Override
     public String getCommandName() {
@@ -59,8 +68,33 @@ public class SkinDenickCommand extends CommandBase {
             );
             ChatUtils.sendCommandMessage(
                 sender,
-                nickedPlayerDisplay + " §d> §a" + realName
+                "§7Fetching stats for §a" + realName + "§7..."
             );
+
+            new Thread(() -> {
+                PlayerProfile profile = playerCache.getProfile(realName);
+                String resolvedDisplay = "§a" + realName;
+                String starsPrefix = "";
+
+                if (profile != null && profile.getBedwarsPlayer() != null) {
+                    BedwarsPlayer bwPlayer = profile.getBedwarsPlayer();
+                    resolvedDisplay = bwPlayer.getFormattedNameWithRank();
+                    starsPrefix = bwPlayer.getStars() + " §r";
+                }
+
+                final String finalResolvedDisplay = resolvedDisplay;
+                final String finalStarsPrefix = starsPrefix;
+                Minecraft.getMinecraft().addScheduledTask(() ->
+                    ChatUtils.sendCommandMessage(
+                        sender,
+                        nickedPlayerDisplay +
+                            " §d> §r" +
+                            finalStarsPrefix +
+                            finalResolvedDisplay
+                    )
+                );
+            })
+                .start();
         } else {
             ChatUtils.sendCommandMessage(
                 sender,

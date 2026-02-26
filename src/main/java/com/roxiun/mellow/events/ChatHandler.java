@@ -1,6 +1,5 @@
 package com.roxiun.mellow.events;
 
-import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.duels.PlanckeApi;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.cache.PlayerCache;
@@ -9,19 +8,14 @@ import com.roxiun.mellow.task.StatsChecker;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.StringUtils;
 import com.roxiun.mellow.util.bedwars.BedwarsUpgradesTrapsManager;
-import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.nicks.NickUtils;
 import com.roxiun.mellow.util.nicks.NumberDenicker;
 import com.roxiun.mellow.util.player.PregameStats;
-import com.roxiun.mellow.util.skins.SkinUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.scoreboard.Score;
-import net.minecraft.scoreboard.ScoreObjective;
-import net.minecraft.scoreboard.Scoreboard;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -58,55 +52,18 @@ public class ChatHandler {
     public void onChat(ClientChatReceivedEvent event) {
         numberDenicker.onChat(event);
         pregameStats.onChat(event);
+
         String message = event.message.getUnformattedText();
+        HypixelFeatures.getInstance().onChat(message);
 
-        // Process purchases and traps before other logic
-        processBedwarsUpgradesAndTraps(event);
+        processBedwarsUpgradesAndTraps(message);
 
-        // Check for Bedwars game start messages
         if (
-            message.contains("Protect your bed and destroy the enemy beds.") &&
-            !(message.contains(":")) &&
-            !(message.contains("SHOUT"))
+            isBedwarsStartMessage(message) ||
+            isBedwarsRespawnMessage(message)
         ) {
-            // Start Bedwars game after a delay to allow scoreboard to update
-            new Thread(() -> {
-                try {
-                    Thread.sleep(1000); // Wait 1 second like in the JS version
-                    startBedwarsGame();
-                    // Reset upgrades and traps when game starts
-                    BedwarsUpgradesTrapsManager.getInstance().resetUpgradesAndTraps();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            })
-                .start();
+            BedwarsUpgradesTrapsManager.getInstance().resetUpgradesAndTraps();
 
-            if (config.autoWho) {
-                mc.thePlayer.sendChatMessage("/who");
-            }
-        }
-
-        // Check for bed respawn messages which also indicate game is running
-        if (
-            message.contains(
-                "You will respawn because you still have a bed!"
-            ) &&
-            !(message.contains(":")) &&
-            !(message.contains("SHOUT"))
-        ) {
-            // Start Bedwars game after a delay to allow scoreboard to update
-            new Thread(() -> {
-                try {
-                    Thread.sleep(1000); // Wait 1 second like in the JS version
-                    startBedwarsGame();
-                    // Reset upgrades and traps when game starts
-                    BedwarsUpgradesTrapsManager.getInstance().resetUpgradesAndTraps();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            })
-                .start();
             if (config.autoWho) {
                 mc.thePlayer.sendChatMessage("/who");
             }
@@ -137,7 +94,6 @@ public class ChatHandler {
                 .start();
         }
 
-        // Check for pregame start message to reset upgrades and traps
         if (
             message.startsWith("The game starts in ") &&
             message.contains(" seconds!")
@@ -146,22 +102,19 @@ public class ChatHandler {
         }
     }
 
-    private void processBedwarsUpgradesAndTraps(ClientChatReceivedEvent event) {
-        String message = event.message.getUnformattedText();
+    private void processBedwarsUpgradesAndTraps(String message) {
+        String lower = message.toLowerCase();
 
-        // Check for purchase messages
-        if (message.toLowerCase().contains("purchased")) {
+        if (lower.contains("purchased")) {
             BedwarsUpgradesTrapsManager.getInstance().processPurchaseMessage(
                 message
             );
         }
 
-        // Check for trap triggered and removed messages
         if (
-            message.toLowerCase().contains("trap was set off!") ||
-            message.toLowerCase().contains("reveal trap set off") ||
-            (message.toLowerCase().contains("removed") &&
-                message.toLowerCase().contains("trap from the queue"))
+            lower.contains("trap was set off!") ||
+            lower.contains("reveal trap set off") ||
+            (lower.contains("removed") && lower.contains("trap from the queue"))
         ) {
             BedwarsUpgradesTrapsManager.getInstance().processTrapTriggeredMessage(
                 message
@@ -169,65 +122,17 @@ public class ChatHandler {
         }
     }
 
-    private void startBedwarsGame() {
-        // Check if we're actually in a Bedwars game by looking at the scoreboard
-        if (isInBedwarsGame()) {
-            String mode = detectBedwarsMode();
-            HypixelFeatures.getInstance().startNewGame();
-            HypixelFeatures.getInstance().setMode(mode);
-        }
+    private boolean isBedwarsStartMessage(String message) {
+        return
+            message.contains("Protect your bed and destroy the enemy beds.") &&
+            !message.contains(":") &&
+            !message.contains("SHOUT");
     }
 
-    private boolean isInBedwarsGame() {
-        Scoreboard scoreboard = mc.theWorld.getScoreboard();
-        if (scoreboard != null) {
-            ScoreObjective objective = scoreboard.getObjectiveInDisplaySlot(1); // Sidebar objective
-            if (objective != null) {
-                String displayName = objective.getDisplayName();
-                String cleanTitle = displayName.replaceAll("§.", ""); // Remove formatting codes
-                return cleanTitle.equals("BED WARS");
-            }
-        }
-        return false;
-    }
-
-    private String detectBedwarsMode() {
-        Scoreboard scoreboard = mc.theWorld.getScoreboard();
-        if (scoreboard != null) {
-            ScoreObjective objective = scoreboard.getObjectiveInDisplaySlot(1); // Sidebar objective
-            if (objective != null) {
-                // Check teams (which are often the actual scoreboard lines)
-                java.util.Collection<
-                    net.minecraft.scoreboard.ScorePlayerTeam
-                > teams = scoreboard.getTeams();
-                for (net.minecraft.scoreboard.ScorePlayerTeam team : teams) {
-                    String displayName = team.getTeamName();
-                    if (displayName != null) {
-                        String cleanName = displayName.replaceAll("§.", ""); // Remove formatting codes
-                        // Check for "Pink" to determine if it's doubles mode (like the JS version)
-                        if (cleanName.contains("Pink")) {
-                            return "doubles";
-                        }
-                    }
-                }
-
-                // Also check scores as fallback
-                java.util.Collection<Score> scores = scoreboard.getSortedScores(
-                    objective
-                );
-                for (Score score : scores) {
-                    String scoreName = score.getPlayerName();
-                    if (scoreName != null) {
-                        String cleanLine = scoreName.replaceAll("§.", ""); // Remove formatting codes
-                        // Check for "Pink" to determine if it's doubles mode (like the JS version)
-                        if (cleanLine.contains("Pink")) {
-                            return "doubles";
-                        }
-                    }
-                }
-            }
-        }
-        // Default to fours if we can't detect the mode
-        return "fours";
+    private boolean isBedwarsRespawnMessage(String message) {
+        return
+            message.contains("You will respawn because you still have a bed!") &&
+            !message.contains(":") &&
+            !message.contains("SHOUT");
     }
 }

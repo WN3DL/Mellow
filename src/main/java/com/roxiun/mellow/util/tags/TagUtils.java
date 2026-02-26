@@ -148,46 +148,52 @@ public class TagUtils {
         }
 
         StatsProvider statsProvider = mellow.getStatsProvider();
-        String playerData = statsProvider.fetchPlayerData(uuid);
-        Pattern timestampPattern;
-        if (statsProvider instanceof NadeshikoApi) {
-            timestampPattern = Pattern.compile(
-                "\"first_login\":(\\d+),",
-                Pattern.CASE_INSENSITIVE
-            );
-        } else {
-            timestampPattern = Pattern.compile(
-                "\"firstLogin\":(\\d+),",
-                Pattern.CASE_INSENSITIVE
-            );
-        }
-        Matcher timestampMatcher = timestampPattern.matcher(playerData);
-        if (timestampMatcher.find()) {
-            long timestamp = Long.parseLong(timestampMatcher.group(1));
-            Date loginDate = new Date(timestamp);
+        if (statsProvider != null) {
+            String playerData = statsProvider.fetchPlayerData(uuid);
+            if (playerData == null) {
+                playerData = "";
+            }
 
-            Calendar currentCalendar = Calendar.getInstance();
-            Calendar loginCalendar = Calendar.getInstance();
+            Pattern timestampPattern;
+            if (statsProvider instanceof NadeshikoApi) {
+                timestampPattern = Pattern.compile(
+                    "\"first_login\":(\\d+),",
+                    Pattern.CASE_INSENSITIVE
+                );
+            } else {
+                timestampPattern = Pattern.compile(
+                    "\"firstLogin\":(\\d+),",
+                    Pattern.CASE_INSENSITIVE
+                );
+            }
+            Matcher timestampMatcher = timestampPattern.matcher(playerData);
+            if (timestampMatcher.find()) {
+                long timestamp = Long.parseLong(timestampMatcher.group(1));
+                Date loginDate = new Date(timestamp);
 
-            currentCalendar.setTimeInMillis(System.currentTimeMillis());
-            currentCalendar.set(Calendar.HOUR_OF_DAY, 0);
-            currentCalendar.set(Calendar.MINUTE, 0);
-            currentCalendar.set(Calendar.SECOND, 0);
-            currentCalendar.set(Calendar.MILLISECOND, 0);
+                Calendar currentCalendar = Calendar.getInstance();
+                Calendar loginCalendar = Calendar.getInstance();
 
-            loginCalendar.setTime(loginDate);
-            loginCalendar.set(Calendar.HOUR_OF_DAY, 0);
-            loginCalendar.set(Calendar.MINUTE, 0);
-            loginCalendar.set(Calendar.SECOND, 0);
-            loginCalendar.set(Calendar.MILLISECOND, 0);
+                currentCalendar.setTimeInMillis(System.currentTimeMillis());
+                currentCalendar.set(Calendar.HOUR_OF_DAY, 0);
+                currentCalendar.set(Calendar.MINUTE, 0);
+                currentCalendar.set(Calendar.SECOND, 0);
+                currentCalendar.set(Calendar.MILLISECOND, 0);
 
-            long diff =
-                currentCalendar.getTimeInMillis() -
-                loginCalendar.getTimeInMillis();
-            long oneDayMillis = 24 * 60 * 60 * 1000;
+                loginCalendar.setTime(loginDate);
+                loginCalendar.set(Calendar.HOUR_OF_DAY, 0);
+                loginCalendar.set(Calendar.MINUTE, 0);
+                loginCalendar.set(Calendar.SECOND, 0);
+                loginCalendar.set(Calendar.MILLISECOND, 0);
 
-            if (Math.abs(diff) <= oneDayMillis) {
-                totaltags = totaltags + EnumChatFormatting.RED + "NL §r";
+                long diff =
+                    currentCalendar.getTimeInMillis() -
+                    loginCalendar.getTimeInMillis();
+                long oneDayMillis = 24 * 60 * 60 * 1000;
+
+                if (Math.abs(diff) <= oneDayMillis) {
+                    totaltags = totaltags + EnumChatFormatting.RED + "NL §r";
+                }
             }
         }
 

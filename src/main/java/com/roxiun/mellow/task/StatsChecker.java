@@ -46,6 +46,9 @@ public class StatsChecker {
 
     public void checkPlayerStats(List<String> onlinePlayers) {
         tabStats.clear();
+        if (onlinePlayers == null || onlinePlayers.isEmpty()) {
+            return;
+        }
         final int MAX_THREADS = 20;
         int poolSize = Math.min(onlinePlayers.size(), MAX_THREADS);
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);

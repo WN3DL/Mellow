@@ -2,6 +2,7 @@ package com.roxiun.mellow.cache;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
@@ -19,18 +20,22 @@ import net.minecraft.client.Minecraft;
 
 public class PlayerCache {
 
-    private final Map<String, PlayerProfile> cache = new ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MS = 120_000L;
+
+    private final Map<String, CachedProfile> cache = new ConcurrentHashMap<>();
     private final MojangApi mojangApi;
-    private final StatsProvider statsProvider;
+    private final ProviderManager providerManager;
     private final UrchinApi urchinApi;
     private final SeraphApi seraphApi;
     private final String urchinApiKey;
     private final String seraphApiKey;
     private final MellowOneConfig config;
 
+    private long lastMissingApiKeyWarnAt;
+
     public PlayerCache(
         MojangApi mojangApi,
-        StatsProvider statsProvider,
+        ProviderManager providerManager,
         UrchinApi urchinApi,
         SeraphApi seraphApi,
         String urchinApiKey,
@@ -38,7 +43,7 @@ public class PlayerCache {
         MellowOneConfig config
     ) {
         this.mojangApi = mojangApi;
-        this.statsProvider = statsProvider;
+        this.providerManager = providerManager;
         this.urchinApi = urchinApi;
         this.seraphApi = seraphApi;
         this.urchinApiKey = urchinApiKey;
@@ -47,21 +52,49 @@ public class PlayerCache {
     }
 
     public PlayerProfile getProfile(String playerName) {
-        String lowerCaseName = playerName.toLowerCase();
-        PlayerProfile profile = cache.get(lowerCaseName);
-
-        if (profile != null) {
-            return profile;
+        StatsProvider provider = providerManager.getSelectedProvider(config);
+        if (provider == null) {
+            return null;
         }
 
-        return fetchAndCachePlayer(playerName);
+        String cacheKey = provider.getProviderId().name() + ":" + playerName.toLowerCase();
+        CachedProfile cached = cache.get(cacheKey);
+
+        if (cached != null && !cached.isExpired()) {
+            return cached.profile;
+        }
+
+        if (provider.requiresApiKey() && !provider.isConfigured()) {
+            maybeWarnMissingApiKey(provider.getDisplayName());
+            return null;
+        }
+
+        return fetchAndCachePlayer(playerName, provider, cacheKey);
     }
 
-    private PlayerProfile fetchAndCachePlayer(String playerName) {
+    private void maybeWarnMissingApiKey(String providerName) {
+        long now = System.currentTimeMillis();
+        if (now - lastMissingApiKeyWarnAt < 10_000L) {
+            return;
+        }
+
+        lastMissingApiKeyWarnAt = now;
+        Minecraft.getMinecraft().addScheduledTask(() ->
+            ChatUtils.sendMessage(
+                "§e" +
+                providerName +
+                " is selected but no API key is configured. Stats are disabled until a key is set in OneConfig."
+            )
+        );
+    }
+
+    private PlayerProfile fetchAndCachePlayer(
+        String playerName,
+        StatsProvider provider,
+        String cacheKey
+    ) {
         try {
-            BedwarsPlayer bedwarsPlayer = statsProvider.fetchPlayerStats(
-                playerName
-            );
+            BedwarsPlayer bedwarsPlayer = provider.fetchPlayerStats(playerName);
             if (bedwarsPlayer == null) {
                 return null;
             }
@@ -69,6 +102,10 @@ public class PlayerCache {
             String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
             if (uuid == null || uuid.isEmpty()) {
                 uuid = mojangApi.fetchUUID(playerName);
+            }
+
+            if (uuid == null || uuid.isEmpty() || "ERROR".equals(uuid)) {
+                return null;
             }
 
             List<UrchinTag> urchinTags = null;
@@ -82,9 +119,7 @@ public class PlayerCache {
                 } catch (IOException e) {
                     Minecraft.getMinecraft().addScheduledTask(() ->
                         ChatUtils.sendMessage(
-                            "§cFailed to fetch Urchin tags for " +
-                                playerName +
-                                "."
+                            "§cFailed to fetch Urchin tags for " + playerName + "."
                         )
                     );
                 }
@@ -97,9 +132,7 @@ public class PlayerCache {
                 } catch (IOException e) {
                     Minecraft.getMinecraft().addScheduledTask(() ->
                         ChatUtils.sendMessage(
-                            "§cFailed to fetch Seraph tags for " +
-                                playerName +
-                                "."
+                            "§cFailed to fetch Seraph tags for " + playerName + "."
                         )
                     );
                 }
@@ -112,7 +145,8 @@ public class PlayerCache {
                 urchinTags,
                 seraphTags
             );
-            cache.put(playerName.toLowerCase(), newProfile);
+
+            cache.put(cacheKey, new CachedProfile(newProfile));
             return newProfile;
         } catch (Exception e) {
             return null;
@@ -124,6 +158,22 @@ public class PlayerCache {
     }
 
     public void clearPlayer(String playerName) {
-        cache.remove(playerName.toLowerCase());
+        String lower = playerName.toLowerCase();
+        cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+    }
+
+    private static class CachedProfile {
+
+        private final PlayerProfile profile;
+        private final long cachedAt;
+
+        private CachedProfile(PlayerProfile profile) {
+            this.profile = profile;
+            this.cachedAt = System.currentTimeMillis();
+        }
+
+        private boolean isExpired() {
+            return System.currentTimeMillis() - cachedAt > CACHE_TTL_MS;
+        }
     }
 }

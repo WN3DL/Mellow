@@ -1,0 +1,769 @@
+{
+  "prestiges": {
+    "0": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "1": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a7f",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "2": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a76",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "3": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a7b",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "4": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a72",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "5": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a73",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "6": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a74",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "7": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a7d",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "8": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a79",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "9": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a75",
+        "rightBracket": "",
+        "starColor": "",
+        "numberColors": [
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "10": {
+      "prestigeName": "",
+      "starSymbol": "\u272b",
+      "colors": {
+        "leftBracket": "\u00a7c",
+        "rightBracket": "\u00a75",
+        "starColor": "\u00a7d",
+        "numberColors": [
+          "\u00a76",
+          "\u00a7e",
+          "\u00a7a",
+          "\u00a7b"
+        ]
+      }
+    },
+    "11": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "",
+        "starColor": "\u00a77",
+        "numberColors": [
+          "\u00a7f",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "12": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a76",
+        "numberColors": [
+          "\u00a7e",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "13": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a73",
+        "numberColors": [
+          "\u00a7b",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "14": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a72",
+        "numberColors": [
+          "\u00a7a",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "15": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a79",
+        "numberColors": [
+          "\u00a73",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "16": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a74",
+        "numberColors": [
+          "\u00a7c",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "17": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a75",
+        "numberColors": [
+          "\u00a7d",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "18": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a71",
+        "numberColors": [
+          "\u00a79",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "19": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a77",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a78",
+        "numberColors": [
+          "\u00a75",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "20": {
+      "prestigeName": "",
+      "starSymbol": "\u272a",
+      "colors": {
+        "leftBracket": "\u00a78",
+        "rightBracket": "\u00a78",
+        "starColor": "",
+        "numberColors": [
+          "\u00a77",
+          "\u00a7f",
+          "",
+          "\u00a77"
+        ]
+      }
+    },
+    "21": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7f",
+        "rightBracket": "\u00a76",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7e",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "22": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a76",
+        "rightBracket": "\u00a73",
+        "starColor": "\u00a73\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7f",
+          "",
+          "\u00a7b"
+        ]
+      }
+    },
+    "23": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a75",
+        "rightBracket": "\u00a7e",
+        "starColor": "\u00a7e\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7d",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "24": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7b",
+        "rightBracket": "\u00a78",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7f",
+          "",
+          "\u00a77"
+        ]
+      }
+    },
+    "25": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7f",
+        "rightBracket": "\u00a72",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7a",
+          "",
+          "\u00a72"
+        ]
+      }
+    },
+    "26": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a74",
+        "rightBracket": "\u00a7d",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7c",
+          "",
+          "\u00a7d"
+        ]
+      }
+    },
+    "27": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7e",
+        "rightBracket": "\u00a78",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7f",
+          "",
+          "\u00a78"
+        ]
+      }
+    },
+    "28": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7a",
+        "rightBracket": "\u00a7e",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a72",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "29": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7b",
+        "rightBracket": "\u00a71",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a73",
+          "",
+          "\u00a79"
+        ]
+      }
+    },
+    "30": {
+      "prestigeName": "",
+      "starSymbol": "\u269d",
+      "colors": {
+        "leftBracket": "\u00a7e",
+        "rightBracket": "\u00a74",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a76",
+          "",
+          "\u00a7c"
+        ]
+      }
+    },
+    "31": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a79",
+        "rightBracket": "\u00a7e",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a72",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "32": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7c",
+        "rightBracket": "\u00a7c",
+        "starColor": "\u00a7c\u00a7l",
+        "numberColors": [
+          "\u00a74",
+          "\u00a77",
+          "",
+          "\u00a74"
+        ]
+      }
+    },
+    "33": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a79",
+        "rightBracket": "\u00a74",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "",
+          "\u00a7d",
+          "\u00a7c"
+        ]
+      }
+    },
+    "34": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a72",
+        "rightBracket": "\u00a72",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "\u00a7a",
+          "\u00a7d",
+          "",
+          "\u00a75"
+        ]
+      }
+    },
+    "35": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7c",
+        "rightBracket": "\u00a7a",
+        "starColor": "\u00a7a\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a74",
+          "",
+          "\u00a72"
+        ]
+      }
+    },
+    "36": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7a",
+        "rightBracket": "\u00a71",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "",
+          "\u00a7b",
+          "\u00a79"
+        ]
+      }
+    },
+    "37": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a74",
+        "rightBracket": "\u00a73",
+        "starColor": "\u00a73\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7c",
+          "",
+          "\u00a7b"
+        ]
+      }
+    },
+    "38": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a71",
+        "rightBracket": "\u00a71",
+        "starColor": "\u00a7d\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a79",
+          "\u00a75",
+          ""
+        ]
+      }
+    },
+    "39": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7c",
+        "rightBracket": "\u00a79",
+        "starColor": "\u00a79\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7a",
+          "",
+          "\u00a73"
+        ]
+      }
+    },
+    "40": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a75",
+        "rightBracket": "\u00a7e",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7c",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "41": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7e",
+        "rightBracket": "\u00a75",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a76",
+          "\u00a7c",
+          "\u00a7d"
+        ]
+      }
+    },
+    "42": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a71",
+        "rightBracket": "\u00a77",
+        "starColor": "\u00a77\u00a7l",
+        "numberColors": [
+          "\u00a79",
+          "\u00a73",
+          "\u00a7b",
+          "\u00a7f"
+        ]
+      }
+    },
+    "43": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a70",
+        "rightBracket": "\u00a70",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "\u00a75",
+          "\u00a78",
+          "",
+          "\u00a75"
+        ]
+      }
+    },
+    "44": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a72",
+        "rightBracket": "\u00a7d",
+        "starColor": "\u00a75\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7a",
+          "\u00a7e",
+          "\u00a76"
+        ]
+      }
+    },
+    "45": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7f",
+        "rightBracket": "\u00a72",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7b",
+          "",
+          "\u00a72"
+        ]
+      }
+    },
+    "46": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a72",
+        "rightBracket": "\u00a75",
+        "starColor": "\u00a7d\u00a7l",
+        "numberColors": [
+          "\u00a7b",
+          "\u00a7e",
+          "",
+          "\u00a76"
+        ]
+      }
+    },
+    "47": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a7f",
+        "rightBracket": "\u00a79",
+        "starColor": "\u00a71\u00a7l",
+        "numberColors": [
+          "\u00a74",
+          "\u00a7c",
+          "",
+          "\u00a79"
+        ]
+      }
+    },
+    "48": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a75",
+        "rightBracket": "\u00a73",
+        "starColor": "\u00a7b\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a7c",
+          "\u00a76",
+          "\u00a7e"
+        ]
+      }
+    },
+    "49": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a72",
+        "rightBracket": "\u00a72",
+        "starColor": "\u00a7l",
+        "numberColors": [
+          "\u00a7a",
+          "\u00a7f",
+          "",
+          "\u00a7a"
+        ]
+      }
+    },
+    "50": {
+      "prestigeName": "",
+      "starSymbol": "\u2725",
+      "colors": {
+        "leftBracket": "\u00a74",
+        "rightBracket": "\u00a70",
+        "starColor": "\u00a71\u00a7l",
+        "numberColors": [
+          "",
+          "\u00a75",
+          "\u00a79",
+          ""
+        ]
+      }
+    }
+  }
+}

@@ -29,7 +29,6 @@ public class WorldLoadHandler {
         pregameStats.onWorldChange();
         nickUtils.clearNicks();
 
-        // Reset emerald timer when world loads (leaving a game)
-        HypixelFeatures.getInstance().resetEmeraldTimer();
+        HypixelFeatures.getInstance().onWorldChange();
     }
 }

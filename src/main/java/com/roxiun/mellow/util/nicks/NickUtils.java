@@ -87,9 +87,9 @@ public class NickUtils {
                                     BedwarsPlayer bwPlayer =
                                         profile.getBedwarsPlayer();
                                     String statsMessage =
-                                        bwPlayer.getName() +
-                                        " §r" +
                                         bwPlayer.getStars() +
+                                        " §r" +
+                                        bwPlayer.getFormattedNameWithRank() +
                                         " §7|§r FKDR: " +
                                         bwPlayer.getFkdrColor() +
                                         bwPlayer.getFormattedFkdr();

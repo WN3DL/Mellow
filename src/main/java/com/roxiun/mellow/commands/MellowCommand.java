@@ -84,6 +84,11 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
+                "§r§5/mdebug <all|state|scoreboard|pregame>:§d Debug Mod API and game-state detection.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
                 "§r§5/who:§d Check and print the stats of the players in your lobby.§r"
             )
         );

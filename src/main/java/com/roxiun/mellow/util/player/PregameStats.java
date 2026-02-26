@@ -2,6 +2,7 @@ package com.roxiun.mellow.util.player;
 
 import cc.polyfrost.oneconfig.utils.hypixel.HypixelUtils;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
@@ -15,9 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.Minecraft;
-import net.minecraft.scoreboard.ScoreObjective;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 
 public class PregameStats {
@@ -27,15 +25,8 @@ public class PregameStats {
     private final MellowOneConfig config;
     private final BlacklistManager blacklistManager;
 
-    // runtime state
-    private boolean inPregameLobby = false;
-    private boolean inBedwars = false;
     private final Set<String> alreadyLookedUp = ConcurrentHashMap.newKeySet();
 
-    // patterns
-    private static final Pattern BEDWARS_JOIN_PATTERN = Pattern.compile(
-        "^(\\w+) has joined \\((\\d+)/(\\d+)\\)!$"
-    );
     private static final Pattern BEDWARS_CHAT_PATTERN = Pattern.compile(
         "^(?:\\[.*?\\]\\s*)*(\\w{3,16})(?::| ») (.*)$"
     );
@@ -51,51 +42,77 @@ public class PregameStats {
     }
 
     public void onWorldChange() {
-        inPregameLobby = false;
-        inBedwars = false;
         alreadyLookedUp.clear();
     }
 
     public void onChat(ClientChatReceivedEvent event) {
-        if (!config.pregameStats) return;
-        if (!HypixelUtils.INSTANCE.isHypixel()) return;
-
-        if (!inBedwars) {
-            inBedwars = isBedwarsSidebar();
-            if (!inBedwars) return;
+        if (!config.pregameStats) {
+            return;
+        }
+        if (!HypixelUtils.INSTANCE.isHypixel()) {
+            return;
+        }
+        if (!HypixelFeatures.getInstance().isInPregameLobby()) {
+            return;
         }
 
         String raw = event.message.getUnformattedText();
-        String message = raw.replaceAll("§.", "").trim(); // idk why the hell it doesn't work w/o this
+        String message = raw.replaceAll("§.", "").trim();
 
-        Matcher joinMatch = BEDWARS_JOIN_PATTERN.matcher(message);
-        if (joinMatch.find()) {
-            inPregameLobby = true;
+        String username = extractUsernameFromChat(message);
+        if (username == null) {
             return;
         }
 
-        if (
-            message.contains("Protect your bed and destroy the enemy beds.") &&
-            !message.contains(":")
-        ) {
-            inPregameLobby = false;
+        if (username.equalsIgnoreCase(mc.thePlayer.getName())) {
             return;
         }
-
-        if (!inPregameLobby) return;
-
-        Matcher chatMatch = BEDWARS_CHAT_PATTERN.matcher(message);
-        if (!chatMatch.find()) return;
-
-        String username = chatMatch.group(1);
-
-        if (username.equalsIgnoreCase(mc.thePlayer.getName())) return;
-        if (!alreadyLookedUp.add(username.toLowerCase())) return;
+        if (!alreadyLookedUp.add(username.toLowerCase())) {
+            return;
+        }
 
         new Thread(
             () -> handlePlayer(username),
             "Mellow-PregameThread"
         ).start();
+    }
+
+    private String extractUsernameFromChat(String message) {
+        Matcher chatMatch = BEDWARS_CHAT_PATTERN.matcher(message);
+        if (chatMatch.find()) {
+            return chatMatch.group(1);
+        }
+
+        String delimiter = null;
+        if (message.contains(" » ")) {
+            delimiter = " » ";
+        } else if (message.contains(": ")) {
+            delimiter = ": ";
+        }
+
+        if (delimiter == null) {
+            return null;
+        }
+
+        String left = message.substring(0, message.indexOf(delimiter)).trim();
+        if (left.isEmpty()) {
+            return null;
+        }
+
+        String[] tokens = left.split("\\s+");
+        if (tokens.length == 0) {
+            return null;
+        }
+
+        String candidate = tokens[tokens.length - 1].replaceAll(
+            "[^A-Za-z0-9_]",
+            ""
+        );
+        if (candidate.length() < 3 || candidate.length() > 16) {
+            return null;
+        }
+
+        return candidate;
     }
 
     private void handlePlayer(String username) {
@@ -106,8 +123,8 @@ public class PregameStats {
                 mc.addScheduledTask(() ->
                     ChatUtils.sendMessage(
                         "§cFailed to fetch stats for: §r" +
-                            username +
-                            " (possibly nicked)"
+                        username +
+                        " (possibly nicked)"
                     )
                 );
             }
@@ -123,7 +140,6 @@ public class PregameStats {
                 ChatUtils.sendMessage(
                     "§c" + username + " is on your blacklist: " + reason
                 );
-                // Play pling sound when blacklisted player talks
                 mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
             });
         }
@@ -131,9 +147,9 @@ public class PregameStats {
         if (config.pregameStats) {
             BedwarsPlayer player = profile.getBedwarsPlayer();
             String stats =
-                player.getName() +
-                " §r" +
                 player.getStars() +
+                " §r" +
+                player.getFormattedNameWithRank() +
                 " §7|§r FKDR: " +
                 player.getFkdrColor() +
                 player.getFormattedFkdr();
@@ -141,9 +157,7 @@ public class PregameStats {
         }
 
         if (config.urchin && profile.isUrchinTagged()) {
-            String tags = FormattingUtils.formatUrchinTags(
-                profile.getUrchinTags()
-            );
+            String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + username + " is tagged on §5Urchin§c for: " + tags;
             mc.addScheduledTask(() -> ChatUtils.sendMessage(urchinMessage));
@@ -153,17 +167,11 @@ public class PregameStats {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
             );
-            // Split the formatted tags by the newline separator and send as separate messages
-            String[] tagMessages = formattedTags.split("\n§c");
+            String[] tagMessages = formattedTags.split("\\n§c");
             if (tagMessages.length > 0 && !tagMessages[0].trim().isEmpty()) {
-                // Send the first tag with the main message
                 String firstMessage =
-                    "§c" +
-                    username +
-                    " is tagged on §3Seraph§c for: " +
-                    tagMessages[0];
+                    "§c" + username + " is tagged on §3Seraph§c for: " + tagMessages[0];
                 mc.addScheduledTask(() -> ChatUtils.sendMessage(firstMessage));
-                // Send additional tags as separate messages
                 for (int i = 1; i < tagMessages.length; i++) {
                     if (!tagMessages[i].trim().isEmpty()) {
                         String additionalMessage = "§c" + tagMessages[i];
@@ -174,18 +182,5 @@ public class PregameStats {
                 }
             }
         }
-    }
-
-    private boolean isBedwarsSidebar() {
-        Scoreboard board = mc.theWorld.getScoreboard();
-        if (board == null) return false;
-
-        ScoreObjective obj = board.getObjectiveInDisplaySlot(1);
-        if (obj == null) return false;
-
-        String name = EnumChatFormatting.getTextWithoutFormattingCodes(
-            obj.getDisplayName()
-        );
-        return name.contains("BED WARS");
     }
 }

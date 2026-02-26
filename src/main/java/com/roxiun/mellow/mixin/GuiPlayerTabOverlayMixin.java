@@ -405,20 +405,22 @@ public class GuiPlayerTabOverlayMixin {
                 boolean isNicked = Mellow.nickUtils.isNicked(name);
                 if (isNicked) {
                     if (Mellow.config.showNickWithBrackets) {
-                        return new String[] { "§5[§lNICK§r§5]", "false" };
+                        return new String[] { "§5[§lNICK§r§5]§r", "false" };
                     } else {
-                        return new String[] { "§5§lNICK", "false" };
+                        return new String[] { "§5§lNICK§r", "false" };
                     }
                 } else if (stars != null && !stars.isEmpty()) {
-                    if (Mellow.config.showStarsWithBrackets) {
-                        return new String[] { "§7[" + stars + "§7]", "false" };
-                    } else {
-                        return new String[] { stars, "false" };
-                    }
+                    return new String[] {
+                        formatStarsForTab(
+                            stars,
+                            Mellow.config.showStarsWithBrackets
+                        ),
+                        "false",
+                    };
                 }
                 break;
             case 2: // Name
-                return new String[] { teamColor + name, "false" };
+                return new String[] { "§r" + teamColor + name, "false" };
             case 3: // FKDR
                 if (fkdr != null && !fkdr.isEmpty()) {
                     return new String[] { fkdr, "false" };
@@ -483,5 +485,41 @@ public class GuiPlayerTabOverlayMixin {
             networkPlayerInfoIn.getPlayerTeam(),
             networkPlayerInfoIn.getGameProfile().getName()
         );
+    }
+
+    private String formatStarsForTab(String stars, boolean withBrackets) {
+        if (stars == null || stars.isEmpty()) {
+            return "";
+        }
+
+        String result;
+        if (withBrackets) {
+            result = hasOuterBrackets(stars) ? stars : "§7[" + stars + "§7]";
+        } else {
+            result = stripOuterBrackets(stars);
+        }
+        return result + "§r";
+    }
+
+    private String stripOuterBrackets(String value) {
+        if (!hasOuterBrackets(value)) {
+            return value;
+        }
+
+        int open = value.indexOf('[');
+        int close = value.lastIndexOf(']');
+        if (open >= 0 && close > open) {
+            return (
+                value.substring(0, open) +
+                value.substring(open + 1, close) +
+                value.substring(close + 1)
+            );
+        }
+        return value;
+    }
+
+    private boolean hasOuterBrackets(String value) {
+        String plain = value.replaceAll("§.", "");
+        return plain.startsWith("[") && plain.endsWith("]");
     }
 }

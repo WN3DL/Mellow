@@ -66,7 +66,7 @@ public class BedwarsCommand extends CommandBase {
 
             BedwarsPlayer player = profile.getBedwarsPlayer();
             List<String> statsLines = Arrays.asList(
-                player.getName() + " §r" + player.getStars(),
+                player.getStars() + " §r" + player.getFormattedNameWithRank(),
                 "§rFKDR: " + player.getFkdrColor() + player.getFormattedFkdr(),
                 "§rWLR: " + player.getFormattedWLRWithColor(),
                 "§rBBLR: " + player.getFormattedBBLRWithColor(),

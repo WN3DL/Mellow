@@ -2,6 +2,7 @@ package com.roxiun.mellow.api.provider;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.io.IOException;
@@ -12,6 +13,16 @@ public class AbyssApi implements StatsProvider {
 
     public AbyssApi(MojangApi mojangApi) {
         this.mojangApi = mojangApi;
+    }
+
+    @Override
+    public ProviderId getProviderId() {
+        return ProviderId.ABYSS;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return "Abyss";
     }
 
     @Override
@@ -28,15 +39,16 @@ public class AbyssApi implements StatsProvider {
         String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
         if (uuid == null) {
             uuid = mojangApi.fetchUUID(playerName);
-            if (uuid.equals("ERROR")) {
+            if ("ERROR".equals(uuid)) {
                 return null;
             }
         }
+
         String stjson = fetchPlayerData(uuid);
         if (stjson == null || stjson.isEmpty()) {
             return null;
         }
 
-        return HypixelApiUtils.parsePlayerData(stjson, "Abyss");
+        return HypixelApiUtils.parsePlayerData(stjson, ProviderId.ABYSS);
     }
 }
