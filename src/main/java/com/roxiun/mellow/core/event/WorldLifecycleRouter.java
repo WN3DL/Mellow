@@ -1,9 +1,9 @@
 package com.roxiun.mellow.core.event;
 
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
-import com.roxiun.mellow.util.nicks.NickUtils;
-import com.roxiun.mellow.util.nicks.NumberDenicker;
-import com.roxiun.mellow.util.player.PregameStats;
+import com.roxiun.mellow.feature.nicks.NickUtils;
+import com.roxiun.mellow.feature.nicks.NumberDenicker;
+import com.roxiun.mellow.feature.stats.PregameStats;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 

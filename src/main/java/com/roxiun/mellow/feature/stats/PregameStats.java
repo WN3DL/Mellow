@@ -1,4 +1,4 @@
-package com.roxiun.mellow.util.player;
+package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;

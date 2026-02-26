@@ -140,19 +140,4 @@ public class HypixelFeatures {
                 textAlpha
             );
     }
-
-    // Compatibility methods retained for legacy call-sites.
-    public void updateEmeraldTimer() {
-        onClientTick();
-    }
-
-    public void setMode(String mode) {}
-
-    public void resetEmeraldTimer() {
-        bedwarsModule.reset();
-    }
-
-    public void startNewGame() {
-        bedwarsModule.reset();
-    }
 }

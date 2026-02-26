@@ -1,4 +1,4 @@
-package com.roxiun.mellow.util.tags;
+package com.roxiun.mellow.feature.tags;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.provider.NadeshikoApi;

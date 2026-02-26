@@ -1,17 +1,17 @@
-package com.roxiun.mellow.task;
+package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
+import com.roxiun.mellow.feature.nicks.NickUtils;
+import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
-import com.roxiun.mellow.util.nicks.NickUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
-import com.roxiun.mellow.util.tags.TagUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;

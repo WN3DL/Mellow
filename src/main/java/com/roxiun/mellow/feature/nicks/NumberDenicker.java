@@ -1,4 +1,4 @@
-package com.roxiun.mellow.util.nicks;
+package com.roxiun.mellow.feature.nicks;
 
 import com.roxiun.mellow.api.aurora.AuroraApi;
 import com.roxiun.mellow.config.MellowOneConfig;
