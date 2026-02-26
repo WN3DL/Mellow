@@ -72,6 +72,33 @@ public class PlayerCache {
         return fetchAndCachePlayer(playerName, provider, cacheKey);
     }
 
+    public StatsProvider getSelectedProvider() {
+        return providerManager.getSelectedProvider(config);
+    }
+
+    public String fetchRawPlayerData(String playerName) {
+        StatsProvider provider = providerManager.getSelectedProvider(config);
+        if (provider == null) {
+            return "";
+        }
+        if (provider.requiresApiKey() && !provider.isConfigured()) {
+            maybeWarnMissingApiKey(provider.getDisplayName());
+            return "";
+        }
+
+        String uuid = resolveUuid(playerName);
+        if (uuid == null || uuid.isEmpty() || "ERROR".equals(uuid)) {
+            return "";
+        }
+
+        try {
+            String raw = provider.fetchPlayerData(uuid);
+            return raw == null ? "" : raw;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private void maybeWarnMissingApiKey(String providerName) {
         long now = System.currentTimeMillis();
         if (now - lastMissingApiKeyWarnAt < 10_000L) {
@@ -99,10 +126,7 @@ public class PlayerCache {
                 return null;
             }
 
-            String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
-            if (uuid == null || uuid.isEmpty()) {
-                uuid = mojangApi.fetchUUID(playerName);
-            }
+            String uuid = resolveUuid(playerName);
 
             if (uuid == null || uuid.isEmpty() || "ERROR".equals(uuid)) {
                 return null;
@@ -160,6 +184,14 @@ public class PlayerCache {
     public void clearPlayer(String playerName) {
         String lower = playerName.toLowerCase();
         cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+    }
+
+    private String resolveUuid(String playerName) {
+        String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
+        if (uuid == null || uuid.isEmpty()) {
+            uuid = mojangApi.fetchUUID(playerName);
+        }
+        return uuid;
     }
 
     private static class CachedProfile {
