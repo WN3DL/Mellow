@@ -11,7 +11,6 @@ import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
-import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -169,9 +168,8 @@ public class StatsChecker {
 
     private String formatChatStats(PlayerProfile profile) {
         BedwarsPlayer player = profile.getBedwarsPlayer();
-        String playerName = profile.getName();
 
-        String displayName = PlayerUtils.getTabDisplayName(playerName);
+        String displayName = player.getFormattedNameWithRank();
         String stars = player.getStars();
         String fkdr = player.getFkdrColor() + player.getFormattedFkdr();
 

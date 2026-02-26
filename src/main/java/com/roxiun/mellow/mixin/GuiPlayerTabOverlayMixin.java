@@ -1,6 +1,7 @@
 package com.roxiun.mellow.mixin;
 
 import com.roxiun.mellow.Mellow;
+import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.data.TabStats;
@@ -63,6 +64,7 @@ public class GuiPlayerTabOverlayMixin {
                 TabStats emptyStats = new TabStats(
                     null, // urchinTags
                     null, // seraphTags
+                    null, // formattedNameWithRank
                     null, // stars
                     null, // fkdr
                     null, // winstreak
@@ -94,6 +96,7 @@ public class GuiPlayerTabOverlayMixin {
                 TabStats emptyStats = new TabStats(
                     null, // urchinTags
                     null, // seraphTags
+                    null, // formattedNameWithRank
                     null, // stars
                     null, // fkdr
                     null, // winstreak
@@ -420,6 +423,15 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
+                if (shouldUseLobbyRankFormatting()) {
+                    String formattedNameWithRank = stats.getFormattedNameWithRank();
+                    if (
+                        formattedNameWithRank != null &&
+                        !formattedNameWithRank.isEmpty()
+                    ) {
+                        return new String[] { formattedNameWithRank + "§r", "false" };
+                    }
+                }
                 return new String[] { "§r" + teamColor + name, "false" };
             case 3: // FKDR
                 if (fkdr != null && !fkdr.isEmpty()) {
@@ -473,6 +485,10 @@ public class GuiPlayerTabOverlayMixin {
             return displayName + " §8[§4LIST§8]";
         }
         return displayName;
+    }
+
+    private boolean shouldUseLobbyRankFormatting() {
+        return HypixelFeatures.getInstance().getGameSnapshot().isLobby();
     }
 
     private String getOriginalDisplayName(

@@ -86,6 +86,7 @@ public class PlayerProfile {
         return new TabStats(
             urchinTags,
             seraphTags,
+            bedwarsPlayer.getFormattedNameWithRank(),
             bedwarsPlayer.getStars(),
             formattedFkdr,
             formattedWinstreak,

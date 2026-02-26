@@ -8,6 +8,7 @@ public class TabStats {
 
     private final List<UrchinTag> urchinTags;
     private final List<SeraphTag> seraphTags;
+    private final String formattedNameWithRank;
     private final String stars;
     private final String fkdr;
     private final String winstreak;
@@ -31,6 +32,7 @@ public class TabStats {
         this(
             urchinTags,
             null,
+            null,
             stars,
             fkdr,
             winstreak,
@@ -45,6 +47,7 @@ public class TabStats {
     public TabStats(
         List<UrchinTag> urchinTags,
         List<SeraphTag> seraphTags,
+        String formattedNameWithRank,
         String stars,
         String fkdr,
         String winstreak,
@@ -56,6 +59,7 @@ public class TabStats {
     ) {
         this.urchinTags = urchinTags;
         this.seraphTags = seraphTags;
+        this.formattedNameWithRank = formattedNameWithRank;
         this.stars = stars;
         this.fkdr = fkdr;
         this.winstreak = winstreak;
@@ -80,6 +84,10 @@ public class TabStats {
 
     public List<SeraphTag> getSeraphTags() {
         return seraphTags;
+    }
+
+    public String getFormattedNameWithRank() {
+        return formattedNameWithRank;
     }
 
     public String getStars() {
