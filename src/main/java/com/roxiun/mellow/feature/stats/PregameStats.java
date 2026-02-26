@@ -7,16 +7,19 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
+import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.Minecraft;
+import net.hypixel.data.type.GameType;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 
 public class PregameStats {
@@ -47,35 +50,55 @@ public class PregameStats {
     }
 
     public void onChat(ClientChatReceivedEvent event) {
-        if (!config.pregameStats) {
+        if (!config.pregameStats && !config.mentionLobbyStats) {
             return;
         }
-        if (!HypixelFeatures.getInstance().getGameContext().isPregameBedwarsLobby()) {
+
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        boolean inPregameLobby = HypixelFeatures
+            .getInstance()
+            .getGameContext()
+            .isPregameBedwarsLobby();
+        boolean inBedwarsLobby = isInBedwarsLobby(snapshot);
+
+        boolean pregameTriggerEnabled = config.pregameStats && inPregameLobby;
+        boolean mentionTriggerEnabled = config.mentionLobbyStats && inBedwarsLobby;
+
+        if (!pregameTriggerEnabled && !mentionTriggerEnabled) {
             return;
         }
 
         String raw = event.message.getUnformattedText();
         String message = raw.replaceAll("§.", "").trim();
 
-        String username = extractUsernameFromChat(message);
-        if (username == null) {
+        ParsedChatMessage parsedMessage = parseChatMessage(message);
+        if (parsedMessage == null) {
             return;
         }
 
+        String username = parsedMessage.sender;
         if (username.equalsIgnoreCase(mc.thePlayer.getName())) {
             return;
         }
+
+        boolean isMention = mentionTriggerEnabled &&
+        containsSelfMention(parsedMessage.content);
+        boolean shouldLookup = pregameTriggerEnabled || isMention;
+        if (!shouldLookup) {
+            return;
+        }
+
         if (!alreadyLookedUp.add(username.toLowerCase())) {
             return;
         }
 
-        AsyncExecutor.getInstance().profileIo(() -> handlePlayer(username));
+        AsyncExecutor.getInstance().profileIo(() -> handlePlayer(username, true));
     }
 
-    private String extractUsernameFromChat(String message) {
+    private ParsedChatMessage parseChatMessage(String message) {
         Matcher chatMatch = BEDWARS_CHAT_PATTERN.matcher(message);
         if (chatMatch.find()) {
-            return chatMatch.group(1);
+            return new ParsedChatMessage(chatMatch.group(1), chatMatch.group(2));
         }
 
         String delimiter = null;
@@ -90,6 +113,7 @@ public class PregameStats {
         }
 
         String left = message.substring(0, message.indexOf(delimiter)).trim();
+        String content = message.substring(message.indexOf(delimiter) + delimiter.length()).trim();
         if (left.isEmpty()) {
             return null;
         }
@@ -107,14 +131,46 @@ public class PregameStats {
             return null;
         }
 
-        return candidate;
+        return new ParsedChatMessage(candidate, content);
     }
 
-    private void handlePlayer(String username) {
+    private boolean containsSelfMention(String content) {
+        if (mc.thePlayer == null || content == null || content.isEmpty()) {
+            return false;
+        }
+
+        String selfName = mc.thePlayer.getName();
+        if (selfName == null || selfName.isEmpty()) {
+            return false;
+        }
+
+        String mentionPattern =
+            "(?i)(^|[^A-Za-z0-9_])" +
+            Pattern.quote(selfName) +
+            "($|[^A-Za-z0-9_])";
+        return Pattern.compile(mentionPattern).matcher(content).find();
+    }
+
+    private boolean isInBedwarsLobby(GameSnapshot snapshot) {
+        if (snapshot == null || !snapshot.isOnHypixel() || !snapshot.isLobby()) {
+            return false;
+        }
+
+        if (snapshot.getGameType() == GameType.BEDWARS) {
+            return true;
+        }
+
+        return snapshot
+            .getScoreboardTitle()
+            .toLowerCase(Locale.ROOT)
+            .contains("bed wars");
+    }
+
+    private void handlePlayer(String username, boolean sendStats) {
         PlayerProfile profile = playerCache.getProfile(username);
 
         if (profile == null || profile.getBedwarsPlayer() == null) {
-            if (config.pregameStats) {
+            if (sendStats) {
                 MainThreadDispatcher.run(() ->
                     ChatUtils.sendMessage(
                         "§cFailed to fetch stats for: §r" +
@@ -139,7 +195,7 @@ public class PregameStats {
             });
         }
 
-        if (config.pregameStats) {
+        if (sendStats) {
             BedwarsPlayer player = profile.getBedwarsPlayer();
             String stats =
                 player.getStars() +
@@ -176,6 +232,17 @@ public class PregameStats {
                     }
                 }
             }
+        }
+    }
+
+    private static class ParsedChatMessage {
+
+        private final String sender;
+        private final String content;
+
+        private ParsedChatMessage(String sender, String content) {
+            this.sender = sender;
+            this.content = content;
         }
     }
 }

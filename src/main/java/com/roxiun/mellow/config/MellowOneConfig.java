@@ -359,6 +359,13 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Auto Pregame Stats", subcategory = "Pregame")
     public boolean pregameStats = true;
 
+    @Switch(
+        name = "Mention Stats in BedWars Lobbies",
+        subcategory = "Pregame",
+        description = "Show sender stats when they mention your username in BedWars lobby chat."
+    )
+    public boolean mentionLobbyStats = false;
+
     @Switch(name = "Auto Skin Denicker", subcategory = "Denicker")
     public boolean autoSkinDenick = true;
 
