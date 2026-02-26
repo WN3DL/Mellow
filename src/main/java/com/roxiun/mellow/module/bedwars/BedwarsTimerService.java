@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
 
 public class BedwarsTimerService {
 
-    private static final Pattern STAGE_TIMER_PATTERN = Pattern.compile(
-        "(?i)(.+?)\\s+in\\s+(\\d{1,2}):(\\d{2})"
+    private static final Pattern TIMER_PATTERN = Pattern.compile(
+        "(\\d{1,2}):(\\d{2})"
     );
 
     private static final Map<String, Integer> STAGE_SCHEDULE = new HashMap<>();
@@ -41,17 +41,18 @@ public class BedwarsTimerService {
     }
 
     public void update(GameSnapshot snapshot) {
-        List<String> sidebarLines = snapshot.getScoreboardLines();
-        StageTimer stage = parseStageTimer(sidebarLines);
-        if (!snapshot.isInBedwarsMatch() && stage == null) {
+        if (snapshot == null || !snapshot.isInBedwars()) {
             reset();
             return;
         }
+
+        List<String> sidebarLines = snapshot.getScoreboardLines();
+        StageTimer stage = parseStageTimer(sidebarLines);
         if (stage == null) {
             return;
         }
 
-        int elapsed = Math.max(0, stage.scheduledSeconds - stage.secondsLeft);
+        int elapsed = stage.scheduledSeconds - stage.secondsLeft;
         String modeGroup = resolveModeGroup(snapshot.getMode(), sidebarLines);
 
         SpawnState emeraldState = calculateSpawns(
@@ -87,31 +88,67 @@ public class BedwarsTimerService {
     }
 
     private StageTimer parseStageTimer(List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return null;
+        }
+
         for (String line : lines) {
-            Matcher matcher = STAGE_TIMER_PATTERN.matcher(line);
-            if (!matcher.find()) {
+            StageTimer parsed = parseStageLine(line);
+            if (parsed == null) {
                 continue;
             }
-
-            String eventName = normalizeEvent(matcher.group(1));
-            Integer scheduled = STAGE_SCHEDULE.get(eventName);
-            if (scheduled == null) {
-                continue;
-            }
-
-            int minutes;
-            int seconds;
-            try {
-                minutes = Integer.parseInt(matcher.group(2));
-                seconds = Integer.parseInt(matcher.group(3));
-            } catch (NumberFormatException ignored) {
-                continue;
-            }
-
-            return new StageTimer(eventName, scheduled, minutes * 60 + seconds);
+            return parsed;
         }
 
         return null;
+    }
+
+    private StageTimer parseStageLine(String line) {
+        if (line == null) {
+            return null;
+        }
+
+        String raw = line.trim();
+        if (raw.isEmpty()) {
+            return null;
+        }
+
+        Matcher timer = TIMER_PATTERN.matcher(raw);
+        if (!timer.find()) {
+            return null;
+        }
+
+        int minutes;
+        int seconds;
+        try {
+            minutes = Integer.parseInt(timer.group(1));
+            seconds = Integer.parseInt(timer.group(2));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+
+        int timerStart = timer.start();
+        String lower = raw.toLowerCase(Locale.ROOT);
+        String eventName;
+
+        int explicitIn = lower.indexOf(" in ");
+        if (explicitIn >= 0 && explicitIn < timerStart) {
+            eventName = raw.substring(0, explicitIn).trim();
+        } else {
+            int looseIn = lower.indexOf("in ");
+            if (looseIn >= 0 && looseIn < timerStart) {
+                eventName = raw.substring(0, looseIn).trim();
+            } else {
+                eventName = raw.substring(0, timerStart).trim();
+            }
+        }
+
+        Integer scheduled = resolveScheduledSeconds(normalizeEvent(eventName));
+        if (scheduled == null) {
+            return null;
+        }
+
+        return new StageTimer(scheduled, minutes * 60 + seconds);
     }
 
     private String normalizeEvent(String eventName) {
@@ -123,6 +160,71 @@ public class BedwarsTimerService {
             normalized = normalized.substring("next event:".length()).trim();
         }
         return normalized;
+    }
+
+    private Integer resolveScheduledSeconds(String eventName) {
+        Integer direct = STAGE_SCHEDULE.get(eventName);
+        if (direct != null) {
+            return direct;
+        }
+
+        String normalized = eventName
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("\\s+", " ")
+            .trim();
+
+        if (normalized.contains("diamond")) {
+            if (containsTier(normalized, 2)) {
+                return 6 * 60;
+            }
+            if (containsTier(normalized, 3)) {
+                return 18 * 60;
+            }
+        }
+
+        if (normalized.contains("emerald")) {
+            if (containsTier(normalized, 2)) {
+                return 12 * 60;
+            }
+            if (containsTier(normalized, 3)) {
+                return 24 * 60;
+            }
+        }
+
+        if (normalized.contains("sudden death")) {
+            return 40 * 60;
+        }
+        if (
+            normalized.contains("game end") || normalized.contains("end game")
+        ) {
+            return 50 * 60;
+        }
+        if (
+            normalized.contains("bed gone") ||
+            normalized.contains("beds gone") ||
+            normalized.contains("bed destroyed") ||
+            normalized.contains("beds destroyed")
+        ) {
+            return 30 * 60;
+        }
+
+        return null;
+    }
+
+    private boolean containsTier(String value, int tier) {
+        if (tier == 2) {
+            return (
+                value.matches(".*\\bii\\b.*") ||
+                value.matches(".*\\b2\\b.*")
+            );
+        }
+        if (tier == 3) {
+            return (
+                value.matches(".*\\biii\\b.*") ||
+                value.matches(".*\\b3\\b.*")
+            );
+        }
+        return false;
     }
 
     private String resolveModeGroup(String locationMode, List<String> lines) {
@@ -240,12 +342,10 @@ public class BedwarsTimerService {
 
     private static class StageTimer {
 
-        private final String event;
         private final int scheduledSeconds;
         private final int secondsLeft;
 
-        private StageTimer(String event, int scheduledSeconds, int secondsLeft) {
-            this.event = event;
+        private StageTimer(int scheduledSeconds, int secondsLeft) {
             this.scheduledSeconds = scheduledSeconds;
             this.secondsLeft = secondsLeft;
         }

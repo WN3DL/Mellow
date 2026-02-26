@@ -24,7 +24,7 @@ import net.hypixel.modapi.packet.impl.serverbound.ServerboundPartyInfoPacket;
 public class GameStateManager implements GameContext {
 
     private static final Pattern GENERIC_TIMER_PATTERN = Pattern.compile(
-        "(?i).+\\s+in\\s+\\d{1,2}:\\d{2}"
+        "(?i).+\\s+(?:in\\s+)?\\d{1,2}:\\d{2}"
     );
     private static final Set<String> BEDWARS_STAGE_EVENTS = new HashSet<>();
 
@@ -334,7 +334,16 @@ public class GameStateManager implements GameContext {
                 continue;
             }
 
-            String eventName = normalized.substring(0, normalized.indexOf(" in ")).trim();
+            String eventName = normalized;
+            int inIndex = normalized.indexOf(" in ");
+            if (inIndex >= 0) {
+                eventName = normalized.substring(0, inIndex).trim();
+            } else {
+                int timerStart = normalized.lastIndexOf(' ');
+                if (timerStart > 0) {
+                    eventName = normalized.substring(0, timerStart).trim();
+                }
+            }
             if (eventName.startsWith("next event:")) {
                 eventName = eventName.substring("next event:".length()).trim();
             }
