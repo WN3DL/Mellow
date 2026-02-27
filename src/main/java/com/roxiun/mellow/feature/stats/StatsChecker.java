@@ -98,75 +98,7 @@ public class StatsChecker {
                     }
                 }
 
-                // Print Urchin tags to chat if enabled
-                if (
-                    config.urchin &&
-                    config.printBlacklistTags &&
-                    profile.isUrchinTagged()
-                ) {
-                    String tags = FormattingUtils.formatUrchinTags(
-                        profile.getUrchinTags()
-                    );
-                    String urchinMessage =
-                        "§c" +
-                        profile.getName() +
-                        " is tagged on §5Urchin§c for: " +
-                        tags;
-                    mc.addScheduledTask(() ->
-                        ChatUtils.sendMessage(urchinMessage)
-                    );
-                }
-
-                // Print Seraph tags to chat if enabled
-                if (
-                    config.seraph &&
-                    config.printBlacklistTags &&
-                    profile.isSeraphTagged()
-                ) {
-                    String formattedTags = FormattingUtils.formatSeraphTags(
-                        profile.getSeraphTags()
-                    );
-                    // Split the formatted tags by the newline separator and send as separate messages
-                    String[] tagMessages = formattedTags.split("\n§c");
-                    if (
-                        tagMessages.length > 0 &&
-                        !tagMessages[0].trim().isEmpty()
-                    ) {
-                        // Send the first tag with the main message
-                        String firstMessage =
-                            "§c" +
-                            profile.getName() +
-                            " is tagged on §3Seraph§c for: " +
-                            tagMessages[0];
-                        mc.addScheduledTask(() ->
-                            ChatUtils.sendMessage(firstMessage)
-                        );
-                        // Send additional tags as separate messages
-                        for (int i = 1; i < tagMessages.length; i++) {
-                            if (!tagMessages[i].trim().isEmpty()) {
-                                String additionalMessage =
-                                    "§c" + tagMessages[i];
-                                mc.addScheduledTask(() ->
-                                    ChatUtils.sendMessage(additionalMessage)
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // Check if player is on blacklist and print a message if they are
-                java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
-                if (blacklistManager.isBlacklisted(uuid)) {
-                    mc.addScheduledTask(() -> {
-                        ChatUtils.sendMessage(
-                            "§c" +
-                                profile.getName() +
-                                " is on your blacklist"
-                        );
-                        // Play pling sound when blacklisted player is detected
-                        mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
-                    });
-                }
+                sendBlacklistAndTagAlerts(profile);
             });
         }
 
@@ -215,6 +147,8 @@ public class StatsChecker {
                     if (newTabStats != null) {
                         tabStats.put(playerName, newTabStats);
                     }
+
+                    sendBlacklistAndTagAlerts(profile);
                 } finally {
                     tabFetchInFlight.remove(normalizedName);
                 }
@@ -338,5 +272,61 @@ public class StatsChecker {
             return tagsValue.substring(0, tagsValue.length() - 1);
         }
         return tagsValue;
+    }
+
+    private void sendBlacklistAndTagAlerts(PlayerProfile profile) {
+        if (profile == null) {
+            return;
+        }
+
+        if (
+            config.urchin &&
+            config.printBlacklistTags &&
+            profile.isUrchinTagged()
+        ) {
+            String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
+            String urchinMessage =
+                "§c" + profile.getName() + " is tagged on §5Urchin§c for: " + tags;
+            mc.addScheduledTask(() -> ChatUtils.sendMessage(urchinMessage));
+        }
+
+        if (
+            config.seraph &&
+            config.printBlacklistTags &&
+            profile.isSeraphTagged()
+        ) {
+            String formattedTags = FormattingUtils.formatSeraphTags(
+                profile.getSeraphTags()
+            );
+            String[] tagMessages = formattedTags.split("\n§c");
+            if (tagMessages.length > 0 && !tagMessages[0].trim().isEmpty()) {
+                String firstMessage =
+                    "§c" +
+                    profile.getName() +
+                    " is tagged on §3Seraph§c for: " +
+                    tagMessages[0];
+                mc.addScheduledTask(() -> ChatUtils.sendMessage(firstMessage));
+                for (int i = 1; i < tagMessages.length; i++) {
+                    if (!tagMessages[i].trim().isEmpty()) {
+                        String additionalMessage = "§c" + tagMessages[i];
+                        mc.addScheduledTask(() ->
+                            ChatUtils.sendMessage(additionalMessage)
+                        );
+                    }
+                }
+            }
+        }
+
+        java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
+        if (blacklistManager.isBlacklisted(uuid)) {
+            mc.addScheduledTask(() -> {
+                ChatUtils.sendMessage(
+                    "§c" + profile.getName() + " is on your blacklist"
+                );
+                if (mc.thePlayer != null) {
+                    mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
+                }
+            });
+        }
     }
 }
