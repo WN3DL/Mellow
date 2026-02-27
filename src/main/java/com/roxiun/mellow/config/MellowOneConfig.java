@@ -804,5 +804,50 @@ public class MellowOneConfig extends Config {
     public MellowOneConfig() {
         super(new Mod(Mellow.NAME, ModType.HYPIXEL), Mellow.MODID + ".json");
         initialize();
+        sanitizeDropdownIndexes();
+    }
+
+    private void sanitizeDropdownIndexes() {
+        // BedWars tab stats dropdowns: Team..None (11 options)
+        customStat1 = clampIndex(customStat1, 11);
+        customStat2 = clampIndex(customStat2, 11);
+        customStat3 = clampIndex(customStat3, 11);
+        customStat4 = clampIndex(customStat4, 11);
+        customStat5 = clampIndex(customStat5, 11);
+        customStat6 = clampIndex(customStat6, 11);
+        customStat7 = clampIndex(customStat7, 11);
+        customStat8 = clampIndex(customStat8, 11);
+        customStat9 = clampIndex(customStat9, 11);
+        customStat10 = clampIndex(customStat10, 11);
+
+        // SkyWars tab stats dropdowns: Team..None (8 options)
+        skywarsCustomStat1 = clampIndex(skywarsCustomStat1, 8);
+        skywarsCustomStat2 = clampIndex(skywarsCustomStat2, 8);
+        skywarsCustomStat3 = clampIndex(skywarsCustomStat3, 8);
+        skywarsCustomStat4 = clampIndex(skywarsCustomStat4, 8);
+        skywarsCustomStat5 = clampIndex(skywarsCustomStat5, 8);
+        skywarsCustomStat6 = clampIndex(skywarsCustomStat6, 8);
+        skywarsCustomStat7 = clampIndex(skywarsCustomStat7, 8);
+        skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 8);
+        skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 8);
+        skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 8);
+
+        // Misc dropdowns
+        statsProvider = clampIndex(statsProvider, 3);
+        pingProvider = clampIndex(pingProvider, 3);
+        finalsRange = clampIndex(finalsRange, 5);
+        bedsRange = clampIndex(bedsRange, 5);
+        maxResults = clampIndex(maxResults, 3);
+    }
+
+    private int clampIndex(int value, int optionCount) {
+        if (optionCount <= 0) {
+            return 0;
+        }
+        if (value < 0) {
+            return 0;
+        }
+        int maxIndex = optionCount - 1;
+        return value > maxIndex ? maxIndex : value;
     }
 }
