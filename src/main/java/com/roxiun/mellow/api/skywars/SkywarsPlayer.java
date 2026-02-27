@@ -7,6 +7,7 @@ public class SkywarsPlayer {
     private final String name;
     private final String formattedNameWithRank;
     private final String levelFormatted;
+    private final String levelFormattedWithBrackets;
     private final double kdr;
     private final int wins;
     private final int losses;
@@ -17,6 +18,7 @@ public class SkywarsPlayer {
         String name,
         String formattedNameWithRank,
         String levelFormatted,
+        String levelFormattedWithBrackets,
         double kdr,
         int wins,
         int losses,
@@ -26,6 +28,7 @@ public class SkywarsPlayer {
         this.name = name;
         this.formattedNameWithRank = formattedNameWithRank;
         this.levelFormatted = levelFormatted;
+        this.levelFormattedWithBrackets = levelFormattedWithBrackets;
         this.kdr = kdr;
         this.wins = wins;
         this.losses = losses;
@@ -46,6 +49,12 @@ public class SkywarsPlayer {
 
     public String getLevelFormatted() {
         return levelFormatted == null ? "§70" : levelFormatted;
+    }
+
+    public String getLevelFormattedWithBrackets() {
+        return levelFormattedWithBrackets == null
+            ? "§7[§70✯§7]"
+            : levelFormattedWithBrackets;
     }
 
     public double getKdr() {

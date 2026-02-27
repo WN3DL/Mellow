@@ -109,7 +109,7 @@ public class PlayerProfile {
                 urchinTags,
                 seraphTags,
                 skywarsPlayer.getFormattedNameWithRank(),
-                skywarsPlayer.getLevelFormatted(),
+                skywarsPlayer.getLevelFormattedWithBrackets(),
                 skywarsPlayer.getFormattedKdrWithColor(),
                 null,
                 skywarsPlayer.getFormattedWlrWithColor(),
