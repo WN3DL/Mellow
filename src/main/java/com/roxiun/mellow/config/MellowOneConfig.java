@@ -41,6 +41,13 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Show Nick with Brackets", category = "Tab Stats")
     public boolean showNickWithBrackets = true;
 
+    @Switch(
+        name = "Show Ranks In-Game",
+        category = "Tab Stats",
+        description = "When enabled, Name stat includes rank prefix during games. Lobbies always show rank."
+    )
+    public boolean showRanksInGameTabStats = false;
+
     @Info(
         text = "Set the order of stats in the tab list",
         type = InfoType.INFO,

@@ -375,7 +375,7 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
-                if (shouldUseLobbyRankFormatting()) {
+                if (shouldShowRankInTabName()) {
                     String formattedNameWithRank = stats.getFormattedNameWithRank();
                     if (
                         formattedNameWithRank != null &&
@@ -455,7 +455,7 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
-                if (shouldUseLobbyRankFormatting()) {
+                if (shouldShowRankInTabName()) {
                     String formattedNameWithRank = stats.getFormattedNameWithRank();
                     if (
                         formattedNameWithRank != null &&
@@ -532,8 +532,14 @@ public class GuiPlayerTabOverlayMixin {
         return displayName;
     }
 
-    private boolean shouldUseLobbyRankFormatting() {
-        return HypixelFeatures.getInstance().getGameSnapshot().isLobby();
+    private boolean shouldShowRankInTabName() {
+        if (HypixelFeatures.getInstance().getGameSnapshot() == null) {
+            return false;
+        }
+        if (HypixelFeatures.getInstance().getGameSnapshot().isLobby()) {
+            return true;
+        }
+        return Mellow.config.showRanksInGameTabStats;
     }
 
     private StatScope resolveTabStatScope() {
