@@ -59,6 +59,18 @@ public class MellowOneConfig extends Config {
     public boolean extendedTabStatsShowHealth = true;
 
     @Dropdown(
+        name = "Extended Team Column Mode",
+        options = {
+            "Own Column",
+            "Hide Team Header",
+            "Combine With Name",
+            "Combine With Stars",
+        },
+        category = "Tab Stats"
+    )
+    public int extendedTabStatsTeamColumnMode = 0;
+
+    @Dropdown(
         name = "Extended HP Position",
         options = { "After Name", "Far Right" },
         category = "Tab Stats"
@@ -860,6 +872,10 @@ public class MellowOneConfig extends Config {
         extendedTabStatsHealthPosition = clampIndex(
             extendedTabStatsHealthPosition,
             2
+        );
+        extendedTabStatsTeamColumnMode = clampIndex(
+            extendedTabStatsTeamColumnMode,
+            4
         );
         statsProvider = clampIndex(statsProvider, 3);
         pingProvider = clampIndex(pingProvider, 3);

@@ -43,14 +43,21 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int COLUMN_HEALTH = -1;
     private static final int HEALTH_POS_AFTER_NAME = 0;
     private static final int HEALTH_POS_FAR_RIGHT = 1;
+    private static final int TEAM_MODE_OWN_COLUMN = 0;
+    private static final int TEAM_MODE_HIDE_HEADER = 1;
+    private static final int TEAM_MODE_COMBINE_NAME = 2;
+    private static final int TEAM_MODE_COMBINE_STARS = 3;
     private static final int HEAD_ICON_SIZE = 8;
     private static final int HEAD_TEXT_GAP = 2;
+    private static final int TEAM_COLLAPSED_GAP = 1;
 
     private final Minecraft mc;
     private final MellowOneConfig config;
 
     private int scrollIndex;
     private int maxVisiblePlayers = 1;
+    private boolean combineTeamEnabled;
+    private int combineTeamTargetIndex = -1;
 
     public ExtendedStatsTabOverlay(
         Minecraft mcIn,
@@ -86,10 +93,12 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             columns.add(0); // TEAM
             columns.add(2); // NAME
         }
+        resetTeamModeState();
         columns = withInjectedExtendedColumns(columns);
+        columns = withAppliedTeamColumnMode(columns);
 
         List<Integer> columnWidths = computeColumnWidths(columns, players, scope);
-        int totalWidth = getTotalWidth(columnWidths);
+        int totalWidth = getTotalWidth(columns, columnWidths);
 
         ScaledResolution scaled = new ScaledResolution(mc);
         int scaledWidth = scaled.getScaledWidth();
@@ -202,6 +211,70 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         return new ArrayList<>(sorted.subList(0, MAX_TAB_PLAYERS));
     }
 
+    private void resetTeamModeState() {
+        combineTeamEnabled = false;
+        combineTeamTargetIndex = -1;
+    }
+
+    private List<Integer> withAppliedTeamColumnMode(List<Integer> baseColumns) {
+        List<Integer> result = new ArrayList<>(baseColumns);
+        int mode = getTeamColumnMode();
+        if (
+            mode == TEAM_MODE_OWN_COLUMN || mode == TEAM_MODE_HIDE_HEADER
+        ) {
+            return result;
+        }
+
+        int teamIndex = result.indexOf(0);
+        if (teamIndex < 0) {
+            return result;
+        }
+
+        int preferredTargetColumn = mode == TEAM_MODE_COMBINE_STARS ? 1 : 2;
+        int targetIndex = findTeamCombineTargetIndex(
+            result,
+            teamIndex,
+            preferredTargetColumn
+        );
+        if (targetIndex < 0) {
+            return result;
+        }
+
+        result.remove(teamIndex);
+        if (targetIndex > teamIndex) {
+            targetIndex--;
+        }
+
+        combineTeamEnabled = true;
+        combineTeamTargetIndex = targetIndex;
+        return result;
+    }
+
+    private int findTeamCombineTargetIndex(
+        List<Integer> columns,
+        int teamIndex,
+        int preferredTargetColumn
+    ) {
+        int preferredIndex = columns.indexOf(preferredTargetColumn);
+        if (preferredIndex >= 0 && preferredIndex != teamIndex) {
+            return preferredIndex;
+        }
+
+        for (int i = teamIndex + 1; i < columns.size(); i++) {
+            if (columns.get(i) != 0) {
+                return i;
+            }
+        }
+
+        for (int i = 0; i < columns.size(); i++) {
+            if (i != teamIndex && columns.get(i) != 0) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     private List<Integer> withInjectedExtendedColumns(List<Integer> baseColumns) {
         List<Integer> result = new ArrayList<>(baseColumns);
         if (config == null || !config.extendedTabStatsShowHealth) {
@@ -232,15 +305,21 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     ) {
         List<Integer> widths = new ArrayList<>(columns.size());
 
-        for (int column : columns) {
-            String headerLabel = "§l" + getHeaderLabel(scope, column) + "§r";
+        for (int i = 0; i < columns.size(); i++) {
+            int column = columns.get(i);
+            String headerText = getHeaderLabel(scope, column);
+            String headerLabel = headerText.isEmpty()
+                ? ""
+                : "§l" + headerText + "§r";
             int width = Math.max(
                 getMinimumColumnWidth(scope, column),
-                mc.fontRendererObj.getStringWidth(headerLabel) + CELL_PADDING_X * 2
+                headerLabel.isEmpty()
+                    ? 0
+                    : mc.fontRendererObj.getStringWidth(headerLabel) + CELL_PADDING_X * 2
             );
 
             for (NetworkPlayerInfo info : players) {
-                String value = getColumnValue(info, column, scope);
+                String value = getDisplayValue(info, column, scope, i);
                 int extra =
                     column == 2 && shouldShowHeadsInExtendedView()
                         ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
@@ -258,11 +337,11 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         return widths;
     }
 
-    private int getTotalWidth(List<Integer> columnWidths) {
+    private int getTotalWidth(List<Integer> columns, List<Integer> columnWidths) {
         int total = 0;
         for (int i = 0; i < columnWidths.size(); i++) {
             if (i > 0) {
-                total += ExtendedTabStatsColumns.COLUMN_GAP;
+                total += getGapAfterColumn(columns, i - 1);
             }
             total += columnWidths.get(i);
         }
@@ -278,20 +357,23 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     ) {
         int x = startX;
         for (int i = 0; i < columns.size(); i++) {
-            String header = "§l" + getHeaderLabel(scope, columns.get(i)) + "§r";
             int column = columns.get(i);
+            String headerText = getHeaderLabel(scope, column);
+            String header = headerText.isEmpty() ? "" : "§l" + headerText + "§r";
             int width = columnWidths.get(i);
-            int headerWidth = mc.fontRendererObj.getStringWidth(header);
-            int drawX =
-                isRightAlignedColumn(column)
-                    ? x + width - CELL_PADDING_X - headerWidth
-                    : x + CELL_PADDING_X + (column == 2 && shouldShowHeadsInExtendedView()
-                        ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
-                        : 0);
-            mc.fontRendererObj.drawStringWithShadow(header, drawX, y, -1);
+            if (!header.isEmpty()) {
+                int headerWidth = mc.fontRendererObj.getStringWidth(header);
+                int drawX =
+                    isRightAlignedColumn(column, i)
+                        ? x + width - CELL_PADDING_X - headerWidth
+                        : x + CELL_PADDING_X + (column == 2 && shouldShowHeadsInExtendedView()
+                            ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
+                            : 0);
+                mc.fontRendererObj.drawStringWithShadow(header, drawX, y, -1);
+            }
             x += columnWidths.get(i);
             if (i < columns.size() - 1) {
-                x += ExtendedTabStatsColumns.COLUMN_GAP;
+                x += getGapAfterColumn(columns, i);
             }
         }
     }
@@ -321,17 +403,20 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
             int maxTextWidth = Math.max(1, width - reservedLeft);
 
-            String value = fitToWidth(getColumnValue(info, column, scope), maxTextWidth);
+            String value = fitToWidth(
+                getDisplayValue(info, column, scope, i),
+                maxTextWidth
+            );
             if (value != null && !value.isEmpty()) {
                 int drawX =
-                    isRightAlignedColumn(column)
+                    isRightAlignedColumn(column, i)
                         ? x + width - CELL_PADDING_X - mc.fontRendererObj.getStringWidth(value)
                         : textStartX;
                 mc.fontRendererObj.drawStringWithShadow(value, drawX, baselineY, -1);
             }
             x += width;
             if (i < columns.size() - 1) {
-                x += ExtendedTabStatsColumns.COLUMN_GAP;
+                x += getGapAfterColumn(columns, i);
             }
         }
     }
@@ -417,13 +502,48 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
     }
 
-    private boolean isRightAlignedColumn(int column) {
+    private boolean isRightAlignedColumn(int column, int columnIndex) {
+        if (isTeamCombinedTargetColumn(columnIndex)) {
+            return false;
+        }
         return column != 0 && column != 2;
+    }
+
+    private boolean isTeamCombinedTargetColumn(int columnIndex) {
+        return (
+            combineTeamEnabled &&
+            combineTeamTargetIndex >= 0 &&
+            columnIndex == combineTeamTargetIndex
+        );
+    }
+
+    private String getDisplayValue(
+        NetworkPlayerInfo info,
+        int column,
+        StatScope scope,
+        int columnIndex
+    ) {
+        String value = getColumnValue(info, column, scope);
+        if (!isTeamCombinedTargetColumn(columnIndex)) {
+            return value;
+        }
+
+        String team = getColumnValue(info, 0, scope);
+        if (team == null || team.trim().isEmpty()) {
+            return value == null ? "" : value;
+        }
+        if (value == null || value.isEmpty()) {
+            return team;
+        }
+        return team + " " + value;
     }
 
     private String getHeaderLabel(StatScope scope, int column) {
         if (column == COLUMN_HEALTH) {
             return "HP";
+        }
+        if (column == 0 && shouldHideTeamHeaderInExtendedView()) {
+            return "";
         }
         return ExtendedTabStatsColumns.getHeaderLabel(scope, column);
     }
@@ -435,7 +555,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
         switch (column) {
             case 0: // TEAM
-                return 18;
+                return shouldHideTeamHeaderInExtendedView() ? 10 : 18;
             case 1: // STARS / LEVEL
                 return 22;
             case 2: // NAME
@@ -477,6 +597,33 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
     private boolean shouldShowHeadsInExtendedView() {
         return config != null && config.extendedTabStatsShowHeads;
+    }
+
+    private boolean shouldHideTeamHeaderInExtendedView() {
+        return getTeamColumnMode() == TEAM_MODE_HIDE_HEADER;
+    }
+
+    private int getTeamColumnMode() {
+        if (config == null) {
+            return TEAM_MODE_OWN_COLUMN;
+        }
+        int mode = config.extendedTabStatsTeamColumnMode;
+        if (mode < TEAM_MODE_OWN_COLUMN || mode > TEAM_MODE_COMBINE_STARS) {
+            return TEAM_MODE_OWN_COLUMN;
+        }
+        return mode;
+    }
+
+    private int getGapAfterColumn(List<Integer> columns, int index) {
+        if (
+            shouldHideTeamHeaderInExtendedView() &&
+            index >= 0 &&
+            index < columns.size() &&
+            columns.get(index) == 0
+        ) {
+            return TEAM_COLLAPSED_GAP;
+        }
+        return ExtendedTabStatsColumns.COLUMN_GAP;
     }
 
     private String getColumnValue(
