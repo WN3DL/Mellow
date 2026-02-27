@@ -14,13 +14,17 @@ import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiIngame;
 import net.minecraft.client.gui.GuiPlayerTabOverlay;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EnumPlayerModelParts;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.WorldSettings;
@@ -36,6 +40,11 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int ENTRY_HEIGHT = 11;
     private static final int ROW_GAP = 1;
     private static final int CELL_PADDING_X = 3;
+    private static final int COLUMN_HEALTH = -1;
+    private static final int HEALTH_POS_AFTER_NAME = 0;
+    private static final int HEALTH_POS_FAR_RIGHT = 1;
+    private static final int HEAD_ICON_SIZE = 8;
+    private static final int HEAD_TEXT_GAP = 2;
 
     private final Minecraft mc;
     private final MellowOneConfig config;
@@ -77,6 +86,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             columns.add(0); // TEAM
             columns.add(2); // NAME
         }
+        columns = withInjectedExtendedColumns(columns);
 
         List<Integer> columnWidths = computeColumnWidths(columns, players, scope);
         int totalWidth = getTotalWidth(columnWidths);
@@ -192,6 +202,29 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         return new ArrayList<>(sorted.subList(0, MAX_TAB_PLAYERS));
     }
 
+    private List<Integer> withInjectedExtendedColumns(List<Integer> baseColumns) {
+        List<Integer> result = new ArrayList<>(baseColumns);
+        if (config == null || !config.extendedTabStatsShowHealth) {
+            return result;
+        }
+
+        if (result.contains(COLUMN_HEALTH)) {
+            return result;
+        }
+
+        int insertAt;
+        if (config.extendedTabStatsHealthPosition == HEALTH_POS_AFTER_NAME) {
+            int nameIndex = result.indexOf(2);
+            insertAt = nameIndex >= 0 ? nameIndex + 1 : Math.min(1, result.size());
+        } else if (config.extendedTabStatsHealthPosition == HEALTH_POS_FAR_RIGHT) {
+            insertAt = result.size();
+        } else {
+            insertAt = result.size();
+        }
+        result.add(insertAt, COLUMN_HEALTH);
+        return result;
+    }
+
     private List<Integer> computeColumnWidths(
         List<Integer> columns,
         List<NetworkPlayerInfo> players,
@@ -200,17 +233,21 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         List<Integer> widths = new ArrayList<>(columns.size());
 
         for (int column : columns) {
-            String headerLabel = "§l" + ExtendedTabStatsColumns.getHeaderLabel(scope, column) + "§r";
+            String headerLabel = "§l" + getHeaderLabel(scope, column) + "§r";
             int width = Math.max(
-                ExtendedTabStatsColumns.getMinimumColumnWidth(scope, column),
+                getMinimumColumnWidth(scope, column),
                 mc.fontRendererObj.getStringWidth(headerLabel) + CELL_PADDING_X * 2
             );
 
             for (NetworkPlayerInfo info : players) {
                 String value = getColumnValue(info, column, scope);
+                int extra =
+                    column == 2 && shouldShowHeadsInExtendedView()
+                        ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
+                        : 0;
                 width = Math.max(
                     width,
-                    mc.fontRendererObj.getStringWidth(value) + CELL_PADDING_X * 2
+                    mc.fontRendererObj.getStringWidth(value) + CELL_PADDING_X * 2 + extra
                 );
             }
 
@@ -241,14 +278,16 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     ) {
         int x = startX;
         for (int i = 0; i < columns.size(); i++) {
-            String header = "§l" + ExtendedTabStatsColumns.getHeaderLabel(scope, columns.get(i)) + "§r";
+            String header = "§l" + getHeaderLabel(scope, columns.get(i)) + "§r";
             int column = columns.get(i);
             int width = columnWidths.get(i);
             int headerWidth = mc.fontRendererObj.getStringWidth(header);
             int drawX =
                 isRightAlignedColumn(column)
                     ? x + width - CELL_PADDING_X - headerWidth
-                    : x + CELL_PADDING_X;
+                    : x + CELL_PADDING_X + (column == 2 && shouldShowHeadsInExtendedView()
+                        ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
+                        : 0);
             mc.fontRendererObj.drawStringWithShadow(header, drawX, y, -1);
             x += columnWidths.get(i);
             if (i < columns.size() - 1) {
@@ -269,14 +308,25 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         for (int i = 0; i < columns.size(); i++) {
             int column = columns.get(i);
             int width = columnWidths.get(i);
-            int maxTextWidth = Math.max(1, width - CELL_PADDING_X * 2);
+            int textStartX = x + CELL_PADDING_X;
+            int reservedLeft = CELL_PADDING_X * 2;
+
+            if (column == 2 && shouldShowHeadsInExtendedView()) {
+                int headX = x + CELL_PADDING_X;
+                int headY = baselineY + (mc.fontRendererObj.FONT_HEIGHT - HEAD_ICON_SIZE) / 2;
+                drawPlayerHead(info, headX, headY, HEAD_ICON_SIZE);
+                textStartX += HEAD_ICON_SIZE + HEAD_TEXT_GAP;
+                reservedLeft += HEAD_ICON_SIZE + HEAD_TEXT_GAP;
+            }
+
+            int maxTextWidth = Math.max(1, width - reservedLeft);
 
             String value = fitToWidth(getColumnValue(info, column, scope), maxTextWidth);
             if (value != null && !value.isEmpty()) {
                 int drawX =
                     isRightAlignedColumn(column)
                         ? x + width - CELL_PADDING_X - mc.fontRendererObj.getStringWidth(value)
-                        : x + CELL_PADDING_X;
+                        : textStartX;
                 mc.fontRendererObj.drawStringWithShadow(value, drawX, baselineY, -1);
             }
             x += width;
@@ -305,11 +355,91 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         return trimmed + suffix;
     }
 
+    private void drawPlayerHead(
+        NetworkPlayerInfo playerInfo,
+        int x,
+        int y,
+        int size
+    ) {
+        if (playerInfo == null || playerInfo.getGameProfile() == null) {
+            return;
+        }
+
+        if (playerInfo.getLocationSkin() == null) {
+            return;
+        }
+
+        GameProfile gameProfile = playerInfo.getGameProfile();
+        EntityPlayer entityPlayer = mc.theWorld == null
+            ? null
+            : mc.theWorld.getPlayerEntityByUUID(gameProfile.getId());
+        boolean upsideDown =
+            entityPlayer != null &&
+            entityPlayer.isWearing(EnumPlayerModelParts.CAPE) &&
+            ("Dinnerbone".equals(gameProfile.getName()) ||
+                "Grumm".equals(gameProfile.getName()));
+
+        int vBase = 8 + (upsideDown ? 8 : 0);
+        int vSize = 8 * (upsideDown ? -1 : 1);
+
+        mc.getTextureManager().bindTexture(playerInfo.getLocationSkin());
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+
+        Gui.drawScaledCustomSizeModalRect(
+            x,
+            y,
+            8.0F,
+            (float) vBase,
+            8,
+            vSize,
+            size,
+            size,
+            64.0F,
+            64.0F
+        );
+
+        if (entityPlayer != null && entityPlayer.isWearing(EnumPlayerModelParts.HAT)) {
+            Gui.drawScaledCustomSizeModalRect(
+                x,
+                y,
+                40.0F,
+                (float) vBase,
+                8,
+                vSize,
+                size,
+                size,
+                64.0F,
+                64.0F
+            );
+        }
+    }
+
     private boolean isRightAlignedColumn(int column) {
         return column != 0 && column != 2;
     }
 
+    private String getHeaderLabel(StatScope scope, int column) {
+        if (column == COLUMN_HEALTH) {
+            return "HP";
+        }
+        return ExtendedTabStatsColumns.getHeaderLabel(scope, column);
+    }
+
+    private int getMinimumColumnWidth(StatScope scope, int column) {
+        if (column == COLUMN_HEALTH) {
+            return 26;
+        }
+        return ExtendedTabStatsColumns.getMinimumColumnWidth(scope, column);
+    }
+
     private int getMaximumColumnWidth(StatScope scope, int column) {
+        if (column == COLUMN_HEALTH) {
+            return 34;
+        }
+
         if (scope == StatScope.SKYWARS) {
             switch (column) {
                 case 0:
@@ -317,7 +447,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 case 1:
                     return 70;
                 case 2:
-                    return 220;
+                    return shouldShowHeadsInExtendedView() ? 230 : 220;
                 default:
                     return 72;
             }
@@ -329,10 +459,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             case 1:
                 return 70;
             case 2:
-                return 220;
+                return shouldShowHeadsInExtendedView() ? 230 : 220;
             default:
                 return 72;
         }
+    }
+
+    private boolean shouldShowHeadsInExtendedView() {
+        return config != null && config.extendedTabStatsShowHeads;
     }
 
     private String getColumnValue(
@@ -347,6 +481,10 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String playerName = info.getGameProfile().getName();
         if (playerName == null || playerName.isEmpty()) {
             return "";
+        }
+
+        if (column == COLUMN_HEALTH) {
+            return getHealthValue(info);
         }
 
         TabStats stats = Mellow.tabStats.get(playerName);
@@ -492,6 +630,40 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return safe + " §8[§4LIST§8]";
         }
         return safe;
+    }
+
+    private String getHealthValue(NetworkPlayerInfo info) {
+        if (
+            info == null ||
+            info.getGameProfile() == null ||
+            info.getGameProfile().getId() == null ||
+            mc == null ||
+            mc.theWorld == null
+        ) {
+            return "";
+        }
+
+        EntityPlayer entity = mc.theWorld.getPlayerEntityByUUID(
+            info.getGameProfile().getId()
+        );
+        if (entity == null) {
+            return "";
+        }
+
+        float totalHealth = entity.getHealth() + entity.getAbsorptionAmount();
+        int hp = Math.max(0, MathHelper.ceiling_float_int(totalHealth));
+
+        String color;
+        if (hp >= 16) {
+            color = "§a";
+        } else if (hp >= 11) {
+            color = "§e";
+        } else if (hp >= 6) {
+            color = "§6";
+        } else {
+            color = "§c";
+        }
+        return color + hp;
     }
 
     private String appendTagSuffixes(String value, TabStats stats) {

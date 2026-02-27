@@ -45,6 +45,27 @@ public class MellowOneConfig extends Config {
     public boolean extendedTabStatsView = true;
 
     @Switch(
+        name = "Extended View Player Heads",
+        category = "Tab Stats",
+        description = "Shows player heads in the Name column when using Extended Tab Stats View."
+    )
+    public boolean extendedTabStatsShowHeads = true;
+
+    @Switch(
+        name = "Extended View HP Column",
+        category = "Tab Stats",
+        description = "Adds an HP column in Extended Tab Stats View."
+    )
+    public boolean extendedTabStatsShowHealth = true;
+
+    @Dropdown(
+        name = "Extended HP Position",
+        options = { "After Name", "Far Right" },
+        category = "Tab Stats"
+    )
+    public int extendedTabStatsHealthPosition = 1;
+
+    @Switch(
         name = "Show Ranks In-Game",
         category = "Tab Stats",
         description = "When enabled, Name stat includes rank prefix during games. Lobbies always show rank."
@@ -836,6 +857,10 @@ public class MellowOneConfig extends Config {
         skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 8);
 
         // Misc dropdowns
+        extendedTabStatsHealthPosition = clampIndex(
+            extendedTabStatsHealthPosition,
+            2
+        );
         statsProvider = clampIndex(statsProvider, 3);
         pingProvider = clampIndex(pingProvider, 3);
         finalsRange = clampIndex(finalsRange, 5);
