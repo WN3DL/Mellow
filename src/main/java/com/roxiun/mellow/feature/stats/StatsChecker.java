@@ -6,6 +6,7 @@ import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
@@ -16,7 +17,10 @@ import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
@@ -31,6 +35,7 @@ public class StatsChecker {
     private final TagUtils tagUtils;
     private final BlacklistManager blacklistManager;
     private final Minecraft mc = Minecraft.getMinecraft();
+    private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
 
     public StatsChecker(
         PlayerCache playerCache,
@@ -167,6 +172,54 @@ public class StatsChecker {
 
         executor.shutdown();
         // The notification for completion can be added back if desired
+    }
+
+    public void fetchTabStatsForPlayers(
+        List<String> playerNames,
+        boolean clearBeforeFetch
+    ) {
+        if (clearBeforeFetch) {
+            tabStats.clear();
+        }
+        if (!config.tabStats || playerNames == null || playerNames.isEmpty()) {
+            return;
+        }
+
+        final StatScope activeScope = resolveActiveScope();
+        for (String playerName : playerNames) {
+            if (playerName == null || playerName.isEmpty()) {
+                continue;
+            }
+            if (nickUtils.isNicked(playerName)) {
+                continue;
+            }
+
+            String normalizedName = playerName.toLowerCase(Locale.ROOT);
+            if (!tabFetchInFlight.add(normalizedName)) {
+                continue;
+            }
+
+            AsyncExecutor.getInstance().profileIo(() -> {
+                try {
+                    playerCache.clearPlayer(playerName);
+                    PlayerProfile profile = playerCache.getProfile(playerName);
+
+                    if (profile == null || !hasStatsForScope(profile, activeScope)) {
+                        return;
+                    }
+                    if (!passesScopeFilters(profile, activeScope)) {
+                        return;
+                    }
+
+                    TabStats newTabStats = profile.getTabStats(activeScope);
+                    if (newTabStats != null) {
+                        tabStats.put(playerName, newTabStats);
+                    }
+                } finally {
+                    tabFetchInFlight.remove(normalizedName);
+                }
+            });
+        }
     }
 
     private StatScope resolveActiveScope() {

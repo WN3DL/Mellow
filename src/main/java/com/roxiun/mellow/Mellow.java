@@ -22,12 +22,13 @@ import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
+import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.feature.stats.StatsChecker;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
@@ -41,7 +42,7 @@ public class Mellow {
     public static final String VERSION = "6.0.0";
 
     public static MellowOneConfig config;
-    public static final Map<String, TabStats> tabStats = new HashMap<>();
+    public static final Map<String, TabStats> tabStats = new ConcurrentHashMap<>();
     public static NickUtils nickUtils;
 
     public static MojangApi mojangApi;
@@ -110,15 +111,18 @@ public class Mellow {
             tagUtils,
             blacklistManager
         );
+        InGameTabStatsSyncService inGameTabStatsSyncService =
+            new InGameTabStatsSyncService(statsChecker, nickUtils, config, tabStats);
+        HypixelFeatures
+            .getInstance()
+            .addGameStateListener(inGameTabStatsSyncService::onSnapshotUpdate);
 
         MinecraftForge.EVENT_BUS.register(
             new ChatEventRouter(
                 config,
-                nickUtils,
                 numberDenicker,
                 pregameStats,
-                planckeApi,
-                statsChecker
+                planckeApi
             )
         );
         MinecraftForge.EVENT_BUS.register(

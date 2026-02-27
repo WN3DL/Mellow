@@ -99,7 +99,7 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/who:§d Check and print the stats of the players in your lobby.§r"
+                "§r§5/who:§d Hypixel command (optional auto-send); tab stats now fetch dynamically in-game.§r"
             )
         );
         sender.addChatMessage(new ChatComponentText(""));
