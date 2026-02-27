@@ -118,38 +118,9 @@ public class PregameStats {
         if (chatMatch.find()) {
             return new ParsedChatMessage(chatMatch.group(1), chatMatch.group(2));
         }
-
-        String delimiter = null;
-        if (message.contains(" » ")) {
-            delimiter = " » ";
-        } else if (message.contains(": ")) {
-            delimiter = ": ";
-        }
-
-        if (delimiter == null) {
-            return null;
-        }
-
-        String left = message.substring(0, message.indexOf(delimiter)).trim();
-        String content = message.substring(message.indexOf(delimiter) + delimiter.length()).trim();
-        if (left.isEmpty()) {
-            return null;
-        }
-
-        String[] tokens = left.split("\\s+");
-        if (tokens.length == 0) {
-            return null;
-        }
-
-        String candidate = tokens[tokens.length - 1].replaceAll(
-            "[^A-Za-z0-9_]",
-            ""
-        );
-        if (candidate.length() < 3 || candidate.length() > 16) {
-            return null;
-        }
-
-        return new ParsedChatMessage(candidate, content);
+        // Ignore non-chat/system lines (for example "/pl" output) to avoid
+        // false mention-trigger lookups.
+        return null;
     }
 
     private boolean containsSelfMention(String content) {
