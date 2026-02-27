@@ -543,6 +543,9 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private StatScope resolveTabStatScope() {
+        if (HypixelFeatures.getInstance().getGameSnapshot() == null) {
+            return StatScope.BEDWARS;
+        }
         if (
             HypixelFeatures.getInstance().getGameSnapshot().getGameType() ==
             GameType.SKYWARS

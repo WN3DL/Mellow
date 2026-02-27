@@ -8,7 +8,9 @@
   },
   "client": [
     "GuiPlayerTabOverlayMixin",
-    "PingMixin"
+    "OverflowAnimationsTabCompatMixin",
+    "PingMixin",
+    "VanillaHudTabBackgroundCompatMixin"
   ],
   "verbose": true
 }

@@ -17,6 +17,8 @@ import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.event.ChatEventRouter;
 import com.roxiun.mellow.core.event.ClientTickRouter;
+import com.roxiun.mellow.core.event.TabOverlayInputRouter;
+import com.roxiun.mellow.core.event.TabOverlayRouter;
 import com.roxiun.mellow.core.event.WorldLifecycleRouter;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
@@ -128,6 +130,11 @@ public class Mellow {
         );
         MinecraftForge.EVENT_BUS.register(
             new ClientTickRouter(HypixelFeatures.getInstance())
+        );
+        TabOverlayRouter tabOverlayRouter = new TabOverlayRouter(config);
+        MinecraftForge.EVENT_BUS.register(tabOverlayRouter);
+        MinecraftForge.EVENT_BUS.register(
+            new TabOverlayInputRouter(tabOverlayRouter)
         );
 
         ClientCommandHandler.instance.registerCommand(

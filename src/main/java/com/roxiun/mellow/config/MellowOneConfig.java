@@ -41,6 +41,9 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Show Nick with Brackets", category = "Tab Stats")
     public boolean showNickWithBrackets = true;
 
+    @Switch(name = "Extended Tab Stats View", category = "Tab Stats")
+    public boolean extendedTabStatsView = true;
+
     @Switch(
         name = "Show Ranks In-Game",
         category = "Tab Stats",
