@@ -20,6 +20,7 @@ import net.minecraft.client.gui.GuiPlayerTabOverlay;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.WorldSettings;
@@ -31,8 +32,10 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int MAX_TAB_PLAYERS = 80;
     private static final int TOP_Y = 20;
     private static final int BORDER = 4;
-    private static final int HEADER_HEIGHT = 12;
-    private static final int ENTRY_HEIGHT = 12;
+    private static final int HEADER_HEIGHT = 11;
+    private static final int ENTRY_HEIGHT = 11;
+    private static final int ROW_GAP = 1;
+    private static final int CELL_PADDING_X = 3;
 
     private final Minecraft mc;
     private final MellowOneConfig config;
@@ -81,52 +84,78 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         ScaledResolution scaled = new ScaledResolution(mc);
         int scaledWidth = scaled.getScaledWidth();
         int scaledHeight = scaled.getScaledHeight();
+        int availableWidth = Math.max(100, scaledWidth - BORDER * 2);
+        float fitScale = totalWidth > availableWidth
+            ? (float) availableWidth / (float) totalWidth
+            : 1.0F;
 
-        int startX = Math.max(BORDER, (scaledWidth - totalWidth) / 2);
+        int scaledPanelWidth = MathHelper.ceiling_float_int(totalWidth * fitScale);
+        int startX = Math.max(BORDER, (scaledWidth - scaledPanelWidth) / 2);
         int maxRight = scaledWidth - BORDER;
-        if (startX + totalWidth > maxRight) {
-            startX = Math.max(BORDER, maxRight - totalWidth);
+        if (startX + scaledPanelWidth > maxRight) {
+            startX = Math.max(BORDER, maxRight - scaledPanelWidth);
         }
 
-        maxVisiblePlayers =
-            Math.max(1, (scaledHeight - (TOP_Y + HEADER_HEIGHT + BORDER)) / (ENTRY_HEIGHT + 1));
+        int scaledHeader = Math.max(
+            1,
+            MathHelper.ceiling_float_int((HEADER_HEIGHT + ROW_GAP) * fitScale)
+        );
+        int scaledRowStep = Math.max(
+            1,
+            MathHelper.ceiling_float_int((ENTRY_HEIGHT + ROW_GAP) * fitScale)
+        );
+        maxVisiblePlayers = Math.max(
+            1,
+            (scaledHeight - (TOP_Y + scaledHeader + BORDER * 2)) / scaledRowStep
+        );
         int maxScroll = Math.max(0, players.size() - maxVisiblePlayers);
         scrollIndex = MathHelper.clamp_int(scrollIndex, 0, maxScroll);
 
         int endIndex = Math.min(players.size(), scrollIndex + maxVisiblePlayers);
         List<NetworkPlayerInfo> visible = players.subList(scrollIndex, endIndex);
 
-        int visibleHeight = visible.size() * (ENTRY_HEIGHT + 1);
-        int top = TOP_Y;
-        int bottom = top + HEADER_HEIGHT + 1 + visibleHeight;
+        int visibleHeight = visible.size() * (ENTRY_HEIGHT + ROW_GAP);
+        int panelContentHeight = HEADER_HEIGHT + ROW_GAP + visibleHeight;
 
-        drawRect(
-            startX - BORDER,
-            top - BORDER,
-            startX + totalWidth + BORDER,
-            bottom + BORDER,
-            Integer.MIN_VALUE
-        );
-        drawRect(startX, top, startX + totalWidth, top + HEADER_HEIGHT, 553648127);
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(startX, TOP_Y, 0.0F);
+        GlStateManager.scale(fitScale, fitScale, 1.0F);
 
-        drawHeaders(columns, columnWidths, scope, startX, top + 2);
+        drawRect(-BORDER, -BORDER, totalWidth + BORDER, panelContentHeight + BORDER, Integer.MIN_VALUE);
+        drawRect(0, 0, totalWidth, HEADER_HEIGHT, 553648127);
 
-        int rowY = top + HEADER_HEIGHT + 1;
+        drawHeaders(columns, columnWidths, scope, 0, (HEADER_HEIGHT - mc.fontRendererObj.FONT_HEIGHT) / 2);
+
+        int rowY = HEADER_HEIGHT + ROW_GAP;
         for (NetworkPlayerInfo info : visible) {
-            drawRect(startX, rowY, startX + totalWidth, rowY + ENTRY_HEIGHT, 553648127);
-            drawValues(columns, columnWidths, scope, info, startX, rowY + ENTRY_HEIGHT / 2 - 4);
-            rowY += ENTRY_HEIGHT + 1;
+            drawRect(0, rowY, totalWidth, rowY + ENTRY_HEIGHT, 553648127);
+            drawValues(
+                columns,
+                columnWidths,
+                scope,
+                info,
+                0,
+                rowY + (ENTRY_HEIGHT - mc.fontRendererObj.FONT_HEIGHT) / 2
+            );
+            rowY += ENTRY_HEIGHT + ROW_GAP;
         }
 
         if (maxScroll > 0) {
-            int indicatorX = startX + totalWidth - 8;
+            int indicatorX = totalWidth - 8;
             if (scrollIndex > 0) {
-                mc.fontRendererObj.drawStringWithShadow("§f▲", indicatorX, top + HEADER_HEIGHT + 2, -1);
+                mc.fontRendererObj.drawStringWithShadow("§f▲", indicatorX, HEADER_HEIGHT + 1, -1);
             }
             if (endIndex < players.size()) {
-                mc.fontRendererObj.drawStringWithShadow("§f▼", indicatorX, bottom - 10, -1);
+                mc.fontRendererObj.drawStringWithShadow(
+                    "§f▼",
+                    indicatorX,
+                    panelContentHeight - mc.fontRendererObj.FONT_HEIGHT - 1,
+                    -1
+                );
             }
         }
+
+        GlStateManager.popMatrix();
     }
 
     public void handleMouseWheel(int wheelDelta, int playerCount) {
@@ -174,14 +203,18 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             String headerLabel = "§l" + ExtendedTabStatsColumns.getHeaderLabel(scope, column) + "§r";
             int width = Math.max(
                 ExtendedTabStatsColumns.getMinimumColumnWidth(scope, column),
-                mc.fontRendererObj.getStringWidth(headerLabel) + 6
+                mc.fontRendererObj.getStringWidth(headerLabel) + CELL_PADDING_X * 2
             );
 
             for (NetworkPlayerInfo info : players) {
                 String value = getColumnValue(info, column, scope);
-                width = Math.max(width, mc.fontRendererObj.getStringWidth(value) + 6);
+                width = Math.max(
+                    width,
+                    mc.fontRendererObj.getStringWidth(value) + CELL_PADDING_X * 2
+                );
             }
 
+            width = Math.min(width, getMaximumColumnWidth(scope, column));
             widths.add(width);
         }
 
@@ -206,10 +239,17 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         int startX,
         int y
     ) {
-        int x = startX + 1;
+        int x = startX;
         for (int i = 0; i < columns.size(); i++) {
             String header = "§l" + ExtendedTabStatsColumns.getHeaderLabel(scope, columns.get(i)) + "§r";
-            mc.fontRendererObj.drawStringWithShadow(header, x, y, -1);
+            int column = columns.get(i);
+            int width = columnWidths.get(i);
+            int headerWidth = mc.fontRendererObj.getStringWidth(header);
+            int drawX =
+                isRightAlignedColumn(column)
+                    ? x + width - CELL_PADDING_X - headerWidth
+                    : x + CELL_PADDING_X;
+            mc.fontRendererObj.drawStringWithShadow(header, drawX, y, -1);
             x += columnWidths.get(i);
             if (i < columns.size() - 1) {
                 x += ExtendedTabStatsColumns.COLUMN_GAP;
@@ -225,16 +265,73 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         int startX,
         int baselineY
     ) {
-        int x = startX + 1;
+        int x = startX;
         for (int i = 0; i < columns.size(); i++) {
-            String value = getColumnValue(info, columns.get(i), scope);
+            int column = columns.get(i);
+            int width = columnWidths.get(i);
+            int maxTextWidth = Math.max(1, width - CELL_PADDING_X * 2);
+
+            String value = fitToWidth(getColumnValue(info, column, scope), maxTextWidth);
             if (value != null && !value.isEmpty()) {
-                mc.fontRendererObj.drawStringWithShadow(value, x, baselineY, -1);
+                int drawX =
+                    isRightAlignedColumn(column)
+                        ? x + width - CELL_PADDING_X - mc.fontRendererObj.getStringWidth(value)
+                        : x + CELL_PADDING_X;
+                mc.fontRendererObj.drawStringWithShadow(value, drawX, baselineY, -1);
             }
-            x += columnWidths.get(i);
+            x += width;
             if (i < columns.size() - 1) {
                 x += ExtendedTabStatsColumns.COLUMN_GAP;
             }
+        }
+    }
+
+    private String fitToWidth(String value, int width) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+
+        if (mc.fontRendererObj.getStringWidth(value) <= width) {
+            return value;
+        }
+
+        String suffix = "§7...";
+        int suffixWidth = mc.fontRendererObj.getStringWidth(suffix);
+        int trimmedWidth = Math.max(0, width - suffixWidth);
+        String trimmed = mc.fontRendererObj.trimStringToWidth(value, trimmedWidth);
+        if (trimmed == null || trimmed.isEmpty()) {
+            return "";
+        }
+        return trimmed + suffix;
+    }
+
+    private boolean isRightAlignedColumn(int column) {
+        return column != 0 && column != 2;
+    }
+
+    private int getMaximumColumnWidth(StatScope scope, int column) {
+        if (scope == StatScope.SKYWARS) {
+            switch (column) {
+                case 0:
+                    return 40;
+                case 1:
+                    return 70;
+                case 2:
+                    return 220;
+                default:
+                    return 72;
+            }
+        }
+
+        switch (column) {
+            case 0:
+                return 40;
+            case 1:
+                return 70;
+            case 2:
+                return 220;
+            default:
+                return 72;
         }
     }
 
