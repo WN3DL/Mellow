@@ -430,9 +430,19 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
     private int getMinimumColumnWidth(StatScope scope, int column) {
         if (column == COLUMN_HEALTH) {
-            return 26;
+            return 18;
         }
-        return ExtendedTabStatsColumns.getMinimumColumnWidth(scope, column);
+
+        switch (column) {
+            case 0: // TEAM
+                return 18;
+            case 1: // STARS / LEVEL
+                return 22;
+            case 2: // NAME
+                return shouldShowHeadsInExtendedView() ? 70 : 58;
+            default: // numeric stat columns
+                return 18;
+        }
     }
 
     private int getMaximumColumnWidth(StatScope scope, int column) {

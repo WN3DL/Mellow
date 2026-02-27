@@ -8,7 +8,7 @@ import java.util.List;
 
 public final class ExtendedTabStatsColumns {
 
-    public static final int COLUMN_GAP = 6;
+    public static final int COLUMN_GAP = 4;
     public static final int BEDWARS_NONE_INDEX = 10;
     public static final int SKYWARS_NONE_INDEX = 7;
 
