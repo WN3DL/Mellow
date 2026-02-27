@@ -84,8 +84,6 @@ public class Mellow {
             providerManager,
             urchinApi,
             seraphApi,
-            config.urchinKey,
-            config.seraphKey,
             config
         );
 

@@ -28,9 +28,9 @@ public class PlayerCache {
     private final ProviderManager providerManager;
     private final UrchinApi urchinApi;
     private final SeraphApi seraphApi;
-    private final String urchinApiKey;
-    private final String seraphApiKey;
     private final MellowOneConfig config;
+    private volatile String lastUrchinApiKey;
+    private volatile String lastSeraphApiKey;
 
     private long lastMissingApiKeyWarnAt;
 
@@ -39,20 +39,19 @@ public class PlayerCache {
         ProviderManager providerManager,
         UrchinApi urchinApi,
         SeraphApi seraphApi,
-        String urchinApiKey,
-        String seraphApiKey,
         MellowOneConfig config
     ) {
         this.mojangApi = mojangApi;
         this.providerManager = providerManager;
         this.urchinApi = urchinApi;
         this.seraphApi = seraphApi;
-        this.urchinApiKey = urchinApiKey;
-        this.seraphApiKey = seraphApiKey;
         this.config = config;
+        this.lastUrchinApiKey = normalizeApiKey(config.urchinKey);
+        this.lastSeraphApiKey = normalizeApiKey(config.seraphKey);
     }
 
     public PlayerProfile getProfile(String playerName) {
+        maybeInvalidateCacheOnApiKeyChange();
         StatsProvider provider = providerManager.getSelectedProvider(config);
         if (provider == null) {
             return null;
@@ -78,6 +77,7 @@ public class PlayerCache {
     }
 
     public String fetchRawPlayerData(String playerName) {
+        maybeInvalidateCacheOnApiKeyChange();
         StatsProvider provider = providerManager.getSelectedProvider(config);
         if (provider == null) {
             return "";
@@ -121,6 +121,8 @@ public class PlayerCache {
         StatsProvider provider,
         String cacheKey
     ) {
+        String urchinApiKey = normalizeApiKey(config.urchinKey);
+        String seraphApiKey = normalizeApiKey(config.seraphKey);
         try {
             BedwarsPlayer bedwarsPlayer = provider.fetchPlayerStats(playerName);
             SkywarsPlayer skywarsPlayer = provider.fetchSkywarsStats(playerName);
@@ -189,12 +191,31 @@ public class PlayerCache {
         cache.keySet().removeIf(key -> key.endsWith(":" + lower));
     }
 
+    private void maybeInvalidateCacheOnApiKeyChange() {
+        String currentUrchinApiKey = normalizeApiKey(config.urchinKey);
+        String currentSeraphApiKey = normalizeApiKey(config.seraphKey);
+
+        boolean urchinChanged = !currentUrchinApiKey.equals(lastUrchinApiKey);
+        boolean seraphChanged = !currentSeraphApiKey.equals(lastSeraphApiKey);
+        if (!urchinChanged && !seraphChanged) {
+            return;
+        }
+
+        lastUrchinApiKey = currentUrchinApiKey;
+        lastSeraphApiKey = currentSeraphApiKey;
+        clearCache();
+    }
+
     private String resolveUuid(String playerName) {
         String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
         if (uuid == null || uuid.isEmpty()) {
             uuid = mojangApi.fetchUUID(playerName);
         }
         return uuid;
+    }
+
+    private String normalizeApiKey(String apiKey) {
+        return apiKey == null ? "" : apiKey.trim();
     }
 
     private static class CachedProfile {
