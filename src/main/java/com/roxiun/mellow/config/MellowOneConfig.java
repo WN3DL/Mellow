@@ -61,10 +61,10 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Extended Team Column Mode",
         options = {
+            "Combine With Stars",
             "Own Column",
             "Hide Team Header",
             "Combine With Name",
-            "Combine With Stars",
         },
         category = "Tab Stats"
     )
@@ -294,14 +294,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "First SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -311,14 +304,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Second SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -328,14 +314,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Third SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -345,14 +324,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Fourth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -362,14 +334,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Fifth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -379,14 +344,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Sixth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -396,14 +354,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Seventh SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -413,14 +364,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Eighth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -430,14 +374,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Ninth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -447,14 +384,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Tenth SkyWars Stat",
         options = {
-            "Team",
-            "Level",
-            "Name",
-            "KDR",
-            "WLR",
-            "Wins",
-            "Kills",
-            "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
