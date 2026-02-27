@@ -1,7 +1,9 @@
 package com.roxiun.mellow.data;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import java.util.List;
 
@@ -10,6 +12,7 @@ public class PlayerProfile {
     private final String uuid;
     private final String name;
     private final BedwarsPlayer bedwarsPlayer;
+    private final SkywarsPlayer skywarsPlayer;
     private final List<UrchinTag> urchinTags;
     private final List<SeraphTag> seraphTags;
     private final long lastUpdated;
@@ -20,7 +23,7 @@ public class PlayerProfile {
         BedwarsPlayer bedwarsPlayer,
         List<UrchinTag> urchinTags
     ) {
-        this(uuid, name, bedwarsPlayer, urchinTags, null);
+        this(uuid, name, bedwarsPlayer, null, urchinTags, null);
     }
 
     public PlayerProfile(
@@ -30,9 +33,31 @@ public class PlayerProfile {
         List<UrchinTag> urchinTags,
         List<SeraphTag> seraphTags
     ) {
+        this(uuid, name, bedwarsPlayer, null, urchinTags, seraphTags);
+    }
+
+    public PlayerProfile(
+        String uuid,
+        String name,
+        BedwarsPlayer bedwarsPlayer,
+        SkywarsPlayer skywarsPlayer,
+        List<UrchinTag> urchinTags
+    ) {
+        this(uuid, name, bedwarsPlayer, skywarsPlayer, urchinTags, null);
+    }
+
+    public PlayerProfile(
+        String uuid,
+        String name,
+        BedwarsPlayer bedwarsPlayer,
+        SkywarsPlayer skywarsPlayer,
+        List<UrchinTag> urchinTags,
+        List<SeraphTag> seraphTags
+    ) {
         this.uuid = uuid;
         this.name = name;
         this.bedwarsPlayer = bedwarsPlayer;
+        this.skywarsPlayer = skywarsPlayer;
         this.urchinTags = urchinTags;
         this.seraphTags = seraphTags;
         this.lastUpdated = System.currentTimeMillis();
@@ -48,6 +73,10 @@ public class PlayerProfile {
 
     public BedwarsPlayer getBedwarsPlayer() {
         return bedwarsPlayer;
+    }
+
+    public SkywarsPlayer getSkywarsPlayer() {
+        return skywarsPlayer;
     }
 
     public List<UrchinTag> getUrchinTags() {
@@ -71,6 +100,31 @@ public class PlayerProfile {
     }
 
     public TabStats getTabStats() {
+        return getTabStats(StatScope.BEDWARS);
+    }
+
+    public TabStats getTabStats(StatScope scope) {
+        if (scope == StatScope.SKYWARS && skywarsPlayer != null) {
+            return new TabStats(
+                urchinTags,
+                seraphTags,
+                skywarsPlayer.getFormattedNameWithRank(),
+                skywarsPlayer.getLevelFormatted(),
+                skywarsPlayer.getFormattedKdrWithColor(),
+                null,
+                skywarsPlayer.getFormattedWlrWithColor(),
+                null,
+                skywarsPlayer.getFormattedWinsWithColor(),
+                skywarsPlayer.getFormattedKillsWithColor(),
+                null,
+                null
+            );
+        }
+
+        if (bedwarsPlayer == null) {
+            return null;
+        }
+
         // Format numbers with appropriate formatting including colors
         String formattedWins = getBedwarsPlayer().getFormattedWinsWithColor();
         String formattedBeds = getBedwarsPlayer().getFormattedBedsWithColor();
@@ -93,6 +147,7 @@ public class PlayerProfile {
             formattedWLR,
             formattedBBLR,
             formattedWins,
+            null,
             formattedBeds,
             formattedFinals
         );

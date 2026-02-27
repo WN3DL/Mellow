@@ -240,6 +240,185 @@ public class MellowOneConfig extends Config {
     public int customStat10 = 10; // None by default
 
     @Info(
+        text = "Set the order of SkyWars stats in the tab list",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public static boolean ignoredSkywarsStatsOrderInfo;
+
+    @Dropdown(
+        name = "First SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat1 = 0;
+
+    @Dropdown(
+        name = "Second SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat2 = 1;
+
+    @Dropdown(
+        name = "Third SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat3 = 2;
+
+    @Dropdown(
+        name = "Fourth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat4 = 3;
+
+    @Dropdown(
+        name = "Fifth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat5 = 4;
+
+    @Dropdown(
+        name = "Sixth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat6 = 7;
+
+    @Dropdown(
+        name = "Seventh SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat7 = 7;
+
+    @Dropdown(
+        name = "Eighth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat8 = 7;
+
+    @Dropdown(
+        name = "Ninth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat9 = 7;
+
+    @Dropdown(
+        name = "Tenth SkyWars Stat",
+        options = {
+            "Team",
+            "Level",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Kills",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "SkyWars"
+    )
+    public int skywarsCustomStat10 = 7;
+
+    @Info(
         text = "Toggle seperator between stats",
         type = InfoType.INFO,
         size = OptionSize.DUAL,

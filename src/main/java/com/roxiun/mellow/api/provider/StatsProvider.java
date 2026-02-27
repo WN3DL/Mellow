@@ -1,6 +1,7 @@
 package com.roxiun.mellow.api.provider;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.provider.model.PlayerIdentity;
 import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.api.provider.model.ProviderResult;
@@ -22,22 +23,40 @@ public interface StatsProvider {
 
     BedwarsPlayer fetchPlayerStats(String playerName) throws IOException;
 
+    default SkywarsPlayer fetchSkywarsStats(String playerName)
+        throws IOException {
+        return null;
+    }
+
     String fetchPlayerData(String uuid);
 
-    default ProviderResult<BedwarsPlayer> fetchStats(
+    default ProviderResult<?> fetchStats(
         PlayerIdentity identity,
         StatScope scope
     ) {
-        if (scope != StatScope.BEDWARS) {
-            return ProviderResult.failure("Unsupported scope: " + scope);
-        }
-
         try {
-            BedwarsPlayer player = fetchPlayerStats(identity.getUsername());
-            if (player == null) {
-                return ProviderResult.failure("No data returned");
+            switch (scope) {
+                case BEDWARS:
+                    BedwarsPlayer bedwarsPlayer = fetchPlayerStats(
+                        identity.getUsername()
+                    );
+                    if (bedwarsPlayer == null) {
+                        return ProviderResult.failure("No data returned");
+                    }
+                    return ProviderResult.success(bedwarsPlayer);
+                case SKYWARS:
+                    SkywarsPlayer skywarsPlayer = fetchSkywarsStats(
+                        identity.getUsername()
+                    );
+                    if (skywarsPlayer == null) {
+                        return ProviderResult.failure("No data returned");
+                    }
+                    return ProviderResult.success(skywarsPlayer);
+                default:
+                    return ProviderResult.failure(
+                        "Unsupported scope: " + scope
+                    );
             }
-            return ProviderResult.success(player);
         } catch (Exception e) {
             return ProviderResult.failure(e.getMessage());
         }

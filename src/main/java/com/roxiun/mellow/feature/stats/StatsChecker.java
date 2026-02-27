@@ -1,12 +1,16 @@
 package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.api.provider.model.StatScope;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.feature.tags.TagUtils;
+import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
@@ -16,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
+import net.hypixel.data.type.GameType;
 
 public class StatsChecker {
 
@@ -48,6 +53,8 @@ public class StatsChecker {
         if (onlinePlayers == null || onlinePlayers.isEmpty()) {
             return;
         }
+
+        final StatScope activeScope = resolveActiveScope();
         final int MAX_THREADS = 20;
         int poolSize = Math.min(onlinePlayers.size(), MAX_THREADS);
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
@@ -60,25 +67,25 @@ public class StatsChecker {
                 playerCache.clearPlayer(playerName);
                 PlayerProfile profile = playerCache.getProfile(playerName);
 
-                if (profile == null || profile.getBedwarsPlayer() == null) {
+                if (profile == null || !hasStatsForScope(profile, activeScope)) {
                     return;
                 }
 
-                BedwarsPlayer player = profile.getBedwarsPlayer();
-
-                if (player.getFkdr() < config.minFkdr) {
+                if (!passesScopeFilters(profile, activeScope)) {
                     return;
                 }
 
                 // Populate TabStats for the tab list
                 if (config.tabStats) {
-                    TabStats newTabStats = profile.getTabStats();
-                    tabStats.put(playerName, newTabStats);
+                    TabStats newTabStats = profile.getTabStats(activeScope);
+                    if (newTabStats != null) {
+                        tabStats.put(playerName, newTabStats);
+                    }
                 }
 
                 // Print stats to chat if enabled
                 if (config.printStats) {
-                    String chatMessage = formatChatStats(profile);
+                    String chatMessage = formatChatStats(profile, activeScope);
                     if (!chatMessage.isEmpty()) {
                         mc.addScheduledTask(() ->
                             ChatUtils.sendMessage(chatMessage)
@@ -162,8 +169,42 @@ public class StatsChecker {
         // The notification for completion can be added back if desired
     }
 
-    private String formatChatStats(PlayerProfile profile) {
+    private StatScope resolveActiveScope() {
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        if (snapshot != null && snapshot.getGameType() == GameType.SKYWARS) {
+            return StatScope.SKYWARS;
+        }
+        return StatScope.BEDWARS;
+    }
+
+    private boolean hasStatsForScope(PlayerProfile profile, StatScope scope) {
+        if (scope == StatScope.SKYWARS) {
+            return profile.getSkywarsPlayer() != null;
+        }
+        return profile.getBedwarsPlayer() != null;
+    }
+
+    private boolean passesScopeFilters(PlayerProfile profile, StatScope scope) {
+        if (scope == StatScope.SKYWARS) {
+            return true;
+        }
+
         BedwarsPlayer player = profile.getBedwarsPlayer();
+        return player != null && player.getFkdr() >= config.minFkdr;
+    }
+
+    private String formatChatStats(PlayerProfile profile, StatScope scope) {
+        if (scope == StatScope.SKYWARS) {
+            return formatSkywarsChatStats(profile);
+        }
+        return formatBedwarsChatStats(profile);
+    }
+
+    private String formatBedwarsChatStats(PlayerProfile profile) {
+        BedwarsPlayer player = profile.getBedwarsPlayer();
+        if (player == null) {
+            return "";
+        }
 
         String displayName = player.getFormattedNameWithRank();
         String stars = player.getStars();
@@ -202,6 +243,23 @@ public class StatsChecker {
                 return String.format("%s §r§7|§r WS: %s§r", base, winstreak);
             }
         }
+    }
+
+    private String formatSkywarsChatStats(PlayerProfile profile) {
+        SkywarsPlayer player = profile.getSkywarsPlayer();
+        if (player == null) {
+            return "";
+        }
+
+        String base = String.format(
+            "%s §r%s§r§7 |§r KDR: %s§r§7 |§r WLR: %s§r",
+            player.getFormattedNameWithRank(),
+            player.getLevelFormatted(),
+            player.getFormattedKdrWithColor(),
+            player.getFormattedWlrWithColor()
+        );
+
+        return base;
     }
 
     private String buildTagsValue(PlayerProfile profile) {

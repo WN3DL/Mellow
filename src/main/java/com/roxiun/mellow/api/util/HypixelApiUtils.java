@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.provider.model.ProviderId;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -155,6 +156,69 @@ public class HypixelApiUtils {
                 bedsBroken,
                 bedsLost,
                 finals
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static SkywarsPlayer parseSkywarsPlayerData(
+        String json,
+        ProviderId providerId
+    ) {
+        try {
+            JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
+            JsonObject playerObject = getPlayerObject(rootObject, providerId);
+            if (playerObject == null) {
+                return null;
+            }
+
+            String name = getString(
+                playerObject,
+                "displayname",
+                getString(rootObject, "name", "[]")
+            );
+            if (providerId == ProviderId.NADESHIKO) {
+                JsonObject profile = getObject(rootObject, "profile");
+                name =
+                    getString(
+                        profile,
+                        "hypixel_displayname",
+                        getString(rootObject, "name", name)
+                    );
+            }
+
+            String formattedName = getFormattedNameWithRank(
+                rootObject,
+                playerObject,
+                providerId,
+                name
+            );
+
+            JsonObject achievements = getObject(playerObject, "achievements");
+            JsonObject stats = getObject(playerObject, "stats");
+            JsonObject skywarsStats = getObject(stats, "SkyWars");
+
+            int kills = getInt(skywarsStats, "kills", 0);
+            int deaths = getInt(skywarsStats, "deaths", 0);
+            int wins = getInt(skywarsStats, "wins", 0);
+            int losses = getInt(skywarsStats, "losses", 0);
+
+            double kdr = deaths == 0 ? kills : (double) kills / deaths;
+            String levelFormatted = resolveSkywarsLevelFormatted(
+                achievements,
+                skywarsStats
+            );
+
+            return new SkywarsPlayer(
+                name,
+                formattedName,
+                levelFormatted,
+                kdr,
+                wins,
+                losses,
+                kills,
+                deaths
             );
         } catch (Exception e) {
             return null;
@@ -329,6 +393,33 @@ public class HypixelApiUtils {
         }
 
         return root;
+    }
+
+    private static String resolveSkywarsLevelFormatted(
+        JsonObject achievements,
+        JsonObject skywarsStats
+    ) {
+        String formatted = getString(skywarsStats, "levelFormatted", "");
+        if (!formatted.isEmpty()) {
+            return formatted;
+        }
+
+        int achievementLevel = getInt(achievements, "skywars_level", -1);
+        if (achievementLevel >= 0) {
+            return "§7" + achievementLevel;
+        }
+
+        int level = getInt(skywarsStats, "level", -1);
+        if (level >= 0) {
+            return "§7" + level;
+        }
+
+        int exp = getInt(skywarsStats, "skywars_experience", -1);
+        if (exp >= 0) {
+            return "§7" + exp;
+        }
+
+        return "§70";
     }
 
     private static JsonObject getObject(JsonObject object, String key) {

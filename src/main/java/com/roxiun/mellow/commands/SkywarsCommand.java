@@ -1,0 +1,150 @@
+package com.roxiun.mellow.commands;
+
+import com.mojang.authlib.GameProfile;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
+import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.formatting.FormattingUtils;
+import java.util.Arrays;
+import java.util.List;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.util.BlockPos;
+
+public class SkywarsCommand extends CommandBase {
+
+    private final PlayerCache playerCache;
+    private final MellowOneConfig config;
+
+    public SkywarsCommand(PlayerCache playerCache, MellowOneConfig config) {
+        this.playerCache = playerCache;
+        this.config = config;
+    }
+
+    @Override
+    public String getCommandName() {
+        return "sw";
+    }
+
+    @Override
+    public String getCommandUsage(ICommandSender sender) {
+        return "/sw <username>";
+    }
+
+    @Override
+    public void processCommand(ICommandSender sender, String[] args) {
+        if (args.length != 1) {
+            ChatUtils.sendCommandMessage(
+                sender,
+                "§cInvalid usage! Use /sw <username>"
+            );
+            return;
+        }
+
+        String username = args[0];
+
+        ChatUtils.sendCommandMessage(
+            sender,
+            "§r§7Fetching SkyWars stats for " + username + "..."
+        );
+        AsyncExecutor.getInstance().command(() -> {
+            PlayerProfile profile = playerCache.getProfile(username);
+
+            if (profile == null || profile.getSkywarsPlayer() == null) {
+                MainThreadDispatcher.run(() ->
+                    ChatUtils.sendCommandMessage(
+                        sender,
+                        "§cFailed to fetch SkyWars stats for: §r" + username
+                    )
+                );
+                return;
+            }
+
+            SkywarsPlayer player = profile.getSkywarsPlayer();
+            List<String> statsLines = Arrays.asList(
+                player.getLevelFormatted() +
+                " §r" +
+                player.getFormattedNameWithRank(),
+                "§rKDR: " + player.getFormattedKdrWithColor(),
+                "§rWLR: " + player.getFormattedWlrWithColor(),
+                "§rWins: " + player.getFormattedWinsWithColor(),
+                "§rKills: " + player.getFormattedKillsWithColor()
+            );
+
+            MainThreadDispatcher.run(() ->
+                ChatUtils.sendMultilineCommandMessage(sender, statsLines)
+            );
+
+            if (config.urchin && profile.isUrchinTagged()) {
+                String tags = FormattingUtils.formatUrchinTags(
+                    profile.getUrchinTags()
+                );
+                String urchinMessage = "§5§lUrchin§r§5: " + tags;
+                MainThreadDispatcher.run(() ->
+                    ChatUtils.sendMultilineCommandMessage(sender, urchinMessage)
+                );
+            }
+
+            if (config.seraph && profile.isSeraphTagged()) {
+                String formattedTags = FormattingUtils.formatSeraphTags(
+                    profile.getSeraphTags()
+                );
+                String[] tagMessages = formattedTags.split("\n§c");
+                if (
+                    tagMessages.length > 0 && !tagMessages[0].trim().isEmpty()
+                ) {
+                    String firstMessage = "§3§lSeraph§r§3: " + tagMessages[0];
+                    MainThreadDispatcher.run(() ->
+                        ChatUtils.sendMultilineCommandMessage(
+                            sender,
+                            firstMessage
+                        )
+                    );
+                    for (int i = 1; i < tagMessages.length; i++) {
+                        if (!tagMessages[i].trim().isEmpty()) {
+                            String additionalMessage = "§c" + tagMessages[i];
+                            MainThreadDispatcher.run(() ->
+                                ChatUtils.sendMultilineCommandMessage(
+                                    sender,
+                                    additionalMessage
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
+    public List<String> addTabCompletionOptions(
+        ICommandSender sender,
+        String[] args,
+        BlockPos pos
+    ) {
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(
+                args,
+                Minecraft.getMinecraft()
+                    .getNetHandler()
+                    .getPlayerInfoMap()
+                    .stream()
+                    .map(NetworkPlayerInfo::getGameProfile)
+                    .map(GameProfile::getName)
+                    .toArray(String[]::new)
+            );
+        }
+        return null;
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 0;
+    }
+}

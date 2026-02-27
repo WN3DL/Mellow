@@ -15,8 +15,65 @@ public class TabStats {
     private final String wlr;
     private final String bblr;
     private final String wins;
+    private final String kills;
     private final String beds;
     private final String finals;
+
+    public TabStats(
+        List<UrchinTag> urchinTags,
+        String stars,
+        String fkdr,
+        String winstreak,
+        String wlr,
+        String bblr,
+        String wins,
+        String kills,
+        String beds,
+        String finals
+    ) {
+        this(
+            urchinTags,
+            null,
+            null,
+            stars,
+            fkdr,
+            winstreak,
+            wlr,
+            bblr,
+            wins,
+            kills,
+            beds,
+            finals
+        );
+    }
+
+    public TabStats(
+        List<UrchinTag> urchinTags,
+        List<SeraphTag> seraphTags,
+        String formattedNameWithRank,
+        String stars,
+        String fkdr,
+        String winstreak,
+        String wlr,
+        String bblr,
+        String wins,
+        String kills,
+        String beds,
+        String finals
+    ) {
+        this.urchinTags = urchinTags;
+        this.seraphTags = seraphTags;
+        this.formattedNameWithRank = formattedNameWithRank;
+        this.stars = stars;
+        this.fkdr = fkdr;
+        this.winstreak = winstreak;
+        this.wlr = wlr;
+        this.bblr = bblr;
+        this.wins = wins;
+        this.kills = kills;
+        this.beds = beds;
+        this.finals = finals;
+    }
 
     public TabStats(
         List<UrchinTag> urchinTags,
@@ -31,14 +88,13 @@ public class TabStats {
     ) {
         this(
             urchinTags,
-            null,
-            null,
             stars,
             fkdr,
             winstreak,
             wlr,
             bblr,
             wins,
+            null,
             beds,
             finals
         );
@@ -57,17 +113,20 @@ public class TabStats {
         String beds,
         String finals
     ) {
-        this.urchinTags = urchinTags;
-        this.seraphTags = seraphTags;
-        this.formattedNameWithRank = formattedNameWithRank;
-        this.stars = stars;
-        this.fkdr = fkdr;
-        this.winstreak = winstreak;
-        this.wlr = wlr;
-        this.bblr = bblr;
-        this.wins = wins;
-        this.beds = beds;
-        this.finals = finals;
+        this(
+            urchinTags,
+            seraphTags,
+            formattedNameWithRank,
+            stars,
+            fkdr,
+            winstreak,
+            wlr,
+            bblr,
+            wins,
+            null,
+            beds,
+            finals
+        );
     }
 
     public boolean isUrchinTagged() {
@@ -112,6 +171,10 @@ public class TabStats {
 
     public String getWins() {
         return wins;
+    }
+
+    public String getKills() {
+        return kills;
     }
 
     public String getBeds() {

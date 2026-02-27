@@ -2,6 +2,7 @@ package com.roxiun.mellow.mixin;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.data.TabStats;
@@ -11,6 +12,7 @@ import java.util.UUID;
 import net.minecraft.client.gui.GuiPlayerTabOverlay;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.scoreboard.ScorePlayerTeam;
+import net.hypixel.data.type.GameType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,6 +22,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class GuiPlayerTabOverlayMixin {
 
     private static final String MIDDLE_DOT = "\u30fb";
+    private static final int BEDWARS_NONE_INDEX = 10;
+    private static final int SKYWARS_NONE_INDEX = 7;
 
     @Inject(method = "getPlayerName", at = @At("HEAD"), cancellable = true)
     public void getPlayerName(
@@ -177,21 +181,16 @@ public class GuiPlayerTabOverlayMixin {
         String teamColor,
         TabStats stats
     ) {
-        StringBuilder result = new StringBuilder();
-        String stars = stats.getStars();
-        String fkdr = stats.getFkdr();
-
-        // Dynamic ordering based on user configuration
-        result.append(buildDynamicOrderedString(team, name, teamColor, stats));
-
-        return result.toString();
+        StatScope scope = resolveTabStatScope();
+        return buildDynamicOrderedString(team, name, teamColor, stats, scope);
     }
 
     private String buildDynamicOrderedString(
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        StatScope scope
     ) {
         // Collect all valid stat parts with their type information
         java.util.List<
@@ -199,86 +198,17 @@ public class GuiPlayerTabOverlayMixin {
         > validPartsWithType = new java.util.ArrayList<>();
 
         // Process each stat in the configured order with type tracking
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat1,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat2,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat3,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat4,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat5,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat6,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat7,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat8,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat9,
-            team,
-            name,
-            teamColor,
-            stats
-        );
-        addValidPartWithConfigStat(
-            validPartsWithType,
-            Mellow.config.customStat10,
-            team,
-            name,
-            teamColor,
-            stats
-        );
+        for (int statIndex : getConfiguredStatsForScope(scope)) {
+            addValidPartWithConfigStat(
+                validPartsWithType,
+                statIndex,
+                team,
+                name,
+                teamColor,
+                stats,
+                scope
+            );
+        }
 
         // Build the string with configurable dot separators between positions
         StringBuilder result = new StringBuilder();
@@ -374,14 +304,16 @@ public class GuiPlayerTabOverlayMixin {
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        StatScope scope
     ) {
         String[] statParts = processDynamicStat(
             statIndex,
             team,
             name,
             teamColor,
-            stats
+            stats,
+            scope
         );
         if (statParts != null && !statParts[0].trim().isEmpty()) {
             // Create an entry with the stat value and its type (statIndex)
@@ -392,6 +324,26 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private String[] processDynamicStat(
+        int statIndex,
+        String team,
+        String name,
+        String teamColor,
+        TabStats stats,
+        StatScope scope
+    ) {
+        if (scope == StatScope.SKYWARS) {
+            return processSkywarsDynamicStat(
+                statIndex,
+                team,
+                name,
+                teamColor,
+                stats
+            );
+        }
+        return processBedwarsDynamicStat(statIndex, team, name, teamColor, stats);
+    }
+
+    private String[] processBedwarsDynamicStat(
         int statIndex,
         String team,
         String name,
@@ -471,10 +423,103 @@ public class GuiPlayerTabOverlayMixin {
                     return new String[] { stats.getFinals(), "false" }; // The color is already included in the string
                 }
                 break;
-            case 10: // None
+            case BEDWARS_NONE_INDEX: // None
                 return null;
         }
         return null;
+    }
+
+    private String[] processSkywarsDynamicStat(
+        int statIndex,
+        String team,
+        String name,
+        String teamColor,
+        TabStats stats
+    ) {
+        String level = stats.getStars();
+        String kdr = stats.getFkdr();
+
+        switch (statIndex) {
+            case 0: // Team
+                return new String[] { team, "false" };
+            case 1: // Level (shows Nick instead if player is nicked)
+                boolean isNicked = Mellow.nickUtils.isNicked(name);
+                if (isNicked) {
+                    if (Mellow.config.showNickWithBrackets) {
+                        return new String[] { "§5[§lNICK§r§5]§r", "false" };
+                    } else {
+                        return new String[] { "§5§lNICK§r", "false" };
+                    }
+                } else if (level != null && !level.isEmpty()) {
+                    return new String[] { level + "§r", "false" };
+                }
+                break;
+            case 2: // Name
+                if (shouldUseLobbyRankFormatting()) {
+                    String formattedNameWithRank = stats.getFormattedNameWithRank();
+                    if (
+                        formattedNameWithRank != null &&
+                        !formattedNameWithRank.isEmpty()
+                    ) {
+                        return new String[] { formattedNameWithRank + "§r", "false" };
+                    }
+                }
+                return new String[] { "§r" + teamColor + name, "false" };
+            case 3: // KDR
+                if (kdr != null && !kdr.isEmpty()) {
+                    return new String[] { kdr, "false" };
+                }
+                break;
+            case 4: // WLR
+                if (stats.getWlr() != null && !stats.getWlr().isEmpty()) {
+                    return new String[] { stats.getWlr(), "false" };
+                }
+                break;
+            case 5: // Wins
+                if (stats.getWins() != null && !stats.getWins().isEmpty()) {
+                    return new String[] { stats.getWins(), "false" };
+                }
+                break;
+            case 6: // Kills
+                if (stats.getKills() != null && !stats.getKills().isEmpty()) {
+                    return new String[] { stats.getKills(), "false" };
+                }
+                break;
+            case SKYWARS_NONE_INDEX: // None
+                return null;
+        }
+
+        return null;
+    }
+
+    private int[] getConfiguredStatsForScope(StatScope scope) {
+        if (scope == StatScope.SKYWARS) {
+            return new int[] {
+                Mellow.config.skywarsCustomStat1,
+                Mellow.config.skywarsCustomStat2,
+                Mellow.config.skywarsCustomStat3,
+                Mellow.config.skywarsCustomStat4,
+                Mellow.config.skywarsCustomStat5,
+                Mellow.config.skywarsCustomStat6,
+                Mellow.config.skywarsCustomStat7,
+                Mellow.config.skywarsCustomStat8,
+                Mellow.config.skywarsCustomStat9,
+                Mellow.config.skywarsCustomStat10,
+            };
+        }
+
+        return new int[] {
+            Mellow.config.customStat1,
+            Mellow.config.customStat2,
+            Mellow.config.customStat3,
+            Mellow.config.customStat4,
+            Mellow.config.customStat5,
+            Mellow.config.customStat6,
+            Mellow.config.customStat7,
+            Mellow.config.customStat8,
+            Mellow.config.customStat9,
+            Mellow.config.customStat10,
+        };
     }
 
     private String appendBlacklistTag(String displayName, UUID playerUUID) {
@@ -489,6 +534,16 @@ public class GuiPlayerTabOverlayMixin {
 
     private boolean shouldUseLobbyRankFormatting() {
         return HypixelFeatures.getInstance().getGameSnapshot().isLobby();
+    }
+
+    private StatScope resolveTabStatScope() {
+        if (
+            HypixelFeatures.getInstance().getGameSnapshot().getGameType() ==
+            GameType.SKYWARS
+        ) {
+            return StatScope.SKYWARS;
+        }
+        return StatScope.BEDWARS;
     }
 
     private String getOriginalDisplayName(

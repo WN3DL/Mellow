@@ -6,6 +6,7 @@ import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.config.MellowOneConfig;
@@ -122,7 +123,8 @@ public class PlayerCache {
     ) {
         try {
             BedwarsPlayer bedwarsPlayer = provider.fetchPlayerStats(playerName);
-            if (bedwarsPlayer == null) {
+            SkywarsPlayer skywarsPlayer = provider.fetchSkywarsStats(playerName);
+            if (bedwarsPlayer == null && skywarsPlayer == null) {
                 return null;
             }
 
@@ -166,6 +168,7 @@ public class PlayerCache {
                 uuid,
                 playerName,
                 bedwarsPlayer,
+                skywarsPlayer,
                 urchinTags,
                 seraphTags
             );

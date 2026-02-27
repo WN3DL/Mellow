@@ -54,6 +54,11 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
+                "§r§5/sw <username>:§d Manually check skywars stats of a player.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
                 "§r§5/pv [username]:§d Open the profile viewer UI for a player (self by default).§r"
             )
         );

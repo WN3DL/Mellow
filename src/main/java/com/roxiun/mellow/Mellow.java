@@ -132,6 +132,9 @@ public class Mellow {
             new BedwarsCommand(playerCache, config)
         );
         ClientCommandHandler.instance.registerCommand(
+            new SkywarsCommand(playerCache, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
             new PVCommand(playerCache, config)
         );
         ClientCommandHandler.instance.registerCommand(new MellowCommand());

@@ -277,6 +277,9 @@ public class GameStateManager implements GameContext {
         if (title.contains("bed wars")) {
             return GameType.BEDWARS;
         }
+        if (title.contains("skywars") || title.contains("sky wars")) {
+            return GameType.SKYWARS;
+        }
         return null;
     }
 

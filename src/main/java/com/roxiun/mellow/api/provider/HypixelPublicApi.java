@@ -3,6 +3,7 @@ package com.roxiun.mellow.api.provider;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.model.ProviderId;
+import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.util.player.PlayerUtils;
@@ -79,5 +80,31 @@ public class HypixelPublicApi implements StatsProvider {
         }
 
         return HypixelApiUtils.parsePlayerData(json, ProviderId.HYPIXEL_PUBLIC);
+    }
+
+    @Override
+    public SkywarsPlayer fetchSkywarsStats(String playerName)
+        throws IOException {
+        if (!isConfigured()) {
+            return null;
+        }
+
+        String uuid = PlayerUtils.getUUIDFromPlayerName(playerName);
+        if (uuid == null) {
+            uuid = mojangApi.fetchUUID(playerName);
+            if ("ERROR".equals(uuid)) {
+                return null;
+            }
+        }
+
+        String json = fetchPlayerData(uuid);
+        if (json == null || json.isEmpty()) {
+            return null;
+        }
+
+        return HypixelApiUtils.parseSkywarsPlayerData(
+            json,
+            ProviderId.HYPIXEL_PUBLIC
+        );
     }
 }
