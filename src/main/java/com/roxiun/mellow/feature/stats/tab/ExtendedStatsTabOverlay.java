@@ -205,10 +205,61 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         List<NetworkPlayerInfo> sorted = PLAYER_ORDERING.sortedCopy(
             netHandler.getPlayerInfoMap()
         );
-        if (sorted.size() <= MAX_TAB_PLAYERS) {
-            return sorted;
+        List<NetworkPlayerInfo> filtered = sorted;
+        if (shouldFilterObfuscatedPregameEntries()) {
+            filtered = new ArrayList<>(sorted.size());
+            for (NetworkPlayerInfo info : sorted) {
+                if (!isObfuscatedTabEntry(info)) {
+                    filtered.add(info);
+                }
+            }
         }
-        return new ArrayList<>(sorted.subList(0, MAX_TAB_PLAYERS));
+
+        if (filtered.size() <= MAX_TAB_PLAYERS) {
+            return filtered;
+        }
+        return new ArrayList<>(filtered.subList(0, MAX_TAB_PLAYERS));
+    }
+
+    private boolean shouldFilterObfuscatedPregameEntries() {
+        return (
+            HypixelFeatures.getInstance().getGameSnapshot() != null &&
+            HypixelFeatures.getInstance().getGameSnapshot().isPregame()
+        );
+    }
+
+    private boolean isObfuscatedTabEntry(NetworkPlayerInfo info) {
+        return hasObfuscatedFormatting(getRawDisplayName(info));
+    }
+
+    private String getRawDisplayName(NetworkPlayerInfo info) {
+        if (info == null || info.getGameProfile() == null) {
+            return "";
+        }
+
+        if (info.getDisplayName() != null) {
+            return info.getDisplayName().getFormattedText();
+        }
+        return ScorePlayerTeam.formatPlayerName(
+            info.getPlayerTeam(),
+            info.getGameProfile().getName()
+        );
+    }
+
+    private boolean hasObfuscatedFormatting(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < value.length() - 1; i++) {
+            if (value.charAt(i) == '\u00A7') {
+                char code = value.charAt(i + 1);
+                if (code == 'k' || code == 'K') {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void resetTeamModeState() {
