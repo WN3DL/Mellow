@@ -16,6 +16,12 @@ public final class ExtendedTabStatsMode {
         if (snapshot == null || !snapshot.isOnHypixel()) {
             return null;
         }
+        if (
+            snapshot.isLobby() &&
+            (Mellow.config == null || !Mellow.config.extendedTabStatsInLobbies)
+        ) {
+            return null;
+        }
 
         if (snapshot.getGameType() == GameType.SKYWARS) {
             return StatScope.SKYWARS;

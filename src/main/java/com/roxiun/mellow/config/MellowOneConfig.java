@@ -48,6 +48,13 @@ public class MellowOneConfig extends Config {
     public boolean extendedTabStatsView = true;
 
     @Switch(
+        name = "Extended View In Lobbies",
+        category = "Tab Stats",
+        description = "Allows Extended Tab Stats View while in game lobbies."
+    )
+    public boolean extendedTabStatsInLobbies = false;
+
+    @Switch(
         name = "Extended View Player Heads",
         category = "Tab Stats",
         description = "Shows player heads in the Name column when using Extended Tab Stats View."
