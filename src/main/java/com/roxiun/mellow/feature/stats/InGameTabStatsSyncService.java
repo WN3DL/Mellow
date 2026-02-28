@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
-import net.hypixel.data.type.GameType;
 
 public class InGameTabStatsSyncService {
 
@@ -76,16 +75,7 @@ public class InGameTabStatsSyncService {
     }
 
     private boolean isSupportedMatch(GameSnapshot snapshot) {
-        if (snapshot == null || !snapshot.isOnHypixel()) {
-            return false;
-        }
-        if (snapshot.isInBedwarsMatch()) {
-            return true;
-        }
-        if (snapshot.getGameType() == GameType.SKYWARS && !snapshot.isLobby()) {
-            return true;
-        }
-        return snapshot.getGameType() == GameType.DUELS && !snapshot.isLobby();
+        return StatScopeResolver.isSupportedLiveMatch(snapshot);
     }
 
     private void runScan(boolean clearBeforeFetch) {

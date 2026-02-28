@@ -1,10 +1,12 @@
 package com.roxiun.mellow.data;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import java.util.List;
 
@@ -15,6 +17,8 @@ public class PlayerProfile {
     private final BedwarsPlayer bedwarsPlayer;
     private final SkywarsPlayer skywarsPlayer;
     private final DuelsPlayer duelsPlayer;
+    private final BuildBattlePlayer buildBattlePlayer;
+    private final TntRunPlayer tntRunPlayer;
     private final List<UrchinTag> urchinTags;
     private final List<SeraphTag> seraphTags;
     private final long lastUpdated;
@@ -57,11 +61,37 @@ public class PlayerProfile {
         List<UrchinTag> urchinTags,
         List<SeraphTag> seraphTags
     ) {
+        this(
+            uuid,
+            name,
+            bedwarsPlayer,
+            skywarsPlayer,
+            duelsPlayer,
+            null,
+            null,
+            urchinTags,
+            seraphTags
+        );
+    }
+
+    public PlayerProfile(
+        String uuid,
+        String name,
+        BedwarsPlayer bedwarsPlayer,
+        SkywarsPlayer skywarsPlayer,
+        DuelsPlayer duelsPlayer,
+        BuildBattlePlayer buildBattlePlayer,
+        TntRunPlayer tntRunPlayer,
+        List<UrchinTag> urchinTags,
+        List<SeraphTag> seraphTags
+    ) {
         this.uuid = uuid;
         this.name = name;
         this.bedwarsPlayer = bedwarsPlayer;
         this.skywarsPlayer = skywarsPlayer;
         this.duelsPlayer = duelsPlayer;
+        this.buildBattlePlayer = buildBattlePlayer;
+        this.tntRunPlayer = tntRunPlayer;
         this.urchinTags = urchinTags;
         this.seraphTags = seraphTags;
         this.lastUpdated = System.currentTimeMillis();
@@ -85,6 +115,14 @@ public class PlayerProfile {
 
     public DuelsPlayer getDuelsPlayer() {
         return duelsPlayer;
+    }
+
+    public BuildBattlePlayer getBuildBattlePlayer() {
+        return buildBattlePlayer;
+    }
+
+    public TntRunPlayer getTntRunPlayer() {
+        return tntRunPlayer;
     }
 
     public List<UrchinTag> getUrchinTags() {
@@ -143,6 +181,42 @@ public class PlayerProfile {
                 duelsPlayer.getFormattedLossesWithColor(),
                 duelsPlayer.getFormattedKillsWithColor(),
                 duelsPlayer.getFormattedDeathsWithColor(),
+                null,
+                null
+            );
+        }
+
+        if (scope == StatScope.BUILD_BATTLE && buildBattlePlayer != null) {
+            return new TabStats(
+                urchinTags,
+                seraphTags,
+                buildBattlePlayer.getFormattedNameWithRank(),
+                buildBattlePlayer.getFormattedTitle(),
+                null,
+                null,
+                null,
+                null,
+                buildBattlePlayer.getFormattedWinsWithColor(),
+                null,
+                null,
+                null
+            );
+        }
+
+        if (scope == StatScope.TNT_RUN && tntRunPlayer != null) {
+            return new TabStats(
+                urchinTags,
+                seraphTags,
+                tntRunPlayer.getFormattedNameWithRank(),
+                null,
+                null,
+                null,
+                tntRunPlayer.getFormattedRatioWithColor(),
+                null,
+                tntRunPlayer.getFormattedWinsWithColor(),
+                tntRunPlayer.getFormattedDeathsWithColor(),
+                null,
+                null,
                 null,
                 null
             );

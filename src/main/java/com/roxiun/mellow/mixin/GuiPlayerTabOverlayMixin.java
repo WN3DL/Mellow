@@ -6,6 +6,7 @@ import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.data.TabStats;
+import com.roxiun.mellow.feature.stats.StatScopeResolver;
 import com.roxiun.mellow.feature.stats.tab.ExtendedTabStatsColumns;
 import com.roxiun.mellow.feature.stats.tab.TabHealthValueResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
@@ -15,7 +16,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiPlayerTabOverlay;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.scoreboard.ScorePlayerTeam;
-import net.hypixel.data.type.GameType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -409,6 +409,28 @@ public class GuiPlayerTabOverlayMixin {
                 playerInfo
             );
         }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return processBuildBattleDynamicStat(
+                statIndex,
+                team,
+                name,
+                teamColor,
+                stats,
+                resolvedRealName,
+                playerInfo
+            );
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return processTntRunDynamicStat(
+                statIndex,
+                team,
+                name,
+                teamColor,
+                stats,
+                resolvedRealName,
+                playerInfo
+            );
+        }
         return processBedwarsDynamicStat(
             statIndex,
             team,
@@ -698,49 +720,127 @@ public class GuiPlayerTabOverlayMixin {
         return null;
     }
 
+    private String[] processBuildBattleDynamicStat(
+        int statIndex,
+        String team,
+        String name,
+        String teamColor,
+        TabStats stats,
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
+    ) {
+        String title = stats.getStars();
+
+        switch (statIndex) {
+            case 0: // Team
+                return new String[] { team, "false" };
+            case 1: // Title
+                boolean isNicked =
+                    Mellow.nickUtils != null && Mellow.nickUtils.isNicked(name);
+                if (isNicked && (title == null || title.isEmpty())) {
+                    if (Mellow.config.showNickWithBrackets) {
+                        return new String[] { "§5[§lNICK§r§5]§r", "false" };
+                    } else {
+                        return new String[] { "§5§lNICK§r", "false" };
+                    }
+                } else if (title != null && !title.isEmpty()) {
+                    return new String[] { title + "§r", "false" };
+                }
+                break;
+            case 2: // Name
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return new String[] {
+                        buildDenickedName(teamColor, name, resolvedRealName),
+                        "false",
+                    };
+                }
+                if (shouldShowRankInTabName()) {
+                    String formattedNameWithRank = stats.getFormattedNameWithRank();
+                    if (
+                        formattedNameWithRank != null &&
+                        !formattedNameWithRank.isEmpty()
+                    ) {
+                        return new String[] { formattedNameWithRank + "§r", "false" };
+                    }
+                }
+                return new String[] { "§r" + teamColor + name, "false" };
+            case 3: // Wins
+                if (stats.getWins() != null && !stats.getWins().isEmpty()) {
+                    return new String[] { stats.getWins(), "false" };
+                }
+                break;
+            case ExtendedTabStatsColumns.BUILD_BATTLE_HP_INDEX: // HP
+                return new String[] {
+                    TabHealthValueResolver.getFormattedHealth(
+                        Minecraft.getMinecraft(),
+                        playerInfo
+                    ),
+                    "false",
+                };
+            case ExtendedTabStatsColumns.BUILD_BATTLE_NONE_INDEX: // None
+                return null;
+        }
+        return null;
+    }
+
+    private String[] processTntRunDynamicStat(
+        int statIndex,
+        String team,
+        String name,
+        String teamColor,
+        TabStats stats,
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
+    ) {
+        switch (statIndex) {
+            case 0: // Team
+                return new String[] { team, "false" };
+            case 1: // Wins
+                if (stats.getWins() != null && !stats.getWins().isEmpty()) {
+                    return new String[] { stats.getWins(), "false" };
+                }
+                break;
+            case 2: // Name
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return new String[] {
+                        buildDenickedName(teamColor, name, resolvedRealName),
+                        "false",
+                    };
+                }
+                if (shouldShowRankInTabName()) {
+                    String formattedNameWithRank = stats.getFormattedNameWithRank();
+                    if (
+                        formattedNameWithRank != null &&
+                        !formattedNameWithRank.isEmpty()
+                    ) {
+                        return new String[] { formattedNameWithRank + "§r", "false" };
+                    }
+                }
+                return new String[] { "§r" + teamColor + name, "false" };
+            case 3: // Ratio
+                if (stats.getWlr() != null && !stats.getWlr().isEmpty()) {
+                    return new String[] { stats.getWlr(), "false" };
+                }
+                break;
+            case ExtendedTabStatsColumns.TNT_RUN_HP_INDEX: // HP
+                return new String[] {
+                    TabHealthValueResolver.getFormattedHealth(
+                        Minecraft.getMinecraft(),
+                        playerInfo
+                    ),
+                    "false",
+                };
+            case ExtendedTabStatsColumns.TNT_RUN_NONE_INDEX: // None
+                return null;
+        }
+        return null;
+    }
+
     private int[] getConfiguredStatsForScope(StatScope scope) {
-        if (scope == StatScope.SKYWARS) {
-            return new int[] {
-                Mellow.config.skywarsCustomStat1,
-                Mellow.config.skywarsCustomStat2,
-                Mellow.config.skywarsCustomStat3,
-                Mellow.config.skywarsCustomStat4,
-                Mellow.config.skywarsCustomStat5,
-                Mellow.config.skywarsCustomStat6,
-                Mellow.config.skywarsCustomStat7,
-                Mellow.config.skywarsCustomStat8,
-                Mellow.config.skywarsCustomStat9,
-                Mellow.config.skywarsCustomStat10,
-            };
-        }
-
-        if (scope == StatScope.DUELS) {
-            return new int[] {
-                Mellow.config.duelsCustomStat1,
-                Mellow.config.duelsCustomStat2,
-                Mellow.config.duelsCustomStat3,
-                Mellow.config.duelsCustomStat4,
-                Mellow.config.duelsCustomStat5,
-                Mellow.config.duelsCustomStat6,
-                Mellow.config.duelsCustomStat7,
-                Mellow.config.duelsCustomStat8,
-                Mellow.config.duelsCustomStat9,
-                Mellow.config.duelsCustomStat10,
-            };
-        }
-
-        return new int[] {
-            Mellow.config.customStat1,
-            Mellow.config.customStat2,
-            Mellow.config.customStat3,
-            Mellow.config.customStat4,
-            Mellow.config.customStat5,
-            Mellow.config.customStat6,
-            Mellow.config.customStat7,
-            Mellow.config.customStat8,
-            Mellow.config.customStat9,
-            Mellow.config.customStat10,
-        };
+        return ExtendedTabStatsColumns.getConfiguredStatsForScope(
+            scope,
+            Mellow.config
+        );
     }
 
     private String appendBlacklistTag(String displayName, UUID playerUUID) {
@@ -764,22 +864,9 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private StatScope resolveTabStatScope() {
-        if (HypixelFeatures.getInstance().getGameSnapshot() == null) {
-            return StatScope.BEDWARS;
-        }
-        if (
-            HypixelFeatures.getInstance().getGameSnapshot().getGameType() ==
-            GameType.SKYWARS
-        ) {
-            return StatScope.SKYWARS;
-        }
-        if (
-            HypixelFeatures.getInstance().getGameSnapshot().getGameType() ==
-            GameType.DUELS
-        ) {
-            return StatScope.DUELS;
-        }
-        return StatScope.BEDWARS;
+        return StatScopeResolver.resolveInGameScope(
+            HypixelFeatures.getInstance().getGameSnapshot()
+        );
     }
 
     private String getOriginalDisplayName(

@@ -1,9 +1,11 @@
 package com.roxiun.mellow.api.provider;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.provider.model.PlayerIdentity;
 import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.api.provider.model.ProviderResult;
@@ -40,6 +42,15 @@ public interface StatsProvider {
         return null;
     }
 
+    default BuildBattlePlayer fetchBuildBattleStats(String playerName)
+        throws IOException {
+        return null;
+    }
+
+    default TntRunPlayer fetchTntRunStats(String playerName) throws IOException {
+        return null;
+    }
+
     String fetchPlayerData(String uuid);
 
     default ProviderResult<?> fetchStats(
@@ -72,6 +83,22 @@ public interface StatsProvider {
                         return ProviderResult.failure("No data returned");
                     }
                     return ProviderResult.success(duelsPlayer);
+                case BUILD_BATTLE:
+                    BuildBattlePlayer buildBattlePlayer = fetchBuildBattleStats(
+                        identity.getUsername()
+                    );
+                    if (buildBattlePlayer == null) {
+                        return ProviderResult.failure("No data returned");
+                    }
+                    return ProviderResult.success(buildBattlePlayer);
+                case TNT_RUN:
+                    TntRunPlayer tntRunPlayer = fetchTntRunStats(
+                        identity.getUsername()
+                    );
+                    if (tntRunPlayer == null) {
+                        return ProviderResult.failure("No data returned");
+                    }
+                    return ProviderResult.success(tntRunPlayer);
                 default:
                     return ProviderResult.failure(
                         "Unsupported scope: " + scope

@@ -3,8 +3,8 @@ package com.roxiun.mellow.feature.stats.tab;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
+import com.roxiun.mellow.feature.stats.StatScopeResolver;
 import com.roxiun.mellow.gamestate.GameSnapshot;
-import net.hypixel.data.type.GameType;
 import net.minecraft.client.Minecraft;
 
 public final class ExtendedTabStatsMode {
@@ -23,19 +23,7 @@ public final class ExtendedTabStatsMode {
             return null;
         }
 
-        if (snapshot.getGameType() == GameType.SKYWARS) {
-            return StatScope.SKYWARS;
-        }
-
-        if (snapshot.getGameType() == GameType.DUELS) {
-            return StatScope.DUELS;
-        }
-
-        if (snapshot.getGameType() == GameType.BEDWARS) {
-            return StatScope.BEDWARS;
-        }
-
-        return null;
+        return StatScopeResolver.resolveSupportedScope(snapshot);
     }
 
     public static boolean isExtendedModeActiveNow() {

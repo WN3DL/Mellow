@@ -1,10 +1,12 @@
 package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
@@ -25,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
-import net.hypixel.data.type.GameType;
 
 public class StatsChecker {
 
@@ -159,15 +160,7 @@ public class StatsChecker {
 
     private StatScope resolveActiveScope() {
         GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
-        if (snapshot != null) {
-            if (snapshot.getGameType() == GameType.SKYWARS) {
-                return StatScope.SKYWARS;
-            }
-            if (snapshot.getGameType() == GameType.DUELS) {
-                return StatScope.DUELS;
-            }
-        }
-        return StatScope.BEDWARS;
+        return StatScopeResolver.resolveInGameScope(snapshot);
     }
 
     private boolean hasStatsForScope(PlayerProfile profile, StatScope scope) {
@@ -177,11 +170,22 @@ public class StatsChecker {
         if (scope == StatScope.DUELS) {
             return profile.getDuelsPlayer() != null;
         }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return profile.getBuildBattlePlayer() != null;
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return profile.getTntRunPlayer() != null;
+        }
         return profile.getBedwarsPlayer() != null;
     }
 
     private boolean passesScopeFilters(PlayerProfile profile, StatScope scope) {
-        if (scope == StatScope.SKYWARS || scope == StatScope.DUELS) {
+        if (
+            scope == StatScope.SKYWARS ||
+            scope == StatScope.DUELS ||
+            scope == StatScope.BUILD_BATTLE ||
+            scope == StatScope.TNT_RUN
+        ) {
             return true;
         }
 
@@ -195,6 +199,12 @@ public class StatsChecker {
         }
         if (scope == StatScope.DUELS) {
             return formatDuelsChatStats(profile);
+        }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return formatBuildBattleChatStats(profile);
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return formatTntRunChatStats(profile);
         }
         return formatBedwarsChatStats(profile);
     }
@@ -282,6 +292,34 @@ public class StatsChecker {
             player.getFormattedKdrWithColor(),
             player.getFormattedWlrWithColor(),
             player.getFormattedWinstreakWithColor()
+        );
+    }
+
+    private String formatBuildBattleChatStats(PlayerProfile profile) {
+        BuildBattlePlayer player = profile.getBuildBattlePlayer();
+        if (player == null) {
+            return "";
+        }
+
+        return String.format(
+            "%s §r%s§r§7 |§r WINS: %s§r",
+            player.getFormattedNameWithRank(),
+            player.getFormattedTitle(),
+            player.getFormattedWinsWithColor()
+        );
+    }
+
+    private String formatTntRunChatStats(PlayerProfile profile) {
+        TntRunPlayer player = profile.getTntRunPlayer();
+        if (player == null) {
+            return "";
+        }
+
+        return String.format(
+            "%s §r§7|§r WINS: %s§r§7 |§r RATIO: %s§r",
+            player.getFormattedNameWithRank(),
+            player.getFormattedWinsWithColor(),
+            player.getFormattedRatioWithColor()
         );
     }
 

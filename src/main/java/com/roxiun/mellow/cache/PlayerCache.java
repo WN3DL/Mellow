@@ -1,6 +1,7 @@
 package com.roxiun.mellow.cache;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
@@ -10,6 +11,7 @@ import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.config.MellowOneConfig;
@@ -141,10 +143,16 @@ public class PlayerCache {
                 playerName,
                 duelsMode
             );
+            BuildBattlePlayer buildBattlePlayer = provider.fetchBuildBattleStats(
+                playerName
+            );
+            TntRunPlayer tntRunPlayer = provider.fetchTntRunStats(playerName);
             if (
                 bedwarsPlayer == null &&
                 skywarsPlayer == null &&
-                duelsPlayer == null
+                duelsPlayer == null &&
+                buildBattlePlayer == null &&
+                tntRunPlayer == null
             ) {
                 return null;
             }
@@ -191,6 +199,8 @@ public class PlayerCache {
                 bedwarsPlayer,
                 skywarsPlayer,
                 duelsPlayer,
+                buildBattlePlayer,
+                tntRunPlayer,
                 urchinTags,
                 seraphTags
             );

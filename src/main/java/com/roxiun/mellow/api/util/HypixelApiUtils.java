@@ -4,10 +4,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
+import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -301,6 +303,190 @@ public class HypixelApiUtils {
                 wins,
                 losses,
                 winstreak
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static BuildBattlePlayer parseBuildBattlePlayerData(
+        String json,
+        ProviderId providerId
+    ) {
+        try {
+            JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
+            JsonObject playerObject = getPlayerObject(rootObject, providerId);
+            if (playerObject == null) {
+                return null;
+            }
+
+            String name = getString(
+                playerObject,
+                "displayname",
+                getString(rootObject, "name", "[]")
+            );
+            if (providerId == ProviderId.NADESHIKO) {
+                JsonObject profile = getObject(rootObject, "profile");
+                name =
+                    getString(
+                        profile,
+                        "hypixel_displayname",
+                        getString(rootObject, "name", name)
+                    );
+            }
+
+            String formattedName = getFormattedNameWithRank(
+                rootObject,
+                playerObject,
+                providerId,
+                name
+            );
+
+            JsonObject stats = getObject(playerObject, "stats");
+            JsonObject buildBattleStats = getObject(stats, "BuildBattle");
+
+            int score = maxExistingIntAcrossObjects(
+                new JsonObject[] { buildBattleStats, stats, playerObject },
+                new String[] { "score", "buildbattle_build_battle_score" }
+            );
+            if (score == Integer.MIN_VALUE) {
+                score = 0;
+            }
+
+            JsonObject[] buildBattleObjects = new JsonObject[] {
+                buildBattleStats,
+                stats,
+                playerObject,
+            };
+
+            int wins = maxExistingIntAcrossObjects(
+                buildBattleObjects,
+                new String[] {
+                    "wins",
+                    "buildbattle_wins",
+                    "buildbattle_build_battle_wins"
+                }
+            );
+            if (wins == Integer.MIN_VALUE) {
+                wins = sumBestPerKeyAcrossObjects(
+                    buildBattleObjects,
+                    new String[] {
+                        "wins_solo_normal",
+                        "wins_teams_normal",
+                        "wins_guess_the_build",
+                        "wins_guess_the_build_teams",
+                        "wins_solo_pro",
+                        "wins_speed_builders"
+                    }
+                );
+            }
+            if (wins == Integer.MIN_VALUE) {
+                wins = 0;
+            }
+
+            int gamesPlayed = maxExistingIntAcrossObjects(
+                buildBattleObjects,
+                new String[] { "games_played", "buildbattle_games_played" }
+            );
+            if (gamesPlayed == Integer.MIN_VALUE) {
+                gamesPlayed = sumBestPerKeyAcrossObjects(
+                    buildBattleObjects,
+                    new String[] {
+                        "games_played_solo_normal",
+                        "games_played_teams_normal",
+                        "games_played_guess_the_build",
+                        "games_played_guess_the_build_teams",
+                        "games_played_solo_pro",
+                        "games_played_speed_builders"
+                    }
+                );
+            }
+            if (gamesPlayed == Integer.MIN_VALUE) {
+                gamesPlayed = 0;
+            }
+
+            return new BuildBattlePlayer(
+                name,
+                formattedName,
+                score,
+                wins,
+                gamesPlayed
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static TntRunPlayer parseTntRunPlayerData(
+        String json,
+        ProviderId providerId
+    ) {
+        try {
+            JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
+            JsonObject playerObject = getPlayerObject(rootObject, providerId);
+            if (playerObject == null) {
+                return null;
+            }
+
+            String name = getString(
+                playerObject,
+                "displayname",
+                getString(rootObject, "name", "[]")
+            );
+            if (providerId == ProviderId.NADESHIKO) {
+                JsonObject profile = getObject(rootObject, "profile");
+                name =
+                    getString(
+                        profile,
+                        "hypixel_displayname",
+                        getString(rootObject, "name", name)
+                    );
+            }
+
+            String formattedName = getFormattedNameWithRank(
+                rootObject,
+                playerObject,
+                providerId,
+                name
+            );
+
+            JsonObject stats = getObject(playerObject, "stats");
+            JsonObject tntGamesStats = getObject(stats, "TNTGames");
+
+            int wins = maxExistingIntAcrossObjects(
+                new JsonObject[] { tntGamesStats, stats, playerObject },
+                new String[] { "wins_tntrun", "tntgames_tnt_run_wins" }
+            );
+            if (wins == Integer.MIN_VALUE) {
+                wins = 0;
+            }
+
+            int deaths = maxExistingIntAcrossObjects(
+                new JsonObject[] { tntGamesStats, stats, playerObject },
+                new String[] {
+                    "deaths_tntrun",
+                    "deaths_tourney_tnt_run_0",
+                    "tntgames_tnt_run_deaths"
+                }
+            );
+            if (deaths == Integer.MIN_VALUE) {
+                deaths = 0;
+            }
+
+            int bestRecord = maxExistingIntAcrossObjects(
+                new JsonObject[] { tntGamesStats, stats, playerObject },
+                new String[] { "record_tntrun", "tntgames_tnt_run_record" }
+            );
+            if (bestRecord == Integer.MIN_VALUE) {
+                bestRecord = 0;
+            }
+
+            return new TntRunPlayer(
+                name,
+                formattedName,
+                wins,
+                deaths,
+                bestRecord
             );
         } catch (Exception e) {
             return null;
@@ -995,6 +1181,64 @@ public class HypixelApiUtils {
             best = Math.max(best, getInt(object, key, 0));
         }
         return best;
+    }
+
+    private static int maxExistingIntAcrossObjects(
+        JsonObject[] objects,
+        String[] keys
+    ) {
+        if (objects == null || objects.length == 0) {
+            return Integer.MIN_VALUE;
+        }
+
+        int best = Integer.MIN_VALUE;
+        for (JsonObject object : objects) {
+            int value = maxExistingInt(object, keys);
+            if (value == Integer.MIN_VALUE) {
+                continue;
+            }
+            best = Math.max(best, value);
+        }
+
+        return best;
+    }
+
+    private static int sumBestPerKeyAcrossObjects(
+        JsonObject[] objects,
+        String[] keys
+    ) {
+        if (
+            objects == null ||
+            objects.length == 0 ||
+            keys == null ||
+            keys.length == 0
+        ) {
+            return Integer.MIN_VALUE;
+        }
+
+        int sum = 0;
+        boolean foundAny = false;
+
+        for (String key : keys) {
+            if (key == null || key.isEmpty()) {
+                continue;
+            }
+
+            int bestForKey = Integer.MIN_VALUE;
+            for (JsonObject object : objects) {
+                if (object == null || !object.has(key)) {
+                    continue;
+                }
+                bestForKey = Math.max(bestForKey, getInt(object, key, 0));
+            }
+
+            if (bestForKey != Integer.MIN_VALUE) {
+                sum += bestForKey;
+                foundAny = true;
+            }
+        }
+
+        return foundAny ? sum : Integer.MIN_VALUE;
     }
 
     private static JsonObject getObject(JsonObject object, String key) {

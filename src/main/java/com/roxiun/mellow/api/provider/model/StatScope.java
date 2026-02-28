@@ -5,4 +5,6 @@ public enum StatScope {
     BEDWARS,
     SKYWARS,
     DUELS,
+    BUILD_BATTLE,
+    TNT_RUN,
 }

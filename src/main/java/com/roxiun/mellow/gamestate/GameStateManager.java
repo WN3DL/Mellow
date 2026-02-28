@@ -283,6 +283,12 @@ public class GameStateManager implements GameContext {
         if (title.contains("duels") || title.contains("duel")) {
             return GameType.DUELS;
         }
+        if (title.contains("build battle")) {
+            return GameType.BUILD_BATTLE;
+        }
+        if (title.contains("tnt games") || title.contains("tnt run")) {
+            return GameType.TNTGAMES;
+        }
         return null;
     }
 

@@ -15,6 +15,21 @@ public final class ExtendedTabStatsColumns {
     public static final int SKYWARS_HP_INDEX = 8;
     public static final int DUELS_NONE_INDEX = 10;
     public static final int DUELS_HP_INDEX = 11;
+    public static final int BUILD_BATTLE_NONE_INDEX = 4;
+    public static final int BUILD_BATTLE_HP_INDEX = 5;
+    public static final int TNT_RUN_NONE_INDEX = 4;
+    public static final int TNT_RUN_HP_INDEX = 5;
+
+    private static final int[] BUILD_BATTLE_DEFAULT_COLUMNS = new int[] {
+        0, 1, 2, 3, BUILD_BATTLE_NONE_INDEX, BUILD_BATTLE_NONE_INDEX,
+        BUILD_BATTLE_NONE_INDEX, BUILD_BATTLE_NONE_INDEX, BUILD_BATTLE_NONE_INDEX,
+        BUILD_BATTLE_NONE_INDEX,
+    };
+
+    private static final int[] TNT_RUN_DEFAULT_COLUMNS = new int[] {
+        0, 2, 1, 3, TNT_RUN_NONE_INDEX, TNT_RUN_NONE_INDEX, TNT_RUN_NONE_INDEX,
+        TNT_RUN_NONE_INDEX, TNT_RUN_NONE_INDEX, TNT_RUN_NONE_INDEX,
+    };
 
     private ExtendedTabStatsColumns() {}
 
@@ -22,6 +37,13 @@ public final class ExtendedTabStatsColumns {
         StatScope scope,
         MellowOneConfig config
     ) {
+        if (scope == StatScope.BUILD_BATTLE) {
+            return BUILD_BATTLE_DEFAULT_COLUMNS.clone();
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return TNT_RUN_DEFAULT_COLUMNS.clone();
+        }
+
         if (config == null) {
             return new int[0];
         }
@@ -101,6 +123,12 @@ public final class ExtendedTabStatsColumns {
         if (scope == StatScope.DUELS) {
             return DUELS_NONE_INDEX;
         }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return BUILD_BATTLE_NONE_INDEX;
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return TNT_RUN_NONE_INDEX;
+        }
         return BEDWARS_NONE_INDEX;
     }
 
@@ -117,6 +145,18 @@ public final class ExtendedTabStatsColumns {
                 statIndex == DUELS_HP_INDEX
             );
         }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return (
+                (statIndex >= 0 && statIndex < BUILD_BATTLE_NONE_INDEX) ||
+                statIndex == BUILD_BATTLE_HP_INDEX
+            );
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return (
+                (statIndex >= 0 && statIndex < TNT_RUN_NONE_INDEX) ||
+                statIndex == TNT_RUN_HP_INDEX
+            );
+        }
         return (
             (statIndex >= 0 && statIndex < BEDWARS_NONE_INDEX) ||
             statIndex == BEDWARS_HP_INDEX
@@ -129,6 +169,12 @@ public final class ExtendedTabStatsColumns {
         }
         if (scope == StatScope.DUELS) {
             return statIndex == DUELS_HP_INDEX;
+        }
+        if (scope == StatScope.BUILD_BATTLE) {
+            return statIndex == BUILD_BATTLE_HP_INDEX;
+        }
+        if (scope == StatScope.TNT_RUN) {
+            return statIndex == TNT_RUN_HP_INDEX;
         }
         return statIndex == BEDWARS_HP_INDEX;
     }
@@ -180,6 +226,40 @@ public final class ExtendedTabStatsColumns {
                 case 9:
                     return "WS";
                 case DUELS_HP_INDEX:
+                    return "HP";
+                default:
+                    return "";
+            }
+        }
+
+        if (scope == StatScope.BUILD_BATTLE) {
+            switch (statIndex) {
+                case 0:
+                    return "TEAM";
+                case 1:
+                    return "TITLE";
+                case 2:
+                    return "NAME";
+                case 3:
+                    return "WINS";
+                case BUILD_BATTLE_HP_INDEX:
+                    return "HP";
+                default:
+                    return "";
+            }
+        }
+
+        if (scope == StatScope.TNT_RUN) {
+            switch (statIndex) {
+                case 0:
+                    return "TEAM";
+                case 1:
+                    return "WINS";
+                case 2:
+                    return "NAME";
+                case 3:
+                    return "RATIO";
+                case TNT_RUN_HP_INDEX:
                     return "HP";
                 default:
                     return "";
@@ -261,6 +341,40 @@ public final class ExtendedTabStatsColumns {
                 case 9:
                     return 36; // WS
                 case DUELS_HP_INDEX:
+                    return 24; // HP
+                default:
+                    return 36;
+            }
+        }
+
+        if (scope == StatScope.BUILD_BATTLE) {
+            switch (statIndex) {
+                case 0:
+                    return 28; // TEAM
+                case 1:
+                    return 86; // TITLE
+                case 2:
+                    return 120; // NAME
+                case 3:
+                    return 42; // WINS
+                case BUILD_BATTLE_HP_INDEX:
+                    return 24; // HP
+                default:
+                    return 36;
+            }
+        }
+
+        if (scope == StatScope.TNT_RUN) {
+            switch (statIndex) {
+                case 0:
+                    return 28; // TEAM
+                case 1:
+                    return 42; // WINS
+                case 2:
+                    return 120; // NAME
+                case 3:
+                    return 44; // RATIO
+                case TNT_RUN_HP_INDEX:
                     return 24; // HP
                 default:
                     return 36;
