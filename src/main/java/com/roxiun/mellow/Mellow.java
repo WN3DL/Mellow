@@ -11,6 +11,7 @@ import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.urchin.UrchinApi;
+import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
@@ -58,6 +59,7 @@ public class Mellow {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         config = new MellowOneConfig();
+        ModrinthUpdater.init(config);
 
         HypixelFeatures.getInstance().initialize();
 

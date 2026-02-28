@@ -33,6 +33,9 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Print Stats to Chat", subcategory = "General")
     public boolean printStats = false;
 
+    @Switch(name = "Auto Update Check", subcategory = "General")
+    public boolean autoUpdateCheck = true;
+
     // Tab Stats Configuration
 
     @Switch(name = "Show Stars with Brackets", category = "Tab Stats")
