@@ -10,8 +10,11 @@ public final class ExtendedTabStatsColumns {
 
     public static final int COLUMN_GAP = 4;
     public static final int BEDWARS_NONE_INDEX = 10;
+    public static final int BEDWARS_HP_INDEX = 11;
     public static final int SKYWARS_NONE_INDEX = 7;
+    public static final int SKYWARS_HP_INDEX = 8;
     public static final int DUELS_NONE_INDEX = 10;
+    public static final int DUELS_HP_INDEX = 11;
 
     private ExtendedTabStatsColumns() {}
 
@@ -103,12 +106,31 @@ public final class ExtendedTabStatsColumns {
 
     public static boolean isSupportedColumn(StatScope scope, int statIndex) {
         if (scope == StatScope.SKYWARS) {
-            return statIndex >= 0 && statIndex < SKYWARS_NONE_INDEX;
+            return (
+                (statIndex >= 0 && statIndex < SKYWARS_NONE_INDEX) ||
+                statIndex == SKYWARS_HP_INDEX
+            );
         }
         if (scope == StatScope.DUELS) {
-            return statIndex >= 0 && statIndex < DUELS_NONE_INDEX;
+            return (
+                (statIndex >= 0 && statIndex < DUELS_NONE_INDEX) ||
+                statIndex == DUELS_HP_INDEX
+            );
         }
-        return statIndex >= 0 && statIndex < BEDWARS_NONE_INDEX;
+        return (
+            (statIndex >= 0 && statIndex < BEDWARS_NONE_INDEX) ||
+            statIndex == BEDWARS_HP_INDEX
+        );
+    }
+
+    public static boolean isHealthColumn(StatScope scope, int statIndex) {
+        if (scope == StatScope.SKYWARS) {
+            return statIndex == SKYWARS_HP_INDEX;
+        }
+        if (scope == StatScope.DUELS) {
+            return statIndex == DUELS_HP_INDEX;
+        }
+        return statIndex == BEDWARS_HP_INDEX;
     }
 
     public static String getHeaderLabel(StatScope scope, int statIndex) {
@@ -128,6 +150,8 @@ public final class ExtendedTabStatsColumns {
                     return "WINS";
                 case 6:
                     return "KILLS";
+                case SKYWARS_HP_INDEX:
+                    return "HP";
                 default:
                     return "";
             }
@@ -155,6 +179,8 @@ public final class ExtendedTabStatsColumns {
                     return "DEATHS";
                 case 9:
                     return "WS";
+                case DUELS_HP_INDEX:
+                    return "HP";
                 default:
                     return "";
             }
@@ -181,6 +207,8 @@ public final class ExtendedTabStatsColumns {
                 return "BEDS";
             case 9:
                 return "FINALS";
+            case BEDWARS_HP_INDEX:
+                return "HP";
             default:
                 return "";
         }
@@ -203,6 +231,8 @@ public final class ExtendedTabStatsColumns {
                     return 42; // WINS
                 case 6:
                     return 42; // KILLS
+                case SKYWARS_HP_INDEX:
+                    return 24; // HP
                 default:
                     return 36;
             }
@@ -230,6 +260,8 @@ public final class ExtendedTabStatsColumns {
                     return 50; // DEATHS
                 case 9:
                     return 36; // WS
+                case DUELS_HP_INDEX:
+                    return 24; // HP
                 default:
                     return 36;
             }
@@ -256,6 +288,8 @@ public final class ExtendedTabStatsColumns {
                 return 42; // BEDS
             case 9:
                 return 46; // FINALS
+            case BEDWARS_HP_INDEX:
+                return 24; // HP
             default:
                 return 36;
         }

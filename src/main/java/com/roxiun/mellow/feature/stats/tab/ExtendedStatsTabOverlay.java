@@ -40,9 +40,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int ENTRY_HEIGHT = 11;
     private static final int ROW_GAP = 1;
     private static final int CELL_PADDING_X = 3;
-    private static final int COLUMN_HEALTH = -1;
-    private static final int HEALTH_POS_AFTER_NAME = 0;
-    private static final int HEALTH_POS_FAR_RIGHT = 1;
     private static final int TEAM_MODE_OWN_COLUMN = 0;
     private static final int TEAM_MODE_HIDE_HEADER = 1;
     private static final int TEAM_MODE_COMBINE_NAME = 2;
@@ -94,7 +91,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             columns.add(2); // NAME
         }
         resetTeamModeState();
-        columns = withInjectedExtendedColumns(columns);
         columns = withAppliedTeamColumnMode(columns);
 
         List<Integer> columnWidths = computeColumnWidths(columns, players, scope);
@@ -324,29 +320,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
 
         return -1;
-    }
-
-    private List<Integer> withInjectedExtendedColumns(List<Integer> baseColumns) {
-        List<Integer> result = new ArrayList<>(baseColumns);
-        if (config == null || !config.extendedTabStatsShowHealth) {
-            return result;
-        }
-
-        if (result.contains(COLUMN_HEALTH)) {
-            return result;
-        }
-
-        int insertAt;
-        if (config.extendedTabStatsHealthPosition == HEALTH_POS_AFTER_NAME) {
-            int nameIndex = result.indexOf(2);
-            insertAt = nameIndex >= 0 ? nameIndex + 1 : Math.min(1, result.size());
-        } else if (config.extendedTabStatsHealthPosition == HEALTH_POS_FAR_RIGHT) {
-            insertAt = result.size();
-        } else {
-            insertAt = result.size();
-        }
-        result.add(insertAt, COLUMN_HEALTH);
-        return result;
     }
 
     private List<Integer> computeColumnWidths(
@@ -590,9 +563,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     }
 
     private String getHeaderLabel(StatScope scope, int column) {
-        if (column == COLUMN_HEALTH) {
-            return "HP";
-        }
         if (column == 0 && shouldHideTeamHeaderInExtendedView()) {
             return "";
         }
@@ -600,7 +570,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     }
 
     private int getMinimumColumnWidth(StatScope scope, int column) {
-        if (column == COLUMN_HEALTH) {
+        if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 18;
         }
 
@@ -617,7 +587,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     }
 
     private int getMaximumColumnWidth(StatScope scope, int column) {
-        if (column == COLUMN_HEALTH) {
+        if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 34;
         }
 
@@ -704,8 +674,8 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return "";
         }
 
-        if (column == COLUMN_HEALTH) {
-            return getHealthValue(info);
+        if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
+            return TabHealthValueResolver.getFormattedHealth(mc, info);
         }
 
         TabStats stats = Mellow.tabStats.get(playerName);
@@ -955,40 +925,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return safe + " §8[§4LIST§8]";
         }
         return safe;
-    }
-
-    private String getHealthValue(NetworkPlayerInfo info) {
-        if (
-            info == null ||
-            info.getGameProfile() == null ||
-            info.getGameProfile().getId() == null ||
-            mc == null ||
-            mc.theWorld == null
-        ) {
-            return "";
-        }
-
-        EntityPlayer entity = mc.theWorld.getPlayerEntityByUUID(
-            info.getGameProfile().getId()
-        );
-        if (entity == null) {
-            return "";
-        }
-
-        float totalHealth = entity.getHealth() + entity.getAbsorptionAmount();
-        int hp = Math.max(0, MathHelper.ceiling_float_int(totalHealth));
-
-        String color;
-        if (hp >= 16) {
-            color = "§a";
-        } else if (hp >= 11) {
-            color = "§e";
-        } else if (hp >= 6) {
-            color = "§6";
-        } else {
-            color = "§c";
-        }
-        return color + hp;
     }
 
     private String appendTagSuffixes(String value, TabStats stats) {

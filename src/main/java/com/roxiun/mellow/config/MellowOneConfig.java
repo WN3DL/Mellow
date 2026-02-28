@@ -61,13 +61,6 @@ public class MellowOneConfig extends Config {
     )
     public boolean extendedTabStatsShowHeads = true;
 
-    @Switch(
-        name = "Extended View HP Column",
-        category = "Tab Stats",
-        description = "Adds an HP column in Extended Tab Stats View."
-    )
-    public boolean extendedTabStatsShowHealth = true;
-
     @Dropdown(
         name = "Extended Team Column Mode",
         options = {
@@ -79,13 +72,6 @@ public class MellowOneConfig extends Config {
         category = "Tab Stats"
     )
     public int extendedTabStatsTeamColumnMode = 0;
-
-    @Dropdown(
-        name = "Extended HP Position",
-        options = { "After Name", "Far Right" },
-        category = "Tab Stats"
-    )
-    public int extendedTabStatsHealthPosition = 1;
 
     @Switch(
         name = "Show Ranks In-Game",
@@ -116,6 +102,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -135,6 +122,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -154,6 +142,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -173,6 +162,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -192,6 +182,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -211,10 +202,11 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
-    public int customStat6 = 10; // None by default
+    public int customStat6 = 11; // HP by default
 
     @Dropdown(
         name = "Seventh Stat",
@@ -230,6 +222,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -249,6 +242,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -268,6 +262,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -287,6 +282,7 @@ public class MellowOneConfig extends Config {
             "Beds",
             "Finals",
             "None",
+            "HP",
         },
         category = "Tab Stats"
     )
@@ -304,7 +300,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "First SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -314,7 +310,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Second SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -324,7 +320,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Third SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -334,7 +330,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Fourth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -344,7 +340,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Fifth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -354,17 +350,17 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Sixth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
     )
-    public int skywarsCustomStat6 = 7;
+    public int skywarsCustomStat6 = 8; // HP by default
 
     @Dropdown(
         name = "Seventh SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -374,7 +370,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Eighth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -384,7 +380,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Ninth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -394,7 +390,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Tenth SkyWars Stat",
         options = {
-            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None",
+            "Team", "Level", "Name", "KDR", "WLR", "Wins", "Kills", "None", "HP",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -424,6 +420,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -444,6 +441,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -464,6 +462,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -484,6 +483,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -504,6 +504,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -524,6 +525,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -544,6 +546,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -564,6 +567,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -584,6 +588,7 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -604,11 +609,12 @@ public class MellowOneConfig extends Config {
             "Deaths",
             "Winstreak",
             "None",
+            "HP",
         },
         category = "Tab Stats",
         subcategory = "Duels"
     )
-    public int duelsCustomStat10 = 9;
+    public int duelsCustomStat10 = 11; // HP by default
 
     @Info(
         text = "Toggle seperator between stats",
@@ -1094,47 +1100,43 @@ public class MellowOneConfig extends Config {
     }
 
     private void sanitizeDropdownIndexes() {
-        // BedWars tab stats dropdowns: Team..None (11 options)
-        customStat1 = clampIndex(customStat1, 11);
-        customStat2 = clampIndex(customStat2, 11);
-        customStat3 = clampIndex(customStat3, 11);
-        customStat4 = clampIndex(customStat4, 11);
-        customStat5 = clampIndex(customStat5, 11);
-        customStat6 = clampIndex(customStat6, 11);
-        customStat7 = clampIndex(customStat7, 11);
-        customStat8 = clampIndex(customStat8, 11);
-        customStat9 = clampIndex(customStat9, 11);
-        customStat10 = clampIndex(customStat10, 11);
+        // BedWars tab stats dropdowns: Team..None (12 options)
+        customStat1 = clampIndex(customStat1, 12);
+        customStat2 = clampIndex(customStat2, 12);
+        customStat3 = clampIndex(customStat3, 12);
+        customStat4 = clampIndex(customStat4, 12);
+        customStat5 = clampIndex(customStat5, 12);
+        customStat6 = clampIndex(customStat6, 12);
+        customStat7 = clampIndex(customStat7, 12);
+        customStat8 = clampIndex(customStat8, 12);
+        customStat9 = clampIndex(customStat9, 12);
+        customStat10 = clampIndex(customStat10, 12);
 
-        // SkyWars tab stats dropdowns: Team..None (8 options)
-        skywarsCustomStat1 = clampIndex(skywarsCustomStat1, 8);
-        skywarsCustomStat2 = clampIndex(skywarsCustomStat2, 8);
-        skywarsCustomStat3 = clampIndex(skywarsCustomStat3, 8);
-        skywarsCustomStat4 = clampIndex(skywarsCustomStat4, 8);
-        skywarsCustomStat5 = clampIndex(skywarsCustomStat5, 8);
-        skywarsCustomStat6 = clampIndex(skywarsCustomStat6, 8);
-        skywarsCustomStat7 = clampIndex(skywarsCustomStat7, 8);
-        skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 8);
-        skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 8);
-        skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 8);
+        // SkyWars tab stats dropdowns: Team..None (9 options)
+        skywarsCustomStat1 = clampIndex(skywarsCustomStat1, 9);
+        skywarsCustomStat2 = clampIndex(skywarsCustomStat2, 9);
+        skywarsCustomStat3 = clampIndex(skywarsCustomStat3, 9);
+        skywarsCustomStat4 = clampIndex(skywarsCustomStat4, 9);
+        skywarsCustomStat5 = clampIndex(skywarsCustomStat5, 9);
+        skywarsCustomStat6 = clampIndex(skywarsCustomStat6, 9);
+        skywarsCustomStat7 = clampIndex(skywarsCustomStat7, 9);
+        skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 9);
+        skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 9);
+        skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 9);
 
-        // Duels tab stats dropdowns: Team..None (11 options)
-        duelsCustomStat1 = clampIndex(duelsCustomStat1, 11);
-        duelsCustomStat2 = clampIndex(duelsCustomStat2, 11);
-        duelsCustomStat3 = clampIndex(duelsCustomStat3, 11);
-        duelsCustomStat4 = clampIndex(duelsCustomStat4, 11);
-        duelsCustomStat5 = clampIndex(duelsCustomStat5, 11);
-        duelsCustomStat6 = clampIndex(duelsCustomStat6, 11);
-        duelsCustomStat7 = clampIndex(duelsCustomStat7, 11);
-        duelsCustomStat8 = clampIndex(duelsCustomStat8, 11);
-        duelsCustomStat9 = clampIndex(duelsCustomStat9, 11);
-        duelsCustomStat10 = clampIndex(duelsCustomStat10, 11);
+        // Duels tab stats dropdowns: Team..None (12 options)
+        duelsCustomStat1 = clampIndex(duelsCustomStat1, 12);
+        duelsCustomStat2 = clampIndex(duelsCustomStat2, 12);
+        duelsCustomStat3 = clampIndex(duelsCustomStat3, 12);
+        duelsCustomStat4 = clampIndex(duelsCustomStat4, 12);
+        duelsCustomStat5 = clampIndex(duelsCustomStat5, 12);
+        duelsCustomStat6 = clampIndex(duelsCustomStat6, 12);
+        duelsCustomStat7 = clampIndex(duelsCustomStat7, 12);
+        duelsCustomStat8 = clampIndex(duelsCustomStat8, 12);
+        duelsCustomStat9 = clampIndex(duelsCustomStat9, 12);
+        duelsCustomStat10 = clampIndex(duelsCustomStat10, 12);
 
         // Misc dropdowns
-        extendedTabStatsHealthPosition = clampIndex(
-            extendedTabStatsHealthPosition,
-            2
-        );
         extendedTabStatsTeamColumnMode = clampIndex(
             extendedTabStatsTeamColumnMode,
             4

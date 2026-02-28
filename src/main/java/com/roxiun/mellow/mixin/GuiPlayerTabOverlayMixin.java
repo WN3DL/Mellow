@@ -6,9 +6,12 @@ import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.data.TabStats;
+import com.roxiun.mellow.feature.stats.tab.ExtendedTabStatsColumns;
+import com.roxiun.mellow.feature.stats.tab.TabHealthValueResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.UUID;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiPlayerTabOverlay;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.scoreboard.ScorePlayerTeam;
@@ -22,9 +25,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class GuiPlayerTabOverlayMixin {
 
     private static final String MIDDLE_DOT = "\u30fb";
-    private static final int BEDWARS_NONE_INDEX = 10;
-    private static final int SKYWARS_NONE_INDEX = 7;
-    private static final int DUELS_NONE_INDEX = 10;
 
     @Inject(method = "getPlayerName", at = @At("HEAD"), cancellable = true)
     public void getPlayerName(
@@ -61,7 +61,13 @@ public class GuiPlayerTabOverlayMixin {
         String newDisplayName;
 
         if (stats != null) {
-            newDisplayName = handlePlayerWithStats(playerName, stats, scope, resolvedRealName);
+            newDisplayName = handlePlayerWithStats(
+                networkPlayerInfoIn,
+                playerName,
+                stats,
+                scope,
+                resolvedRealName
+            );
         } else if (isNicked && !originalDisplayName.contains("§8[§5NICK§8]")) {
             // For nicks without stats, still handle them within the dynamic system
             String[] tabData = PlayerUtils.getTabDisplayName2(playerName);
@@ -88,6 +94,7 @@ public class GuiPlayerTabOverlayMixin {
                 );
 
                 newDisplayName = formatDisplayNameWithStats(
+                    networkPlayerInfoIn,
                     team,
                     name,
                     teamColor,
@@ -122,6 +129,7 @@ public class GuiPlayerTabOverlayMixin {
                 );
 
                 newDisplayName = formatDisplayNameWithStats(
+                    networkPlayerInfoIn,
                     team,
                     name,
                     teamColor,
@@ -142,6 +150,7 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private String handlePlayerWithStats(
+        NetworkPlayerInfo playerInfo,
         String playerName,
         TabStats stats,
         StatScope scope,
@@ -156,6 +165,7 @@ public class GuiPlayerTabOverlayMixin {
 
         String teamColor = team.length() >= 2 ? team.substring(0, 2) : "";
         return formatDisplayNameWithStats(
+            playerInfo,
             team,
             name,
             teamColor,
@@ -166,6 +176,7 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private String formatDisplayNameWithStats(
+        NetworkPlayerInfo playerInfo,
         String team,
         String name,
         String teamColor,
@@ -174,6 +185,7 @@ public class GuiPlayerTabOverlayMixin {
         String resolvedRealName
     ) {
         String newDisplayName = buildOrderedStatsString(
+            playerInfo,
             team,
             name,
             teamColor,
@@ -200,6 +212,7 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private String buildOrderedStatsString(
+        NetworkPlayerInfo playerInfo,
         String team,
         String name,
         String teamColor,
@@ -208,6 +221,7 @@ public class GuiPlayerTabOverlayMixin {
         String resolvedRealName
     ) {
         return buildDynamicOrderedString(
+            playerInfo,
             team,
             name,
             teamColor,
@@ -218,6 +232,7 @@ public class GuiPlayerTabOverlayMixin {
     }
 
     private String buildDynamicOrderedString(
+        NetworkPlayerInfo playerInfo,
         String team,
         String name,
         String teamColor,
@@ -240,7 +255,8 @@ public class GuiPlayerTabOverlayMixin {
                 teamColor,
                 stats,
                 scope,
-                resolvedRealName
+                resolvedRealName,
+                playerInfo
             );
         }
 
@@ -340,7 +356,8 @@ public class GuiPlayerTabOverlayMixin {
         String teamColor,
         TabStats stats,
         StatScope scope,
-        String resolvedRealName
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
     ) {
         String[] statParts = processDynamicStat(
             statIndex,
@@ -349,7 +366,8 @@ public class GuiPlayerTabOverlayMixin {
             teamColor,
             stats,
             scope,
-            resolvedRealName
+            resolvedRealName,
+            playerInfo
         );
         if (statParts != null && !statParts[0].trim().isEmpty()) {
             // Create an entry with the stat value and its type (statIndex)
@@ -366,7 +384,8 @@ public class GuiPlayerTabOverlayMixin {
         String teamColor,
         TabStats stats,
         StatScope scope,
-        String resolvedRealName
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
     ) {
         if (scope == StatScope.SKYWARS) {
             return processSkywarsDynamicStat(
@@ -375,7 +394,8 @@ public class GuiPlayerTabOverlayMixin {
                 name,
                 teamColor,
                 stats,
-                resolvedRealName
+                resolvedRealName,
+                playerInfo
             );
         }
         if (scope == StatScope.DUELS) {
@@ -385,7 +405,8 @@ public class GuiPlayerTabOverlayMixin {
                 name,
                 teamColor,
                 stats,
-                resolvedRealName
+                resolvedRealName,
+                playerInfo
             );
         }
         return processBedwarsDynamicStat(
@@ -394,7 +415,8 @@ public class GuiPlayerTabOverlayMixin {
             name,
             teamColor,
             stats,
-            resolvedRealName
+            resolvedRealName,
+            playerInfo
         );
     }
 
@@ -404,7 +426,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        String resolvedRealName
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
     ) {
         String stars = stats.getStars();
         String fkdr = stats.getFkdr();
@@ -486,7 +509,15 @@ public class GuiPlayerTabOverlayMixin {
                     return new String[] { stats.getFinals(), "false" }; // The color is already included in the string
                 }
                 break;
-            case BEDWARS_NONE_INDEX: // None
+            case ExtendedTabStatsColumns.BEDWARS_HP_INDEX: // HP
+                return new String[] {
+                    TabHealthValueResolver.getFormattedHealth(
+                        Minecraft.getMinecraft(),
+                        playerInfo
+                    ),
+                    "false",
+                };
+            case ExtendedTabStatsColumns.BEDWARS_NONE_INDEX: // None
                 return null;
         }
         return null;
@@ -498,7 +529,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        String resolvedRealName
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
     ) {
         String level = stats.getStars();
         String kdr = stats.getFkdr();
@@ -556,7 +588,15 @@ public class GuiPlayerTabOverlayMixin {
                     return new String[] { stats.getKills(), "false" };
                 }
                 break;
-            case SKYWARS_NONE_INDEX: // None
+            case ExtendedTabStatsColumns.SKYWARS_HP_INDEX: // HP
+                return new String[] {
+                    TabHealthValueResolver.getFormattedHealth(
+                        Minecraft.getMinecraft(),
+                        playerInfo
+                    ),
+                    "false",
+                };
+            case ExtendedTabStatsColumns.SKYWARS_NONE_INDEX: // None
                 return null;
         }
 
@@ -569,7 +609,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        String resolvedRealName
+        String resolvedRealName,
+        NetworkPlayerInfo playerInfo
     ) {
         String division = stats.getStars();
         String kdr = stats.getFkdr();
@@ -642,7 +683,15 @@ public class GuiPlayerTabOverlayMixin {
                     return new String[] { stats.getWinstreak(), "false" };
                 }
                 break;
-            case DUELS_NONE_INDEX: // None
+            case ExtendedTabStatsColumns.DUELS_HP_INDEX: // HP
+                return new String[] {
+                    TabHealthValueResolver.getFormattedHealth(
+                        Minecraft.getMinecraft(),
+                        playerInfo
+                    ),
+                    "false",
+                };
+            case ExtendedTabStatsColumns.DUELS_NONE_INDEX: // None
                 return null;
         }
 
