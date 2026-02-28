@@ -9,6 +9,7 @@ import net.minecraft.entity.Entity;
 import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -21,7 +22,7 @@ public class PolyHitboxRendererMixin {
     @Dynamic
     @Inject(method = "renderHitbox", at = @At("HEAD"), remap = false, require = 0)
     private void mellow$captureEntity(
-        Object config,
+        @Coerce Object config,
         Entity entity,
         double x,
         double y,
@@ -35,7 +36,7 @@ public class PolyHitboxRendererMixin {
     @Dynamic
     @Inject(method = "renderHitbox", at = @At("RETURN"), remap = false, require = 0)
     private void mellow$clearEntity(
-        Object config,
+        @Coerce Object config,
         Entity entity,
         double x,
         double y,
