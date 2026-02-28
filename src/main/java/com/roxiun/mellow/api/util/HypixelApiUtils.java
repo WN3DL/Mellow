@@ -684,15 +684,45 @@ public class HypixelApiUtils {
         int best = 0;
         boolean found = false;
         for (String prefix : mode.getStatPrefixes()) {
-            String currentKey = "current_" + prefix + "_winstreak";
-            if (duelsStats.has(currentKey)) {
-                best = Math.max(best, getInt(duelsStats, currentKey, 0));
+            int value = maxExistingInt(
+                duelsStats,
+                new String[] {
+                    "current_winstreak_mode_" + prefix,
+                    "current_" + prefix + "_winstreak",
+                    prefix + "_winstreak"
+                }
+            );
+            if (value != Integer.MIN_VALUE) {
+                best = Math.max(best, value);
                 found = true;
             }
 
-            String directKey = prefix + "_winstreak";
-            if (duelsStats.has(directKey)) {
-                best = Math.max(best, getInt(duelsStats, directKey, 0));
+            if (prefix.endsWith("_duel")) {
+                String trimmed = prefix.substring(0, prefix.length() - "_duel".length());
+                int trimmedValue = maxExistingInt(
+                    duelsStats,
+                    new String[] {
+                        "current_" + trimmed + "_winstreak",
+                        trimmed + "_winstreak"
+                    }
+                );
+                if (trimmedValue != Integer.MIN_VALUE) {
+                    best = Math.max(best, trimmedValue);
+                    found = true;
+                }
+            }
+        }
+
+        for (String alias : mode.getDivisionPrefixes()) {
+            int value = maxExistingInt(
+                duelsStats,
+                new String[] {
+                    "current_" + alias + "_winstreak",
+                    alias + "_winstreak"
+                }
+            );
+            if (value != Integer.MIN_VALUE) {
+                best = Math.max(best, value);
                 found = true;
             }
         }
@@ -711,6 +741,11 @@ public class HypixelApiUtils {
         String explicit = findDuelsDivisionString(duelsStats, mode);
         if (!explicit.isEmpty()) {
             return explicit;
+        }
+
+        String tiered = resolveTieredDuelsDivision(duelsStats, mode);
+        if (!tiered.isEmpty()) {
+            return tiered;
         }
 
         Integer prestige = getDuelsPrestige(achievements, mode);
@@ -777,6 +812,85 @@ public class HypixelApiUtils {
         return getNullableInt(achievements, "duels_title_prestige");
     }
 
+    private static String resolveTieredDuelsDivision(
+        JsonObject duelsStats,
+        DuelsMode mode
+    ) {
+        if (duelsStats == null) {
+            return "";
+        }
+
+        String resolved = resolveTieredDuelsDivisionForPrefixes(
+            duelsStats,
+            mode == null ? DuelsMode.OVERALL.getDivisionPrefixes() : mode.getDivisionPrefixes()
+        );
+        if (!resolved.isEmpty()) {
+            return resolved;
+        }
+
+        if (mode != null && !mode.isOverall()) {
+            return resolveTieredDuelsDivisionForPrefixes(
+                duelsStats,
+                DuelsMode.OVERALL.getDivisionPrefixes()
+            );
+        }
+
+        return "";
+    }
+
+    private static String resolveTieredDuelsDivisionForPrefixes(
+        JsonObject duelsStats,
+        String[] prefixes
+    ) {
+        if (duelsStats == null || prefixes == null || prefixes.length == 0) {
+            return "";
+        }
+
+        String[] rankKeys = new String[] {
+            "rookie",
+            "iron",
+            "gold",
+            "diamond",
+            "master",
+            "legend",
+            "grandmaster",
+            "godlike",
+            "celestial",
+            "divine",
+            "ascended",
+        };
+
+        for (String prefix : prefixes) {
+            if (prefix == null || prefix.isEmpty()) {
+                continue;
+            }
+
+            int bestRank = -1;
+            int bestProgress = -1;
+            for (int i = 0; i < rankKeys.length; i++) {
+                String key = prefix + "_" + rankKeys[i] + "_title_prestige";
+                if (!duelsStats.has(key)) {
+                    continue;
+                }
+
+                int progress = getInt(duelsStats, key, -1);
+                if (progress < 0) {
+                    continue;
+                }
+
+                bestRank = i;
+                bestProgress = progress;
+            }
+
+            if (bestRank >= 0) {
+                int tier = Math.min(Math.max(bestProgress, 0), 4) + 1;
+                return formatDuelsDivisionWithTier(bestRank, tier);
+            }
+        }
+
+        return "";
+    }
+
     private static String formatDuelsDivision(int prestige) {
         if (prestige < 0) {
             return "§7Unranked";
@@ -813,6 +927,43 @@ public class HypixelApiUtils {
         return colors[index] + names[index];
     }
 
+    private static String formatDuelsDivisionWithTier(int rankIndex, int tier) {
+        String[] names = new String[] {
+            "Rookie",
+            "Iron",
+            "Gold",
+            "Diamond",
+            "Master",
+            "Legend",
+            "Grandmaster",
+            "Godlike",
+            "Celestial",
+            "Divine",
+            "Ascended",
+        };
+        String[] colors = new String[] {
+            "§7",
+            "§f",
+            "§6",
+            "§b",
+            "§2",
+            "§d",
+            "§4",
+            "§5",
+            "§3",
+            "§c",
+            "§e",
+        };
+        String[] roman = new String[] { "I", "II", "III", "IV", "V" };
+
+        if (rankIndex < 0 || rankIndex >= names.length) {
+            return "§7Unranked";
+        }
+
+        int tierIndex = Math.min(Math.max(tier, 1), 5) - 1;
+        return colors[rankIndex] + names[rankIndex] + " " + roman[tierIndex];
+    }
+
     private static String findFirstNonEmptyString(
         JsonObject object,
         String[] keys
@@ -829,6 +980,21 @@ public class HypixelApiUtils {
         }
 
         return "";
+    }
+
+    private static int maxExistingInt(JsonObject object, String[] keys) {
+        if (object == null || keys == null || keys.length == 0) {
+            return Integer.MIN_VALUE;
+        }
+
+        int best = Integer.MIN_VALUE;
+        for (String key : keys) {
+            if (key == null || key.isEmpty() || !object.has(key)) {
+                continue;
+            }
+            best = Math.max(best, getInt(object, key, 0));
+        }
+        return best;
     }
 
     private static JsonObject getObject(JsonObject object, String key) {
