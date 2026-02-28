@@ -5,6 +5,7 @@ import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import java.io.File;
@@ -22,6 +23,7 @@ public class BlacklistCommand extends CommandBase {
 
     private final BlacklistManager blacklistManager;
     private final MojangApi mojangApi;
+    private final String baseCommand;
 
     public BlacklistCommand(
         BlacklistManager blacklistManager,
@@ -29,11 +31,12 @@ public class BlacklistCommand extends CommandBase {
     ) {
         this.blacklistManager = blacklistManager;
         this.mojangApi = mojangApi;
+        this.baseCommand = BlacklistCommandResolver.getBaseCommand();
     }
 
     @Override
     public String getCommandName() {
-        return "blacklist";
+        return baseCommand;
     }
 
     @Override
@@ -43,7 +46,7 @@ public class BlacklistCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/blacklist <add | remove | list | import>";
+        return getCommandPrefix() + " <add | remove | list | import>";
     }
 
     @Override
@@ -124,20 +127,24 @@ public class BlacklistCommand extends CommandBase {
             // Show navigation help if there are multiple pages
             if (totalPages > 1) {
                 String navigationMessage =
-                    "§7Use §f/blacklist list <page>§7 to navigate";
+                    "§7Use §f" + getCommandPrefix() + " list <page>§7 to navigate";
                 if (page < totalPages) {
                     navigationMessage +=
-                        " (Next: §f/blacklist list " + (page + 1) + "§7)";
+                        " (Next: §f" +
+                        getCommandPrefix() +
+                        " list " +
+                        (page + 1) +
+                        "§7)";
                 }
                 ChatUtils.sendCommandMessage(sender, navigationMessage);
             }
             return;
         } else if ("import".equalsIgnoreCase(subCommand)) {
-            // Handle sync command: /blacklist import <filename>
+            // Handle sync command: <baseCommand> import <filename>
             if (args.length < 2) {
                 ChatUtils.sendCommandMessage(
                     sender,
-                    "§cUsage: /blacklist import <filename>"
+                    "§cUsage: " + getCommandPrefix() + " import <filename>"
                 );
                 return;
             }
@@ -337,5 +344,9 @@ public class BlacklistCommand extends CommandBase {
     @Override
     public int getRequiredPermissionLevel() {
         return 0;
+    }
+
+    private String getCommandPrefix() {
+        return "/" + baseCommand;
     }
 }

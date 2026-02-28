@@ -1,5 +1,6 @@
 package com.roxiun.mellow.commands;
 
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.command.CommandBase;
@@ -64,7 +65,9 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/blacklist <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist.§r"
+                "§r§5" +
+                BlacklistCommandResolver.getCommandPrefix() +
+                " <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist.§r"
             )
         );
         sender.addChatMessage(

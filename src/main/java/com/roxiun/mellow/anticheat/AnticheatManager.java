@@ -10,6 +10,7 @@ import com.roxiun.mellow.anticheat.check.impl.ScaffoldCheck;
 import com.roxiun.mellow.anticheat.data.ACPlayerData;
 import com.roxiun.mellow.anticheat.event.AnticheatListener;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -188,7 +189,12 @@ public class AnticheatManager {
 
         String plainName = player.getName().replaceAll("§.", "").trim();
         String reason = "Anticheat flag: " + check.getName();
-        String command = "/blacklist add " + plainName + " " + reason;
+        String command =
+            BlacklistCommandResolver.getCommandPrefix() +
+            " add " +
+            plainName +
+            " " +
+            reason;
 
         IChatComponent blacklistButton = new ChatComponentText(" §8[§cBL§8]");
         ChatStyle style = new ChatStyle();
