@@ -138,7 +138,9 @@ public class HypixelApiUtils {
                 ? finalKills
                 : (double) finalKills / finalDeaths;
 
-            int winstreak = getInt(bedwarsStats, "winstreak", 0);
+            Integer winstreakValue = getNullableInt(bedwarsStats, "winstreak");
+            int winstreak = winstreakValue == null ? 0 : winstreakValue;
+            boolean hasWinstreakData = winstreakValue != null;
             int wins = getInt(bedwarsStats, "wins_bedwars", 0);
             int losses = getInt(bedwarsStats, "losses_bedwars", 0);
             int bedsBroken = getInt(bedwarsStats, "beds_broken_bedwars", 0);
@@ -151,6 +153,7 @@ public class HypixelApiUtils {
                 FormattingUtils.formatStars(String.valueOf(stars)),
                 fkdr,
                 winstreak,
+                hasWinstreakData,
                 finalKills,
                 finalDeaths,
                 wins,
@@ -580,6 +583,26 @@ public class HypixelApiUtils {
             return (int) Double.parseDouble(element.getAsString());
         } catch (Exception e) {
             return fallback;
+        }
+    }
+
+    private static Integer getNullableInt(JsonObject object, String key) {
+        if (object == null || !object.has(key)) {
+            return null;
+        }
+
+        JsonElement element = object.get(key);
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+
+        try {
+            if (element.getAsJsonPrimitive().isNumber()) {
+                return element.getAsInt();
+            }
+            return (int) Double.parseDouble(element.getAsString());
+        } catch (Exception e) {
+            return null;
         }
     }
 

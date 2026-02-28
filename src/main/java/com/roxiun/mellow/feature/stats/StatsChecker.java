@@ -198,10 +198,13 @@ public class StatsChecker {
         String fkdr = player.getFkdrColor() + player.getFormattedFkdr();
 
         String winstreak = "";
-        if (player.getWinstreak() > 0) {
-            winstreak = FormattingUtils.formatWinstreak(
-                String.valueOf(player.getWinstreak())
-            );
+        if (!player.hasWinstreakData()) {
+            winstreak = "§7?";
+        } else if (player.getWinstreak() > 0) {
+            winstreak =
+                FormattingUtils.formatWinstreak(
+                    String.valueOf(player.getWinstreak())
+                );
         }
 
         String base = String.format(
