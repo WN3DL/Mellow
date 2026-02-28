@@ -8,9 +8,14 @@
   },
   "client": [
     "GuiPlayerTabOverlayMixin",
+    "hitbox.RenderGlobalHitboxColorMixin",
+    "hitbox.RenderManagerHitboxContextMixin",
     "OverflowAnimationsTabCompatMixin",
     "PingMixin",
     "VanillaHudTabBackgroundCompatMixin"
+  ],
+  "mixins": [
+    "compat.polyhitbox.PolyHitboxRendererMixin"
   ],
   "verbose": true
 }

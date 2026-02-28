@@ -941,6 +941,94 @@ public class MellowOneConfig extends Config {
     )
     public int maxResults = 0; // Index for 5
 
+    // Hitboxes
+    @Switch(name = "Colored Hitboxes", category = "Hitboxes")
+    public boolean coloredHitboxes = true;
+
+    @Switch(name = "Affect Vanilla F3+B", category = "Hitboxes")
+    public boolean coloredHitboxesAffectVanillaDebug = true;
+
+    @Switch(name = "Affect PolyHitbox", category = "Hitboxes")
+    public boolean coloredHitboxesAffectPolyHitbox = true;
+
+    @Dropdown(
+        name = "Hue Mode",
+        options = { "Offset", "Static" },
+        category = "Hitboxes",
+        subcategory = "Hue"
+    )
+    public int hitboxHueMode = 0;
+
+    @Number(
+        name = "Hue Value",
+        category = "Hitboxes",
+        subcategory = "Hue",
+        min = 0,
+        max = 360
+    )
+    public int hitboxHueValue = 0;
+
+    @Number(
+        name = "Hue Offset",
+        category = "Hitboxes",
+        subcategory = "Hue",
+        min = -180,
+        max = 180
+    )
+    public int hitboxHueOffset = 0;
+
+    @Dropdown(
+        name = "Saturation Mode",
+        options = { "Offset", "Static" },
+        category = "Hitboxes",
+        subcategory = "Saturation"
+    )
+    public int hitboxSaturationMode = 0;
+
+    @Number(
+        name = "Saturation Value",
+        category = "Hitboxes",
+        subcategory = "Saturation",
+        min = 0,
+        max = 100
+    )
+    public int hitboxSaturationValue = 100;
+
+    @Number(
+        name = "Saturation Offset",
+        category = "Hitboxes",
+        subcategory = "Saturation",
+        min = -100,
+        max = 100
+    )
+    public int hitboxSaturationOffset = 0;
+
+    @Dropdown(
+        name = "Brightness Mode",
+        options = { "Offset", "Static" },
+        category = "Hitboxes",
+        subcategory = "Brightness"
+    )
+    public int hitboxBrightnessMode = 0;
+
+    @Number(
+        name = "Brightness Value",
+        category = "Hitboxes",
+        subcategory = "Brightness",
+        min = 0,
+        max = 100
+    )
+    public int hitboxBrightnessValue = 100;
+
+    @Number(
+        name = "Brightness Offset",
+        category = "Hitboxes",
+        subcategory = "Brightness",
+        min = -100,
+        max = 100
+    )
+    public int hitboxBrightnessOffset = 0;
+
     @Switch(name = "Enable Anticheat", category = "Anticheat")
     public boolean anticheatEnabled = false;
 
@@ -983,6 +1071,13 @@ public class MellowOneConfig extends Config {
         super(new Mod(Mellow.NAME, ModType.HYPIXEL), Mellow.MODID + ".json");
         initialize();
         sanitizeDropdownIndexes();
+
+        hideIf("hitboxHueValue", () -> hitboxHueMode == 0);
+        hideIf("hitboxHueOffset", () -> hitboxHueMode != 0);
+        hideIf("hitboxSaturationValue", () -> hitboxSaturationMode == 0);
+        hideIf("hitboxSaturationOffset", () -> hitboxSaturationMode != 0);
+        hideIf("hitboxBrightnessValue", () -> hitboxBrightnessMode == 0);
+        hideIf("hitboxBrightnessOffset", () -> hitboxBrightnessMode != 0);
     }
 
     private void sanitizeDropdownIndexes() {
@@ -1036,6 +1131,9 @@ public class MellowOneConfig extends Config {
         finalsRange = clampIndex(finalsRange, 5);
         bedsRange = clampIndex(bedsRange, 5);
         maxResults = clampIndex(maxResults, 3);
+        hitboxHueMode = clampIndex(hitboxHueMode, 2);
+        hitboxSaturationMode = clampIndex(hitboxSaturationMode, 2);
+        hitboxBrightnessMode = clampIndex(hitboxBrightnessMode, 2);
     }
 
     private int clampIndex(int value, int optionCount) {
