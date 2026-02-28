@@ -17,7 +17,10 @@ import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
+import com.roxiun.mellow.util.annoylist.AnnoylistManager;
+import com.roxiun.mellow.util.annoylist.AnnoylistedPlayer;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
+import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +39,7 @@ public class StatsChecker {
     private final Map<String, TabStats> tabStats;
     private final TagUtils tagUtils;
     private final BlacklistManager blacklistManager;
+    private final AnnoylistManager annoylistManager;
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
 
@@ -45,7 +49,8 @@ public class StatsChecker {
         MellowOneConfig config,
         Map<String, TabStats> tabStats,
         TagUtils tagUtils,
-        BlacklistManager blacklistManager
+        BlacklistManager blacklistManager,
+        AnnoylistManager annoylistManager
     ) {
         this.playerCache = playerCache;
         this.nickUtils = nickUtils;
@@ -53,6 +58,7 @@ public class StatsChecker {
         this.tabStats = tabStats;
         this.tagUtils = tagUtils;
         this.blacklistManager = blacklistManager;
+        this.annoylistManager = annoylistManager;
     }
 
     public void checkPlayerStats(List<String> onlinePlayers) {
@@ -392,15 +398,52 @@ public class StatsChecker {
         }
 
         java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
-        if (blacklistManager.isBlacklisted(uuid)) {
+        boolean blacklisted = blacklistManager.isBlacklisted(uuid);
+        boolean annoylisted =
+            annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
+
+        if (blacklisted || annoylisted) {
+            BlacklistedPlayer blacklistedPlayer = blacklisted
+                ? blacklistManager.getBlacklistedPlayer(uuid)
+                : null;
+            AnnoylistedPlayer annoylistedPlayer = annoylisted
+                ? annoylistManager.getAnnoylistedPlayer(uuid)
+                : null;
+            String blacklistReason = normalizeReason(
+                blacklistedPlayer == null ? null : blacklistedPlayer.getReason()
+            );
+            String annoyReason = normalizeReason(
+                annoylistedPlayer == null ? null : annoylistedPlayer.getReason()
+            );
+
             mc.addScheduledTask(() -> {
-                ChatUtils.sendMessage(
-                    "§c" + profile.getName() + " is on your blacklist"
-                );
+                if (blacklisted) {
+                    ChatUtils.sendMessage(
+                        "§6" +
+                        profile.getName() +
+                        " §cis on your blacklist: " +
+                        blacklistReason
+                    );
+                }
+                if (annoylisted) {
+                    ChatUtils.sendMessage(
+                        "§6" +
+                        profile.getName() +
+                        " §3is on your annoy list: " +
+                        annoyReason
+                    );
+                }
                 if (mc.thePlayer != null) {
                     mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
                 }
             });
         }
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            return "(none)";
+        }
+        return reason;
     }
 }

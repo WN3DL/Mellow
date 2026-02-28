@@ -142,7 +142,7 @@ public class GuiPlayerTabOverlayMixin {
             newDisplayName = originalDisplayName;
         }
 
-        newDisplayName = appendBlacklistTag(newDisplayName, playerUUID);
+        newDisplayName = appendListTags(newDisplayName, playerUUID);
 
         if (!originalDisplayName.equals(newDisplayName)) {
             cir.setReturnValue(newDisplayName);
@@ -843,14 +843,24 @@ public class GuiPlayerTabOverlayMixin {
         );
     }
 
-    private String appendBlacklistTag(String displayName, UUID playerUUID) {
+    private String appendListTags(String displayName, UUID playerUUID) {
+        String safeDisplayName = displayName == null ? "" : displayName;
+        if (playerUUID == null) {
+            return safeDisplayName;
+        }
         if (
-            playerUUID != null &&
+            Mellow.blacklistManager != null &&
             Mellow.blacklistManager.isBlacklisted(playerUUID)
         ) {
-            return displayName + " §8[§4LIST§8]";
+            safeDisplayName += " §8[§4LIST§8]";
         }
-        return displayName;
+        if (
+            Mellow.annoylistManager != null &&
+            Mellow.annoylistManager.isAnnoylisted(playerUUID)
+        ) {
+            safeDisplayName += " §8[§3ANNOY§8]";
+        }
+        return safeDisplayName;
     }
 
     private boolean shouldShowRankInTabName() {

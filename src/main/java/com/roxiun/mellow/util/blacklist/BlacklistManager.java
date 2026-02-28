@@ -197,8 +197,7 @@ public class BlacklistManager {
                                 uuid,
                                 new BlacklistedPlayer(
                                     uuid.toString(),
-                                    "Added from external file: " +
-                                        externalFile.getName()
+                                    "Added from external file"
                                 )
                             );
                             newEntriesCount++;

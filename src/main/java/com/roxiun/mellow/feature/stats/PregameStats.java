@@ -11,7 +11,10 @@ import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
+import com.roxiun.mellow.util.annoylist.AnnoylistManager;
+import com.roxiun.mellow.util.annoylist.AnnoylistedPlayer;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
+import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.Locale;
@@ -31,6 +34,7 @@ public class PregameStats {
     private final PlayerCache playerCache;
     private final MellowOneConfig config;
     private final BlacklistManager blacklistManager;
+    private final AnnoylistManager annoylistManager;
 
     private final Set<String> alreadyLookedUp = ConcurrentHashMap.newKeySet();
     private boolean autoLeaveTriggeredThisPregame;
@@ -51,11 +55,13 @@ public class PregameStats {
     public PregameStats(
         PlayerCache playerCache,
         MellowOneConfig config,
-        BlacklistManager blacklistManager
+        BlacklistManager blacklistManager,
+        AnnoylistManager annoylistManager
     ) {
         this.playerCache = playerCache;
         this.config = config;
         this.blacklistManager = blacklistManager;
+        this.annoylistManager = annoylistManager;
     }
 
     public void onWorldChange() {
@@ -176,13 +182,44 @@ public class PregameStats {
             return;
         }
 
-        if (blacklistManager.isBlacklisted(uuid)) {
+        boolean blacklisted = blacklistManager.isBlacklisted(uuid);
+        boolean annoylisted =
+            annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
+        if (blacklisted || annoylisted) {
+            BlacklistedPlayer blacklistedPlayer = blacklisted
+                ? blacklistManager.getBlacklistedPlayer(uuid)
+                : null;
+            AnnoylistedPlayer annoylistedPlayer = annoylisted
+                ? annoylistManager.getAnnoylistedPlayer(uuid)
+                : null;
+            String blacklistReason = normalizeReason(
+                blacklistedPlayer == null ? null : blacklistedPlayer.getReason()
+            );
+            String annoyReason = normalizeReason(
+                annoylistedPlayer == null ? null : annoylistedPlayer.getReason()
+            );
+
             MainThreadDispatcher.run(() -> {
-                ChatUtils.sendMessage(
-                    "§c" + username + " is on your blacklist"
-                );
-                mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
-                maybeAutoLeavePregameForBlacklistedChat(username);
+                if (blacklisted) {
+                    ChatUtils.sendMessage(
+                        "§6" +
+                        username +
+                        " §cis on your blacklist: " +
+                        blacklistReason
+                    );
+                    maybeAutoLeavePregameForBlacklistedChat(username);
+                }
+                if (annoylisted) {
+                    ChatUtils.sendMessage(
+                        "§6" +
+                        username +
+                        " §3is on your annoy list: " +
+                        annoyReason
+                    );
+                }
+                if (mc.thePlayer != null) {
+                    mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
+                }
             });
         }
 
@@ -241,6 +278,13 @@ public class PregameStats {
         } catch (IllegalArgumentException ignored) {
             return false;
         }
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null || reason.trim().isEmpty()) {
+            return "(none)";
+        }
+        return reason;
     }
 
     private boolean isPartyMember(UUID uuid) {

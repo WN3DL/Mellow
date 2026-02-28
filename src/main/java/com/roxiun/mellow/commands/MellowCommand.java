@@ -72,6 +72,11 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
+                "§r§5/annoylist <add | remove | list | import>:§d Add/remove/sync a player to your local annoy list.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
                 "§r§5/urchin <username>:§d View a player's urchin tags.§r"
             )
         );

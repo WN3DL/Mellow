@@ -780,7 +780,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
         if (column == 2) {
             value = appendTagSuffixes(value, stats);
-            value = appendBlacklistTag(value, info.getGameProfile().getId());
+            value = appendListTags(value, info.getGameProfile().getId());
         }
 
         return value == null ? "" : value;
@@ -1050,15 +1050,25 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
     }
 
-    private String appendBlacklistTag(String value, UUID playerUUID) {
+    private String appendListTags(String value, UUID playerUUID) {
         String safe = value == null ? "" : value;
+        if (playerUUID == null) {
+            return safe;
+        }
+
         if (
-            playerUUID != null &&
             Mellow.blacklistManager != null &&
             Mellow.blacklistManager.isBlacklisted(playerUUID)
         ) {
-            return safe + " §8[§4LIST§8]";
+            safe += " §8[§4LIST§8]";
         }
+        if (
+            Mellow.annoylistManager != null &&
+            Mellow.annoylistManager.isAnnoylisted(playerUUID)
+        ) {
+            safe += " §8[§3ANNOY§8]";
+        }
+
         return safe;
     }
 

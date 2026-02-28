@@ -72,6 +72,10 @@ To add a player to your **blacklist**, type `/blacklist add <username>`
 
 You can **import** your own **blacklist** by doing, type `/blacklist import <filename>`, place the file in `.minecraft/config/mellow`
 
+To add a player to your **annoy list**, type `/annoylist add <username>`
+
+You can **import** your own **annoy list** by doing, type `/annoylist import <filename>`, place the file in `.minecraft/config/mellow`
+
 To **skin denick** type `/skindenick <username>`
 
 To use the **number denicker** add your Aurora API key
