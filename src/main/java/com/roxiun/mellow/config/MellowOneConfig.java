@@ -951,6 +951,12 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Affect PolyHitbox", category = "Hitboxes")
     public boolean coloredHitboxesAffectPolyHitbox = true;
 
+    @Switch(name = "Colored Nametag Backgrounds", category = "Hitboxes")
+    public boolean coloredNametagBackgrounds = false;
+
+    @Switch(name = "Affect PolyNametag", category = "Hitboxes")
+    public boolean coloredNametagAffectPolyNametag = true;
+
     @Dropdown(
         name = "Hue Mode",
         options = { "Offset", "Static" },

@@ -10,11 +10,14 @@
     "GuiPlayerTabOverlayMixin",
     "hitbox.RenderGlobalHitboxColorMixin",
     "hitbox.RenderManagerHitboxContextMixin",
+    "nametag.RenderNametagColorMixin",
+    "nametag.RendererLivingEntityNametagColorMixin",
     "OverflowAnimationsTabCompatMixin",
     "PingMixin",
     "VanillaHudTabBackgroundCompatMixin"
   ],
   "mixins": [
+    "compat.polynametag.PolyNametagRenderingMixin",
     "compat.polyhitbox.PolyHitboxRendererMixin"
   ],
   "verbose": true
