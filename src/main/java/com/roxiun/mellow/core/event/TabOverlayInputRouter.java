@@ -24,11 +24,7 @@ public class TabOverlayInputRouter {
             return;
         }
 
-        if (!mc.gameSettings.keyBindPlayerList.isKeyDown()) {
-            return;
-        }
-
-        if (!tabOverlayRouter.isExtendedModeActive()) {
+        if (!tabOverlayRouter.isTabOverlayInputActive()) {
             return;
         }
 
