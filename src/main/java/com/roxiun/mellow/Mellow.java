@@ -68,11 +68,6 @@ public class Mellow {
 
         anticheatManager = new AnticheatManager(this);
         blacklistManager = new BlacklistManager();
-        PartyBlacklistWarningService partyBlacklistWarningService =
-            new PartyBlacklistWarningService(blacklistManager, config);
-        HypixelFeatures
-            .getInstance()
-            .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);
 
         mojangApi = new MojangApi();
         providerManager = new ProviderManager();
@@ -91,6 +86,11 @@ public class Mellow {
             seraphApi,
             config
         );
+        PartyBlacklistWarningService partyBlacklistWarningService =
+            new PartyBlacklistWarningService(blacklistManager, config, playerCache);
+        HypixelFeatures
+            .getInstance()
+            .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);
 
         nickUtils = new NickUtils(playerCache, config);
 
