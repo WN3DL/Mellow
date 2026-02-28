@@ -26,6 +26,7 @@ import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
 import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
+import com.roxiun.mellow.feature.stats.ProviderHealthWarningService;
 import com.roxiun.mellow.feature.stats.StatsChecker;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
@@ -60,6 +61,7 @@ public class Mellow {
     public void init(FMLInitializationEvent event) {
         config = new MellowOneConfig();
         ModrinthUpdater.init(config);
+        ProviderHealthWarningService.init(config);
 
         HypixelFeatures.getInstance().initialize();
 

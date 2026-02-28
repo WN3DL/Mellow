@@ -120,7 +120,8 @@ public class PlayerCache {
             ChatUtils.sendMessage(
                 "§e" +
                 providerName +
-                " is selected but no API key is configured. Stats are disabled until a key is set in OneConfig."
+                " is selected but no API key is configured. " +
+                "Set a key in OneConfig or switch your Stats Provider to §bAbyss§e."
             )
         );
     }
