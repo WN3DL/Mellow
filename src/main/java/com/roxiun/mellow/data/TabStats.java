@@ -15,7 +15,9 @@ public class TabStats {
     private final String wlr;
     private final String bblr;
     private final String wins;
+    private final String losses;
     private final String kills;
+    private final String deaths;
     private final String beds;
     private final String finals;
 
@@ -41,7 +43,9 @@ public class TabStats {
             wlr,
             bblr,
             wins,
+            null,
             kills,
+            null,
             beds,
             finals
         );
@@ -61,18 +65,22 @@ public class TabStats {
         String beds,
         String finals
     ) {
-        this.urchinTags = urchinTags;
-        this.seraphTags = seraphTags;
-        this.formattedNameWithRank = formattedNameWithRank;
-        this.stars = stars;
-        this.fkdr = fkdr;
-        this.winstreak = winstreak;
-        this.wlr = wlr;
-        this.bblr = bblr;
-        this.wins = wins;
-        this.kills = kills;
-        this.beds = beds;
-        this.finals = finals;
+        this(
+            urchinTags,
+            seraphTags,
+            formattedNameWithRank,
+            stars,
+            fkdr,
+            winstreak,
+            wlr,
+            bblr,
+            wins,
+            null,
+            kills,
+            null,
+            beds,
+            finals
+        );
     }
 
     public TabStats(
@@ -88,12 +96,16 @@ public class TabStats {
     ) {
         this(
             urchinTags,
+            null,
+            null,
             stars,
             fkdr,
             winstreak,
             wlr,
             bblr,
             wins,
+            null,
+            null,
             null,
             beds,
             finals
@@ -124,9 +136,43 @@ public class TabStats {
             bblr,
             wins,
             null,
+            null,
+            null,
             beds,
             finals
         );
+    }
+
+    public TabStats(
+        List<UrchinTag> urchinTags,
+        List<SeraphTag> seraphTags,
+        String formattedNameWithRank,
+        String stars,
+        String fkdr,
+        String winstreak,
+        String wlr,
+        String bblr,
+        String wins,
+        String losses,
+        String kills,
+        String deaths,
+        String beds,
+        String finals
+    ) {
+        this.urchinTags = urchinTags;
+        this.seraphTags = seraphTags;
+        this.formattedNameWithRank = formattedNameWithRank;
+        this.stars = stars;
+        this.fkdr = fkdr;
+        this.winstreak = winstreak;
+        this.wlr = wlr;
+        this.bblr = bblr;
+        this.wins = wins;
+        this.losses = losses;
+        this.kills = kills;
+        this.deaths = deaths;
+        this.beds = beds;
+        this.finals = finals;
     }
 
     public boolean isUrchinTagged() {
@@ -173,8 +219,16 @@ public class TabStats {
         return wins;
     }
 
+    public String getLosses() {
+        return losses;
+    }
+
     public String getKills() {
         return kills;
+    }
+
+    public String getDeaths() {
+        return deaths;
     }
 
     public String getBeds() {
@@ -185,7 +239,6 @@ public class TabStats {
         return finals;
     }
 
-    // Colored getters for dynamic color display
     public String getColoredWlr() {
         return wlr;
     }

@@ -2,7 +2,6 @@ package com.roxiun.mellow;
 
 import com.roxiun.mellow.anticheat.AnticheatManager;
 import com.roxiun.mellow.api.aurora.AuroraApi;
-import com.roxiun.mellow.api.duels.PlanckeApi;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.AbyssApi;
@@ -78,7 +77,6 @@ public class Mellow {
 
         urchinApi = new UrchinApi(mojangApi);
         seraphApi = new SeraphApi(mojangApi);
-        PlanckeApi planckeApi = new PlanckeApi();
         AuroraApi auroraApi = new AuroraApi();
 
         playerCache = new PlayerCache(
@@ -121,8 +119,7 @@ public class Mellow {
             new ChatEventRouter(
                 config,
                 numberDenicker,
-                pregameStats,
-                planckeApi
+                pregameStats
             )
         );
         MinecraftForge.EVENT_BUS.register(

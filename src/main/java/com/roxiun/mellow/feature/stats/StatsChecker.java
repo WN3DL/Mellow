@@ -1,6 +1,7 @@
 package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
@@ -158,8 +159,13 @@ public class StatsChecker {
 
     private StatScope resolveActiveScope() {
         GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
-        if (snapshot != null && snapshot.getGameType() == GameType.SKYWARS) {
-            return StatScope.SKYWARS;
+        if (snapshot != null) {
+            if (snapshot.getGameType() == GameType.SKYWARS) {
+                return StatScope.SKYWARS;
+            }
+            if (snapshot.getGameType() == GameType.DUELS) {
+                return StatScope.DUELS;
+            }
         }
         return StatScope.BEDWARS;
     }
@@ -168,11 +174,14 @@ public class StatsChecker {
         if (scope == StatScope.SKYWARS) {
             return profile.getSkywarsPlayer() != null;
         }
+        if (scope == StatScope.DUELS) {
+            return profile.getDuelsPlayer() != null;
+        }
         return profile.getBedwarsPlayer() != null;
     }
 
     private boolean passesScopeFilters(PlayerProfile profile, StatScope scope) {
-        if (scope == StatScope.SKYWARS) {
+        if (scope == StatScope.SKYWARS || scope == StatScope.DUELS) {
             return true;
         }
 
@@ -183,6 +192,9 @@ public class StatsChecker {
     private String formatChatStats(PlayerProfile profile, StatScope scope) {
         if (scope == StatScope.SKYWARS) {
             return formatSkywarsChatStats(profile);
+        }
+        if (scope == StatScope.DUELS) {
+            return formatDuelsChatStats(profile);
         }
         return formatBedwarsChatStats(profile);
     }
@@ -250,6 +262,27 @@ public class StatsChecker {
         );
 
         return base;
+    }
+
+    private String formatDuelsChatStats(PlayerProfile profile) {
+        DuelsPlayer player = profile.getDuelsPlayer();
+        if (player == null) {
+            return "";
+        }
+
+        String modeSuffix = player.getMode() == null || player.getMode().isOverall()
+            ? " §7(Overall)"
+            : " §7(" + player.getMode().getDisplayName() + ")";
+
+        return String.format(
+            "%s §r%s§r%s§7 |§r KDR: %s§r§7 |§r WLR: %s§r§7 |§r WS: %s§r",
+            player.getFormattedNameWithRank(),
+            player.getDivision(),
+            modeSuffix,
+            player.getFormattedKdrWithColor(),
+            player.getFormattedWlrWithColor(),
+            player.getFormattedWinstreakWithColor()
+        );
     }
 
     private String buildTagsValue(PlayerProfile profile) {

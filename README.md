@@ -33,7 +33,7 @@ This project is a fork continuation of <a href="https://github.com/xanning/Fonta
 
 - Supports skin denicking and finals/beds denicking.
 
-- Check Classic Duels stats of your opponent when you queue a Classic duels match
+- Auto-check provider-backed Duels stats in Duels matches (mode-aware with division display)
 
 - Pretty & Aesthetic
 

@@ -82,7 +82,10 @@ public class InGameTabStatsSyncService {
         if (snapshot.isInBedwarsMatch()) {
             return true;
         }
-        return snapshot.getGameType() == GameType.SKYWARS && !snapshot.isLobby();
+        if (snapshot.getGameType() == GameType.SKYWARS && !snapshot.isLobby()) {
+            return true;
+        }
+        return snapshot.getGameType() == GameType.DUELS && !snapshot.isLobby();
     }
 
     private void runScan(boolean clearBeforeFetch) {

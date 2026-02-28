@@ -21,6 +21,10 @@ public final class ExtendedTabStatsMode {
             return StatScope.SKYWARS;
         }
 
+        if (snapshot.getGameType() == GameType.DUELS) {
+            return StatScope.DUELS;
+        }
+
         if (snapshot.getGameType() == GameType.BEDWARS) {
             return StatScope.BEDWARS;
         }

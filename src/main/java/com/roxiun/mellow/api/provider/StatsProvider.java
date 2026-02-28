@@ -1,6 +1,8 @@
 package com.roxiun.mellow.api.provider;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.duels.DuelsMode;
+import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.provider.model.PlayerIdentity;
 import com.roxiun.mellow.api.provider.model.ProviderId;
@@ -24,6 +26,16 @@ public interface StatsProvider {
     BedwarsPlayer fetchPlayerStats(String playerName) throws IOException;
 
     default SkywarsPlayer fetchSkywarsStats(String playerName)
+        throws IOException {
+        return null;
+    }
+
+    default DuelsPlayer fetchDuelsStats(String playerName)
+        throws IOException {
+        return fetchDuelsStats(playerName, DuelsMode.OVERALL);
+    }
+
+    default DuelsPlayer fetchDuelsStats(String playerName, DuelsMode mode)
         throws IOException {
         return null;
     }
@@ -52,6 +64,14 @@ public interface StatsProvider {
                         return ProviderResult.failure("No data returned");
                     }
                     return ProviderResult.success(skywarsPlayer);
+                case DUELS:
+                    DuelsPlayer duelsPlayer = fetchDuelsStats(
+                        identity.getUsername()
+                    );
+                    if (duelsPlayer == null) {
+                        return ProviderResult.failure("No data returned");
+                    }
+                    return ProviderResult.success(duelsPlayer);
                 default:
                     return ProviderResult.failure(
                         "Unsupported scope: " + scope

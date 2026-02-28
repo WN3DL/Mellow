@@ -583,6 +583,19 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             }
         }
 
+        if (scope == StatScope.DUELS) {
+            switch (column) {
+                case 0:
+                    return 40;
+                case 1:
+                    return 92;
+                case 2:
+                    return shouldShowHeadsInExtendedView() ? 230 : 220;
+                default:
+                    return 72;
+            }
+        }
+
         switch (column) {
             case 0:
                 return 40;
@@ -657,6 +670,16 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String value =
             scope == StatScope.SKYWARS
                 ? getSkywarsColumnValue(
+                    column,
+                    team,
+                    name,
+                    suffix,
+                    teamColor,
+                    stats,
+                    isNicked
+                )
+                : scope == StatScope.DUELS
+                ? getDuelsColumnValue(
                     column,
                     team,
                     name,
@@ -772,6 +795,56 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 return stats != null ? safe(stats.getWins()) : "";
             case 6:
                 return stats != null ? safe(stats.getKills()) : "";
+            default:
+                return "";
+        }
+    }
+
+    private String getDuelsColumnValue(
+        int column,
+        String team,
+        String name,
+        String suffix,
+        String teamColor,
+        TabStats stats,
+        boolean isNicked
+    ) {
+        switch (column) {
+            case 0:
+                return team;
+            case 1:
+                if (isNicked) {
+                    return getNickLabel();
+                }
+                if (stats != null && stats.getStars() != null && !stats.getStars().isEmpty()) {
+                    return stats.getStars() + "§r";
+                }
+                return "";
+            case 2:
+                if (shouldShowRankInTabName()) {
+                    if (
+                        stats != null &&
+                        stats.getFormattedNameWithRank() != null &&
+                        !stats.getFormattedNameWithRank().isEmpty()
+                    ) {
+                        return stats.getFormattedNameWithRank() + "§r";
+                    }
+                }
+                return "§r" + teamColor + name + suffix;
+            case 3:
+                return stats != null ? safe(stats.getFkdr()) : "";
+            case 4:
+                return stats != null ? safe(stats.getWlr()) : "";
+            case 5:
+                return stats != null ? safe(stats.getWins()) : "";
+            case 6:
+                return stats != null ? safe(stats.getLosses()) : "";
+            case 7:
+                return stats != null ? safe(stats.getKills()) : "";
+            case 8:
+                return stats != null ? safe(stats.getDeaths()) : "";
+            case 9:
+                return stats != null ? safe(stats.getWinstreak()) : "";
             default:
                 return "";
         }

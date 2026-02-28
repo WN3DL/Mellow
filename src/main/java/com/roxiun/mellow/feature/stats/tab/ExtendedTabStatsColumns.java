@@ -11,6 +11,7 @@ public final class ExtendedTabStatsColumns {
     public static final int COLUMN_GAP = 4;
     public static final int BEDWARS_NONE_INDEX = 10;
     public static final int SKYWARS_NONE_INDEX = 7;
+    public static final int DUELS_NONE_INDEX = 10;
 
     private ExtendedTabStatsColumns() {}
 
@@ -34,6 +35,21 @@ public final class ExtendedTabStatsColumns {
                 config.skywarsCustomStat8,
                 config.skywarsCustomStat9,
                 config.skywarsCustomStat10,
+            };
+        }
+
+        if (scope == StatScope.DUELS) {
+            return new int[] {
+                config.duelsCustomStat1,
+                config.duelsCustomStat2,
+                config.duelsCustomStat3,
+                config.duelsCustomStat4,
+                config.duelsCustomStat5,
+                config.duelsCustomStat6,
+                config.duelsCustomStat7,
+                config.duelsCustomStat8,
+                config.duelsCustomStat9,
+                config.duelsCustomStat10,
             };
         }
 
@@ -76,12 +92,21 @@ public final class ExtendedTabStatsColumns {
     }
 
     public static int getNoneIndex(StatScope scope) {
-        return scope == StatScope.SKYWARS ? SKYWARS_NONE_INDEX : BEDWARS_NONE_INDEX;
+        if (scope == StatScope.SKYWARS) {
+            return SKYWARS_NONE_INDEX;
+        }
+        if (scope == StatScope.DUELS) {
+            return DUELS_NONE_INDEX;
+        }
+        return BEDWARS_NONE_INDEX;
     }
 
     public static boolean isSupportedColumn(StatScope scope, int statIndex) {
         if (scope == StatScope.SKYWARS) {
             return statIndex >= 0 && statIndex < SKYWARS_NONE_INDEX;
+        }
+        if (scope == StatScope.DUELS) {
+            return statIndex >= 0 && statIndex < DUELS_NONE_INDEX;
         }
         return statIndex >= 0 && statIndex < BEDWARS_NONE_INDEX;
     }
@@ -103,6 +128,33 @@ public final class ExtendedTabStatsColumns {
                     return "WINS";
                 case 6:
                     return "KILLS";
+                default:
+                    return "";
+            }
+        }
+
+        if (scope == StatScope.DUELS) {
+            switch (statIndex) {
+                case 0:
+                    return "TEAM";
+                case 1:
+                    return "DIV";
+                case 2:
+                    return "NAME";
+                case 3:
+                    return "KDR";
+                case 4:
+                    return "WLR";
+                case 5:
+                    return "WINS";
+                case 6:
+                    return "LOSSES";
+                case 7:
+                    return "KILLS";
+                case 8:
+                    return "DEATHS";
+                case 9:
+                    return "WS";
                 default:
                     return "";
             }
@@ -151,6 +203,33 @@ public final class ExtendedTabStatsColumns {
                     return 42; // WINS
                 case 6:
                     return 42; // KILLS
+                default:
+                    return 36;
+            }
+        }
+
+        if (scope == StatScope.DUELS) {
+            switch (statIndex) {
+                case 0:
+                    return 28; // TEAM
+                case 1:
+                    return 56; // DIVISION
+                case 2:
+                    return 120; // NAME
+                case 3:
+                    return 40; // KDR
+                case 4:
+                    return 40; // WLR
+                case 5:
+                    return 42; // WINS
+                case 6:
+                    return 48; // LOSSES
+                case 7:
+                    return 42; // KILLS
+                case 8:
+                    return 50; // DEATHS
+                case 9:
+                    return 36; // WS
                 default:
                     return 36;
             }

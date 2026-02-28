@@ -392,6 +392,215 @@ public class MellowOneConfig extends Config {
     public int skywarsCustomStat10 = 7;
 
     @Info(
+        text = "Set the order of Duels stats in the tab list",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public static boolean ignoredDuelsStatsOrderInfo;
+
+    @Dropdown(
+        name = "First Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat1 = 0;
+
+    @Dropdown(
+        name = "Second Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat2 = 1;
+
+    @Dropdown(
+        name = "Third Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat3 = 2;
+
+    @Dropdown(
+        name = "Fourth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat4 = 3;
+
+    @Dropdown(
+        name = "Fifth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat5 = 4;
+
+    @Dropdown(
+        name = "Sixth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat6 = 5;
+
+    @Dropdown(
+        name = "Seventh Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat7 = 6;
+
+    @Dropdown(
+        name = "Eighth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat8 = 7;
+
+    @Dropdown(
+        name = "Ninth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat9 = 8;
+
+    @Dropdown(
+        name = "Tenth Duels Stat",
+        options = {
+            "Team",
+            "Division",
+            "Name",
+            "KDR",
+            "WLR",
+            "Wins",
+            "Losses",
+            "Kills",
+            "Deaths",
+            "Winstreak",
+            "None",
+        },
+        category = "Tab Stats",
+        subcategory = "Duels"
+    )
+    public int duelsCustomStat10 = 9;
+
+    @Info(
         text = "Toggle seperator between stats",
         type = InfoType.INFO,
         size = OptionSize.DUAL,
@@ -797,6 +1006,18 @@ public class MellowOneConfig extends Config {
         skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 8);
         skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 8);
         skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 8);
+
+        // Duels tab stats dropdowns: Team..None (11 options)
+        duelsCustomStat1 = clampIndex(duelsCustomStat1, 11);
+        duelsCustomStat2 = clampIndex(duelsCustomStat2, 11);
+        duelsCustomStat3 = clampIndex(duelsCustomStat3, 11);
+        duelsCustomStat4 = clampIndex(duelsCustomStat4, 11);
+        duelsCustomStat5 = clampIndex(duelsCustomStat5, 11);
+        duelsCustomStat6 = clampIndex(duelsCustomStat6, 11);
+        duelsCustomStat7 = clampIndex(duelsCustomStat7, 11);
+        duelsCustomStat8 = clampIndex(duelsCustomStat8, 11);
+        duelsCustomStat9 = clampIndex(duelsCustomStat9, 11);
+        duelsCustomStat10 = clampIndex(duelsCustomStat10, 11);
 
         // Misc dropdowns
         extendedTabStatsHealthPosition = clampIndex(

@@ -24,6 +24,7 @@ public class GuiPlayerTabOverlayMixin {
     private static final String MIDDLE_DOT = "\u30fb";
     private static final int BEDWARS_NONE_INDEX = 10;
     private static final int SKYWARS_NONE_INDEX = 7;
+    private static final int DUELS_NONE_INDEX = 10;
 
     @Inject(method = "getPlayerName", at = @At("HEAD"), cancellable = true)
     public void getPlayerName(
@@ -340,6 +341,15 @@ public class GuiPlayerTabOverlayMixin {
                 stats
             );
         }
+        if (scope == StatScope.DUELS) {
+            return processDuelsDynamicStat(
+                statIndex,
+                team,
+                name,
+                teamColor,
+                stats
+            );
+        }
         return processBedwarsDynamicStat(statIndex, team, name, teamColor, stats);
     }
 
@@ -492,6 +502,84 @@ public class GuiPlayerTabOverlayMixin {
         return null;
     }
 
+    private String[] processDuelsDynamicStat(
+        int statIndex,
+        String team,
+        String name,
+        String teamColor,
+        TabStats stats
+    ) {
+        String division = stats.getStars();
+        String kdr = stats.getFkdr();
+
+        switch (statIndex) {
+            case 0: // Team
+                return new String[] { team, "false" };
+            case 1: // Division (shows Nick instead if player is nicked)
+                boolean isNicked = Mellow.nickUtils.isNicked(name);
+                if (isNicked) {
+                    if (Mellow.config.showNickWithBrackets) {
+                        return new String[] { "§5[§lNICK§r§5]§r", "false" };
+                    } else {
+                        return new String[] { "§5§lNICK§r", "false" };
+                    }
+                } else if (division != null && !division.isEmpty()) {
+                    return new String[] { division + "§r", "false" };
+                }
+                break;
+            case 2: // Name
+                if (shouldShowRankInTabName()) {
+                    String formattedNameWithRank = stats.getFormattedNameWithRank();
+                    if (
+                        formattedNameWithRank != null &&
+                        !formattedNameWithRank.isEmpty()
+                    ) {
+                        return new String[] { formattedNameWithRank + "§r", "false" };
+                    }
+                }
+                return new String[] { "§r" + teamColor + name, "false" };
+            case 3: // KDR
+                if (kdr != null && !kdr.isEmpty()) {
+                    return new String[] { kdr, "false" };
+                }
+                break;
+            case 4: // WLR
+                if (stats.getWlr() != null && !stats.getWlr().isEmpty()) {
+                    return new String[] { stats.getWlr(), "false" };
+                }
+                break;
+            case 5: // Wins
+                if (stats.getWins() != null && !stats.getWins().isEmpty()) {
+                    return new String[] { stats.getWins(), "false" };
+                }
+                break;
+            case 6: // Losses
+                if (stats.getLosses() != null && !stats.getLosses().isEmpty()) {
+                    return new String[] { stats.getLosses(), "false" };
+                }
+                break;
+            case 7: // Kills
+                if (stats.getKills() != null && !stats.getKills().isEmpty()) {
+                    return new String[] { stats.getKills(), "false" };
+                }
+                break;
+            case 8: // Deaths
+                if (stats.getDeaths() != null && !stats.getDeaths().isEmpty()) {
+                    return new String[] { stats.getDeaths(), "false" };
+                }
+                break;
+            case 9: // Winstreak
+                if (stats.getWinstreak() != null && !stats.getWinstreak().isEmpty()) {
+                    return new String[] { stats.getWinstreak(), "false" };
+                }
+                break;
+            case DUELS_NONE_INDEX: // None
+                return null;
+        }
+
+        return null;
+    }
+
     private int[] getConfiguredStatsForScope(StatScope scope) {
         if (scope == StatScope.SKYWARS) {
             return new int[] {
@@ -505,6 +593,21 @@ public class GuiPlayerTabOverlayMixin {
                 Mellow.config.skywarsCustomStat8,
                 Mellow.config.skywarsCustomStat9,
                 Mellow.config.skywarsCustomStat10,
+            };
+        }
+
+        if (scope == StatScope.DUELS) {
+            return new int[] {
+                Mellow.config.duelsCustomStat1,
+                Mellow.config.duelsCustomStat2,
+                Mellow.config.duelsCustomStat3,
+                Mellow.config.duelsCustomStat4,
+                Mellow.config.duelsCustomStat5,
+                Mellow.config.duelsCustomStat6,
+                Mellow.config.duelsCustomStat7,
+                Mellow.config.duelsCustomStat8,
+                Mellow.config.duelsCustomStat9,
+                Mellow.config.duelsCustomStat10,
             };
         }
 
@@ -551,6 +654,12 @@ public class GuiPlayerTabOverlayMixin {
             GameType.SKYWARS
         ) {
             return StatScope.SKYWARS;
+        }
+        if (
+            HypixelFeatures.getInstance().getGameSnapshot().getGameType() ==
+            GameType.DUELS
+        ) {
+            return StatScope.DUELS;
         }
         return StatScope.BEDWARS;
     }

@@ -1,6 +1,9 @@
 package com.roxiun.mellow.cache;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.duels.DuelsMode;
+import com.roxiun.mellow.api.duels.DuelsPlayer;
+import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
@@ -57,7 +60,13 @@ public class PlayerCache {
             return null;
         }
 
-        String cacheKey = provider.getProviderId().name() + ":" + playerName.toLowerCase();
+        DuelsMode duelsMode = resolveActiveDuelsMode();
+        String cacheKey =
+            provider.getProviderId().name() +
+            ":" +
+            duelsMode.name() +
+            ":" +
+            playerName.toLowerCase();
         CachedProfile cached = cache.get(cacheKey);
 
         if (cached != null && !cached.isExpired()) {
@@ -69,7 +78,7 @@ public class PlayerCache {
             return null;
         }
 
-        return fetchAndCachePlayer(playerName, provider, cacheKey);
+        return fetchAndCachePlayer(playerName, provider, duelsMode, cacheKey);
     }
 
     public StatsProvider getSelectedProvider() {
@@ -119,6 +128,7 @@ public class PlayerCache {
     private PlayerProfile fetchAndCachePlayer(
         String playerName,
         StatsProvider provider,
+        DuelsMode duelsMode,
         String cacheKey
     ) {
         String urchinApiKey = normalizeApiKey(config.urchinKey);
@@ -126,7 +136,15 @@ public class PlayerCache {
         try {
             BedwarsPlayer bedwarsPlayer = provider.fetchPlayerStats(playerName);
             SkywarsPlayer skywarsPlayer = provider.fetchSkywarsStats(playerName);
-            if (bedwarsPlayer == null && skywarsPlayer == null) {
+            DuelsPlayer duelsPlayer = provider.fetchDuelsStats(
+                playerName,
+                duelsMode
+            );
+            if (
+                bedwarsPlayer == null &&
+                skywarsPlayer == null &&
+                duelsPlayer == null
+            ) {
                 return null;
             }
 
@@ -171,6 +189,7 @@ public class PlayerCache {
                 playerName,
                 bedwarsPlayer,
                 skywarsPlayer,
+                duelsPlayer,
                 urchinTags,
                 seraphTags
             );
@@ -216,6 +235,16 @@ public class PlayerCache {
 
     private String normalizeApiKey(String apiKey) {
         return apiKey == null ? "" : apiKey.trim();
+    }
+
+    private DuelsMode resolveActiveDuelsMode() {
+        try {
+            return DuelsMode.fromSnapshot(
+                HypixelFeatures.getInstance().getGameSnapshot()
+            );
+        } catch (Exception ignored) {
+            return DuelsMode.OVERALL;
+        }
     }
 
     private static class CachedProfile {

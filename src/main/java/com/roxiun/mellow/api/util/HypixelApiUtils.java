@@ -4,6 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.duels.DuelsMode;
+import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
@@ -230,6 +232,75 @@ public class HypixelApiUtils {
                 losses,
                 kills,
                 deaths
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static DuelsPlayer parseDuelsPlayerData(
+        String json,
+        ProviderId providerId,
+        DuelsMode requestedMode
+    ) {
+        try {
+            JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
+            JsonObject playerObject = getPlayerObject(rootObject, providerId);
+            if (playerObject == null) {
+                return null;
+            }
+
+            String name = getString(
+                playerObject,
+                "displayname",
+                getString(rootObject, "name", "[]")
+            );
+            if (providerId == ProviderId.NADESHIKO) {
+                JsonObject profile = getObject(rootObject, "profile");
+                name =
+                    getString(
+                        profile,
+                        "hypixel_displayname",
+                        getString(rootObject, "name", name)
+                    );
+            }
+
+            String formattedName = getFormattedNameWithRank(
+                rootObject,
+                playerObject,
+                providerId,
+                name
+            );
+
+            JsonObject achievements = getObject(playerObject, "achievements");
+            JsonObject stats = getObject(playerObject, "stats");
+            JsonObject duelsStats = getObject(stats, "Duels");
+
+            DuelsMode mode = requestedMode == null ? DuelsMode.OVERALL : requestedMode;
+            if (
+                mode != DuelsMode.OVERALL &&
+                !hasModeSpecificDuelsStats(duelsStats, mode)
+            ) {
+                mode = DuelsMode.OVERALL;
+            }
+
+            int kills = getDuelsStat(duelsStats, mode, "kills");
+            int deaths = getDuelsStat(duelsStats, mode, "deaths");
+            int wins = getDuelsStat(duelsStats, mode, "wins");
+            int losses = getDuelsStat(duelsStats, mode, "losses");
+            int winstreak = getDuelsWinstreak(duelsStats, mode);
+            String division = resolveDuelsDivision(duelsStats, achievements, mode);
+
+            return new DuelsPlayer(
+                name,
+                formattedName,
+                mode,
+                division,
+                kills,
+                deaths,
+                wins,
+                losses,
+                winstreak
             );
         } catch (Exception e) {
             return null;
@@ -551,6 +622,213 @@ public class HypixelApiUtils {
         }
 
         return trimmed;
+    }
+
+    private static boolean hasModeSpecificDuelsStats(
+        JsonObject duelsStats,
+        DuelsMode mode
+    ) {
+        if (duelsStats == null || mode == null || mode.isOverall()) {
+            return true;
+        }
+
+        for (String prefix : mode.getStatPrefixes()) {
+            if (
+                duelsStats.has(prefix + "_wins") ||
+                duelsStats.has(prefix + "_losses") ||
+                duelsStats.has(prefix + "_kills") ||
+                duelsStats.has(prefix + "_deaths")
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int getDuelsStat(
+        JsonObject duelsStats,
+        DuelsMode mode,
+        String statSuffix
+    ) {
+        if (duelsStats == null || statSuffix == null || statSuffix.isEmpty()) {
+            return 0;
+        }
+
+        if (mode == null || mode.isOverall()) {
+            return getInt(duelsStats, statSuffix, 0);
+        }
+
+        int total = 0;
+        boolean found = false;
+        for (String prefix : mode.getStatPrefixes()) {
+            String key = prefix + "_" + statSuffix;
+            if (duelsStats.has(key)) {
+                total += getInt(duelsStats, key, 0);
+                found = true;
+            }
+        }
+
+        return found ? total : 0;
+    }
+
+    private static int getDuelsWinstreak(JsonObject duelsStats, DuelsMode mode) {
+        if (duelsStats == null) {
+            return 0;
+        }
+
+        if (mode == null || mode.isOverall()) {
+            return getInt(duelsStats, "current_winstreak", 0);
+        }
+
+        int best = 0;
+        boolean found = false;
+        for (String prefix : mode.getStatPrefixes()) {
+            String currentKey = "current_" + prefix + "_winstreak";
+            if (duelsStats.has(currentKey)) {
+                best = Math.max(best, getInt(duelsStats, currentKey, 0));
+                found = true;
+            }
+
+            String directKey = prefix + "_winstreak";
+            if (duelsStats.has(directKey)) {
+                best = Math.max(best, getInt(duelsStats, directKey, 0));
+                found = true;
+            }
+        }
+
+        if (found) {
+            return best;
+        }
+        return getInt(duelsStats, "current_winstreak", 0);
+    }
+
+    private static String resolveDuelsDivision(
+        JsonObject duelsStats,
+        JsonObject achievements,
+        DuelsMode mode
+    ) {
+        String explicit = findDuelsDivisionString(duelsStats, mode);
+        if (!explicit.isEmpty()) {
+            return explicit;
+        }
+
+        Integer prestige = getDuelsPrestige(achievements, mode);
+        if (prestige != null && prestige >= 0) {
+            return formatDuelsDivision(prestige);
+        }
+
+        return "§7Unranked";
+    }
+
+    private static String findDuelsDivisionString(
+        JsonObject duelsStats,
+        DuelsMode mode
+    ) {
+        if (duelsStats == null) {
+            return "";
+        }
+
+        String[] generalKeys = new String[] {
+            "duels_division",
+            "duels_title",
+            "division",
+            "title"
+        };
+        if (mode == null || mode.isOverall()) {
+            return findFirstNonEmptyString(duelsStats, generalKeys);
+        }
+
+        for (String prefix : mode.getStatPrefixes()) {
+            String candidate = findFirstNonEmptyString(
+                duelsStats,
+                new String[] {
+                    prefix + "_division",
+                    prefix + "_title",
+                    "current_" + prefix + "_division",
+                    "current_" + prefix + "_title"
+                }
+            );
+            if (!candidate.isEmpty()) {
+                return candidate;
+            }
+        }
+
+        return findFirstNonEmptyString(duelsStats, generalKeys);
+    }
+
+    private static Integer getDuelsPrestige(
+        JsonObject achievements,
+        DuelsMode mode
+    ) {
+        if (achievements == null) {
+            return null;
+        }
+
+        if (mode != null && !mode.isOverall()) {
+            for (String key : mode.getTitlePrestigeKeys()) {
+                Integer value = getNullableInt(achievements, key);
+                if (value != null) {
+                    return value;
+                }
+            }
+        }
+
+        return getNullableInt(achievements, "duels_title_prestige");
+    }
+
+    private static String formatDuelsDivision(int prestige) {
+        if (prestige < 0) {
+            return "§7Unranked";
+        }
+
+        String[] names = new String[] {
+            "Rookie",
+            "Iron",
+            "Gold",
+            "Diamond",
+            "Master",
+            "Legend",
+            "Grandmaster",
+            "Godlike",
+            "Celestial",
+            "Divine",
+            "Ascended",
+        };
+        String[] colors = new String[] {
+            "§7",
+            "§f",
+            "§6",
+            "§b",
+            "§2",
+            "§d",
+            "§4",
+            "§5",
+            "§3",
+            "§c",
+            "§e",
+        };
+
+        int index = Math.min(prestige, names.length - 1);
+        return colors[index] + names[index];
+    }
+
+    private static String findFirstNonEmptyString(
+        JsonObject object,
+        String[] keys
+    ) {
+        if (object == null || keys == null || keys.length == 0) {
+            return "";
+        }
+
+        for (String key : keys) {
+            String value = normalizeFormatting(getString(object, key, "")).trim();
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+
+        return "";
     }
 
     private static JsonObject getObject(JsonObject object, String key) {
