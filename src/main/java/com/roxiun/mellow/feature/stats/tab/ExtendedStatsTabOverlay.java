@@ -756,19 +756,23 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "§r" + teamColor + name + suffix;
             case 3:
-                return stats != null ? safe(stats.getFkdr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getFkdr() : null, isNicked);
             case 4:
-                return stats != null ? safe(stats.getWinstreak()) : "";
+                return getExtendedStatValue(
+                    stats,
+                    stats != null ? stats.getWinstreak() : null,
+                    isNicked
+                );
             case 5:
-                return stats != null ? safe(stats.getWlr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWlr() : null, isNicked);
             case 6:
-                return stats != null ? safe(stats.getBblr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getBblr() : null, isNicked);
             case 7:
-                return stats != null ? safe(stats.getWins()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWins() : null, isNicked);
             case 8:
-                return stats != null ? safe(stats.getBeds()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getBeds() : null, isNicked);
             case 9:
-                return stats != null ? safe(stats.getFinals()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getFinals() : null, isNicked);
             default:
                 return "";
         }
@@ -815,13 +819,13 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "§r" + teamColor + name + suffix;
             case 3:
-                return stats != null ? safe(stats.getFkdr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getFkdr() : null, isNicked);
             case 4:
-                return stats != null ? safe(stats.getWlr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWlr() : null, isNicked);
             case 5:
-                return stats != null ? safe(stats.getWins()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWins() : null, isNicked);
             case 6:
-                return stats != null ? safe(stats.getKills()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getKills() : null, isNicked);
             default:
                 return "";
         }
@@ -868,19 +872,23 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "§r" + teamColor + name + suffix;
             case 3:
-                return stats != null ? safe(stats.getFkdr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getFkdr() : null, isNicked);
             case 4:
-                return stats != null ? safe(stats.getWlr()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWlr() : null, isNicked);
             case 5:
-                return stats != null ? safe(stats.getWins()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getWins() : null, isNicked);
             case 6:
-                return stats != null ? safe(stats.getLosses()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getLosses() : null, isNicked);
             case 7:
-                return stats != null ? safe(stats.getKills()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getKills() : null, isNicked);
             case 8:
-                return stats != null ? safe(stats.getDeaths()) : "";
+                return getExtendedStatValue(stats, stats != null ? stats.getDeaths() : null, isNicked);
             case 9:
-                return stats != null ? safe(stats.getWinstreak()) : "";
+                return getExtendedStatValue(
+                    stats,
+                    stats != null ? stats.getWinstreak() : null,
+                    isNicked
+                );
             default:
                 return "";
         }
@@ -984,6 +992,20 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private String getExtendedStatValue(TabStats stats, String value, boolean isNicked) {
+        String safeValue = safe(value);
+        if (!safeValue.isEmpty()) {
+            return safeValue;
+        }
+
+        // Show explicit placeholders only for unresolved nicked players in extended tab columns.
+        if (isNicked && stats == null) {
+            return "-";
+        }
+
+        return "";
     }
 
     private boolean shouldShowRankInTabName() {
