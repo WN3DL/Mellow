@@ -40,8 +40,19 @@ public class GuiPlayerTabOverlayMixin {
             return;
         }
 
+        StatScope scope = resolveTabStatScope();
+        boolean isNicked =
+            Mellow.nickUtils != null && Mellow.nickUtils.isNicked(playerName);
         TabStats stats = Mellow.tabStats.get(playerName);
-        boolean isNicked = Mellow.nickUtils.isNicked(playerName);
+        String resolvedRealName = Mellow.nickUtils == null
+            ? null
+            : Mellow.nickUtils.getResolvedRealNameForNick(playerName);
+        if (stats == null && isNicked && Mellow.nickUtils != null) {
+            stats = Mellow.nickUtils.getResolvedTabStatsForNick(
+                playerName,
+                scope
+            );
+        }
         String originalDisplayName = getOriginalDisplayName(
             networkPlayerInfoIn
         );
@@ -50,11 +61,7 @@ public class GuiPlayerTabOverlayMixin {
         String newDisplayName;
 
         if (stats != null) {
-            newDisplayName = handlePlayerWithStats(
-                playerName,
-                stats,
-                playerUUID
-            );
+            newDisplayName = handlePlayerWithStats(playerName, stats, scope, resolvedRealName);
         } else if (isNicked && !originalDisplayName.contains("§8[§5NICK§8]")) {
             // For nicks without stats, still handle them within the dynamic system
             String[] tabData = PlayerUtils.getTabDisplayName2(playerName);
@@ -84,7 +91,9 @@ public class GuiPlayerTabOverlayMixin {
                     team,
                     name,
                     teamColor,
-                    emptyStats
+                    emptyStats,
+                    scope,
+                    resolvedRealName
                 );
             } else {
                 // Fallback: create a basic tab structure from network info
@@ -116,7 +125,9 @@ public class GuiPlayerTabOverlayMixin {
                     team,
                     name,
                     teamColor,
-                    emptyStats
+                    emptyStats,
+                    scope,
+                    resolvedRealName
                 );
             }
         } else {
@@ -133,7 +144,8 @@ public class GuiPlayerTabOverlayMixin {
     private String handlePlayerWithStats(
         String playerName,
         TabStats stats,
-        UUID playerUUID
+        StatScope scope,
+        String resolvedRealName
     ) {
         String[] tabData = PlayerUtils.getTabDisplayName2(playerName);
         if (tabData == null || tabData.length < 2) {
@@ -143,20 +155,31 @@ public class GuiPlayerTabOverlayMixin {
         String name = tabData[1];
 
         String teamColor = team.length() >= 2 ? team.substring(0, 2) : "";
-        return formatDisplayNameWithStats(team, name, teamColor, stats);
+        return formatDisplayNameWithStats(
+            team,
+            name,
+            teamColor,
+            stats,
+            scope,
+            resolvedRealName
+        );
     }
 
     private String formatDisplayNameWithStats(
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        StatScope scope,
+        String resolvedRealName
     ) {
         String newDisplayName = buildOrderedStatsString(
             team,
             name,
             teamColor,
-            stats
+            stats,
+            scope,
+            resolvedRealName
         );
 
         if (Mellow.config.showUrchinTagsInTab && stats.isUrchinTagged()) {
@@ -180,10 +203,18 @@ public class GuiPlayerTabOverlayMixin {
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        StatScope scope,
+        String resolvedRealName
     ) {
-        StatScope scope = resolveTabStatScope();
-        return buildDynamicOrderedString(team, name, teamColor, stats, scope);
+        return buildDynamicOrderedString(
+            team,
+            name,
+            teamColor,
+            stats,
+            scope,
+            resolvedRealName
+        );
     }
 
     private String buildDynamicOrderedString(
@@ -191,7 +222,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        StatScope scope
+        StatScope scope,
+        String resolvedRealName
     ) {
         // Collect all valid stat parts with their type information
         java.util.List<
@@ -207,7 +239,8 @@ public class GuiPlayerTabOverlayMixin {
                 name,
                 teamColor,
                 stats,
-                scope
+                scope,
+                resolvedRealName
             );
         }
 
@@ -306,7 +339,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        StatScope scope
+        StatScope scope,
+        String resolvedRealName
     ) {
         String[] statParts = processDynamicStat(
             statIndex,
@@ -314,7 +348,8 @@ public class GuiPlayerTabOverlayMixin {
             name,
             teamColor,
             stats,
-            scope
+            scope,
+            resolvedRealName
         );
         if (statParts != null && !statParts[0].trim().isEmpty()) {
             // Create an entry with the stat value and its type (statIndex)
@@ -330,7 +365,8 @@ public class GuiPlayerTabOverlayMixin {
         String name,
         String teamColor,
         TabStats stats,
-        StatScope scope
+        StatScope scope,
+        String resolvedRealName
     ) {
         if (scope == StatScope.SKYWARS) {
             return processSkywarsDynamicStat(
@@ -338,7 +374,8 @@ public class GuiPlayerTabOverlayMixin {
                 team,
                 name,
                 teamColor,
-                stats
+                stats,
+                resolvedRealName
             );
         }
         if (scope == StatScope.DUELS) {
@@ -347,10 +384,18 @@ public class GuiPlayerTabOverlayMixin {
                 team,
                 name,
                 teamColor,
-                stats
+                stats,
+                resolvedRealName
             );
         }
-        return processBedwarsDynamicStat(statIndex, team, name, teamColor, stats);
+        return processBedwarsDynamicStat(
+            statIndex,
+            team,
+            name,
+            teamColor,
+            stats,
+            resolvedRealName
+        );
     }
 
     private String[] processBedwarsDynamicStat(
@@ -358,7 +403,8 @@ public class GuiPlayerTabOverlayMixin {
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        String resolvedRealName
     ) {
         String stars = stats.getStars();
         String fkdr = stats.getFkdr();
@@ -367,8 +413,9 @@ public class GuiPlayerTabOverlayMixin {
             case 0: // Team
                 return new String[] { team, "false" };
             case 1: // Stars (shows Nick instead if player is nicks)
-                boolean isNicked = Mellow.nickUtils.isNicked(name);
-                if (isNicked) {
+                boolean isNicked =
+                    Mellow.nickUtils != null && Mellow.nickUtils.isNicked(name);
+                if (isNicked && (stars == null || stars.isEmpty())) {
                     if (Mellow.config.showNickWithBrackets) {
                         return new String[] { "§5[§lNICK§r§5]§r", "false" };
                     } else {
@@ -385,6 +432,12 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return new String[] {
+                        buildDenickedName(teamColor, name, resolvedRealName),
+                        "false",
+                    };
+                }
                 if (shouldShowRankInTabName()) {
                     String formattedNameWithRank = stats.getFormattedNameWithRank();
                     if (
@@ -444,7 +497,8 @@ public class GuiPlayerTabOverlayMixin {
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        String resolvedRealName
     ) {
         String level = stats.getStars();
         String kdr = stats.getFkdr();
@@ -453,8 +507,9 @@ public class GuiPlayerTabOverlayMixin {
             case 0: // Team
                 return new String[] { team, "false" };
             case 1: // Level (shows Nick instead if player is nicked)
-                boolean isNicked = Mellow.nickUtils.isNicked(name);
-                if (isNicked) {
+                boolean isNicked =
+                    Mellow.nickUtils != null && Mellow.nickUtils.isNicked(name);
+                if (isNicked && (level == null || level.isEmpty())) {
                     if (Mellow.config.showNickWithBrackets) {
                         return new String[] { "§5[§lNICK§r§5]§r", "false" };
                     } else {
@@ -465,6 +520,12 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return new String[] {
+                        buildDenickedName(teamColor, name, resolvedRealName),
+                        "false",
+                    };
+                }
                 if (shouldShowRankInTabName()) {
                     String formattedNameWithRank = stats.getFormattedNameWithRank();
                     if (
@@ -507,7 +568,8 @@ public class GuiPlayerTabOverlayMixin {
         String team,
         String name,
         String teamColor,
-        TabStats stats
+        TabStats stats,
+        String resolvedRealName
     ) {
         String division = stats.getStars();
         String kdr = stats.getFkdr();
@@ -516,8 +578,9 @@ public class GuiPlayerTabOverlayMixin {
             case 0: // Team
                 return new String[] { team, "false" };
             case 1: // Division (shows Nick instead if player is nicked)
-                boolean isNicked = Mellow.nickUtils.isNicked(name);
-                if (isNicked) {
+                boolean isNicked =
+                    Mellow.nickUtils != null && Mellow.nickUtils.isNicked(name);
+                if (isNicked && (division == null || division.isEmpty())) {
                     if (Mellow.config.showNickWithBrackets) {
                         return new String[] { "§5[§lNICK§r§5]§r", "false" };
                     } else {
@@ -528,6 +591,12 @@ public class GuiPlayerTabOverlayMixin {
                 }
                 break;
             case 2: // Name
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return new String[] {
+                        buildDenickedName(teamColor, name, resolvedRealName),
+                        "false",
+                    };
+                }
                 if (shouldShowRankInTabName()) {
                     String formattedNameWithRank = stats.getFormattedNameWithRank();
                     if (
@@ -710,5 +779,24 @@ public class GuiPlayerTabOverlayMixin {
     private boolean hasOuterBrackets(String value) {
         String plain = value.replaceAll("§.", "");
         return plain.startsWith("[") && plain.endsWith("]");
+    }
+
+    private boolean hasResolvedRealName(String resolvedRealName) {
+        return resolvedRealName != null && !resolvedRealName.trim().isEmpty();
+    }
+
+    private String buildDenickedName(
+        String teamColor,
+        String nickedName,
+        String resolvedRealName
+    ) {
+        return (
+            "§r" +
+            teamColor +
+            nickedName +
+            " §7(" +
+            resolvedRealName +
+            "§7)"
+        );
     }
 }

@@ -1,11 +1,13 @@
 package com.roxiun.mellow.feature.nicks;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.skins.SkinUtils;
@@ -15,12 +17,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 
 public class NickUtils {
 
     private final Set<String> nickedPlayers = new HashSet<>();
+    private final Map<String, ResolvedNickProfile> resolvedNickProfiles =
+        new ConcurrentHashMap<>();
     private final Minecraft mc = Minecraft.getMinecraft();
     private final PlayerCache playerCache;
     private final MellowOneConfig config;
@@ -73,10 +78,7 @@ public class NickUtils {
                                     PlayerProfile profile =
                                         playerCache.getProfile(finalRealName);
 
-                                    if (
-                                        profile == null ||
-                                        profile.getBedwarsPlayer() == null
-                                    ) {
+                                    if (profile == null) {
                                         MainThreadDispatcher.run(() ->
                                             ChatUtils.sendMessage(
                                                 "§cFailed to fetch stats for: §r" +
@@ -86,19 +88,29 @@ public class NickUtils {
                                         return;
                                     }
 
+                                    resolvedNickProfiles.put(
+                                        player,
+                                        new ResolvedNickProfile(
+                                            finalRealName,
+                                            profile
+                                        )
+                                    );
+
                                     BedwarsPlayer bwPlayer =
                                         profile.getBedwarsPlayer();
-                                    String statsMessage =
-                                        bwPlayer.getStars() +
-                                        " §r" +
-                                        bwPlayer.getFormattedNameWithRank() +
-                                        " §7|§r FKDR: " +
-                                        bwPlayer.getFkdrColor() +
-                                        bwPlayer.getFormattedFkdr();
+                                    if (bwPlayer != null) {
+                                        String statsMessage =
+                                            bwPlayer.getStars() +
+                                            " §r" +
+                                            bwPlayer.getFormattedNameWithRank() +
+                                            " §7|§r FKDR: " +
+                                            bwPlayer.getFkdrColor() +
+                                            bwPlayer.getFormattedFkdr();
 
-                                    MainThreadDispatcher.run(() ->
-                                        ChatUtils.sendMessage(statsMessage)
-                                    );
+                                        MainThreadDispatcher.run(() ->
+                                            ChatUtils.sendMessage(statsMessage)
+                                        );
+                                    }
 
                                     if (
                                         config.urchin &&
@@ -177,7 +189,41 @@ public class NickUtils {
         return nickedPlayers.contains(playerName);
     }
 
+    public TabStats getResolvedTabStatsForNick(String nickName, StatScope scope) {
+        if (nickName == null || scope == null) {
+            return null;
+        }
+
+        ResolvedNickProfile resolved = resolvedNickProfiles.get(nickName);
+        if (resolved == null || resolved.profile == null) {
+            return null;
+        }
+
+        return resolved.profile.getTabStats(scope);
+    }
+
+    public String getResolvedRealNameForNick(String nickName) {
+        if (nickName == null) {
+            return null;
+        }
+
+        ResolvedNickProfile resolved = resolvedNickProfiles.get(nickName);
+        return resolved == null ? null : resolved.realName;
+    }
+
     public void clearNicks() {
         nickedPlayers.clear();
+        resolvedNickProfiles.clear();
+    }
+
+    private static class ResolvedNickProfile {
+
+        private final String realName;
+        private final PlayerProfile profile;
+
+        private ResolvedNickProfile(String realName, PlayerProfile profile) {
+            this.realName = realName;
+            this.profile = profile;
+        }
     }
 }

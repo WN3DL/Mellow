@@ -658,8 +658,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
 
         TabStats stats = Mellow.tabStats.get(playerName);
+        String resolvedRealName = Mellow.nickUtils == null
+            ? null
+            : Mellow.nickUtils.getResolvedRealNameForNick(playerName);
         boolean isNicked =
             Mellow.nickUtils != null && Mellow.nickUtils.isNicked(playerName);
+        if (stats == null && isNicked && Mellow.nickUtils != null) {
+            stats = Mellow.nickUtils.getResolvedTabStatsForNick(playerName, scope);
+        }
 
         String[] tabData = PlayerUtils.getTabDisplayName2(playerName);
         String team = tabData != null && tabData.length > 0 ? tabData[0] : "";
@@ -676,7 +682,8 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                     suffix,
                     teamColor,
                     stats,
-                    isNicked
+                    isNicked,
+                    resolvedRealName
                 )
                 : scope == StatScope.DUELS
                 ? getDuelsColumnValue(
@@ -686,7 +693,8 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                     suffix,
                     teamColor,
                     stats,
-                    isNicked
+                    isNicked,
+                    resolvedRealName
                 )
                 : getBedwarsColumnValue(
                     column,
@@ -695,7 +703,8 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                     suffix,
                     teamColor,
                     stats,
-                    isNicked
+                    isNicked,
+                    resolvedRealName
                 );
 
         if (column == 2) {
@@ -713,13 +722,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String suffix,
         String teamColor,
         TabStats stats,
-        boolean isNicked
+        boolean isNicked,
+        String resolvedRealName
     ) {
         switch (column) {
             case 0:
                 return team;
             case 1:
-                if (isNicked) {
+                if (isNicked && (stats == null || stats.getStars() == null || stats.getStars().isEmpty())) {
                     return getNickLabel();
                 }
                 if (stats != null && stats.getStars() != null && !stats.getStars().isEmpty()) {
@@ -727,6 +737,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "";
             case 2:
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return buildDenickedName(
+                        teamColor,
+                        name,
+                        suffix,
+                        resolvedRealName
+                    );
+                }
                 if (shouldShowRankInTabName()) {
                     if (
                         stats != null &&
@@ -763,13 +781,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String suffix,
         String teamColor,
         TabStats stats,
-        boolean isNicked
+        boolean isNicked,
+        String resolvedRealName
     ) {
         switch (column) {
             case 0:
                 return team;
             case 1:
-                if (isNicked) {
+                if (isNicked && (stats == null || stats.getStars() == null || stats.getStars().isEmpty())) {
                     return getNickLabel();
                 }
                 if (stats != null && stats.getStars() != null && !stats.getStars().isEmpty()) {
@@ -777,6 +796,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "";
             case 2:
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return buildDenickedName(
+                        teamColor,
+                        name,
+                        suffix,
+                        resolvedRealName
+                    );
+                }
                 if (shouldShowRankInTabName()) {
                     if (
                         stats != null &&
@@ -807,13 +834,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String suffix,
         String teamColor,
         TabStats stats,
-        boolean isNicked
+        boolean isNicked,
+        String resolvedRealName
     ) {
         switch (column) {
             case 0:
                 return team;
             case 1:
-                if (isNicked) {
+                if (isNicked && (stats == null || stats.getStars() == null || stats.getStars().isEmpty())) {
                     return getNickLabel();
                 }
                 if (stats != null && stats.getStars() != null && !stats.getStars().isEmpty()) {
@@ -821,6 +849,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 }
                 return "";
             case 2:
+                if (hasResolvedRealName(resolvedRealName)) {
+                    return buildDenickedName(
+                        teamColor,
+                        name,
+                        suffix,
+                        resolvedRealName
+                    );
+                }
                 if (shouldShowRankInTabName()) {
                     if (
                         stats != null &&
@@ -923,6 +959,27 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return "§5[§lNICK§r§5]§r";
         }
         return "§5§lNICK§r";
+    }
+
+    private boolean hasResolvedRealName(String resolvedRealName) {
+        return resolvedRealName != null && !resolvedRealName.trim().isEmpty();
+    }
+
+    private String buildDenickedName(
+        String teamColor,
+        String nickName,
+        String suffix,
+        String resolvedRealName
+    ) {
+        return (
+            "§r" +
+            teamColor +
+            nickName +
+            suffix +
+            " §7(" +
+            resolvedRealName +
+            "§7)"
+        );
     }
 
     private String safe(String value) {
