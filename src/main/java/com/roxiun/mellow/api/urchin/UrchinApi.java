@@ -44,7 +44,7 @@ public class UrchinApi {
                 );
             }
 
-            URL url = new URL("https://urchin.ws/player/" + uuid);
+            URL url = new URL(buildPlayerUrl(uuid, urchinKey));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("User-Agent", "Mozilla/5.0");
@@ -74,10 +74,7 @@ public class UrchinApi {
         } catch (IOException e) {
             // Fallback to the legacy endpoint with playerName
             try {
-                String fallbackUrl = "https://urchin.ws/player/" + playerName;
-                if (urchinKey != null && !urchinKey.isEmpty()) {
-                    fallbackUrl += "?key=" + urchinKey;
-                }
+                String fallbackUrl = buildPlayerUrl(playerName, urchinKey);
                 URL url = new URL(fallbackUrl);
                 HttpURLConnection conn =
                     (HttpURLConnection) url.openConnection();
@@ -134,6 +131,19 @@ public class UrchinApi {
             // If parsing fails, return empty list
         }
         return new ArrayList<>();
+    }
+
+    private String buildPlayerUrl(String identifier, String urchinKey) {
+        String baseUrl = "https://urchin.ws/player/" + identifier;
+        String normalizedKey = normalizeApiKey(urchinKey);
+        if (normalizedKey.isEmpty()) {
+            return baseUrl;
+        }
+        return baseUrl + "?key=" + normalizedKey;
+    }
+
+    private String normalizeApiKey(String apiKey) {
+        return apiKey == null ? "" : apiKey.trim();
     }
 
     // Other methods like ping cache remain unchanged
