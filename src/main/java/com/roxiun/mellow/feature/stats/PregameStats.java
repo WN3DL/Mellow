@@ -18,6 +18,7 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
+import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.Locale;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +37,7 @@ public class PregameStats {
     private final MellowOneConfig config;
     private final BlacklistManager blacklistManager;
     private final AnnoylistManager annoylistManager;
+    private final TagIgnoreManager tagIgnoreManager;
 
     private final Set<String> alreadyLookedUp = ConcurrentHashMap.newKeySet();
     private final AlertSoundGate pregameAlertSoundGate = new AlertSoundGate();
@@ -58,12 +60,14 @@ public class PregameStats {
         PlayerCache playerCache,
         MellowOneConfig config,
         BlacklistManager blacklistManager,
-        AnnoylistManager annoylistManager
+        AnnoylistManager annoylistManager,
+        TagIgnoreManager tagIgnoreManager
     ) {
         this.playerCache = playerCache;
         this.config = config;
         this.blacklistManager = blacklistManager;
         this.annoylistManager = annoylistManager;
+        this.tagIgnoreManager = tagIgnoreManager;
     }
 
     public void onWorldChange() {
@@ -188,8 +192,12 @@ public class PregameStats {
         boolean blacklisted = blacklistManager.isBlacklisted(uuid);
         boolean annoylisted =
             annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
+        boolean tagsIgnored =
+            tagIgnoreManager != null && tagIgnoreManager.isTagIgnored(uuid);
         boolean urchinTagged = config.urchin && profile.isUrchinTagged();
         boolean seraphTagged = config.seraph && profile.isSeraphTagged();
+        boolean shouldPrintUrchinTagAlert = urchinTagged && !tagsIgnored;
+        boolean shouldPrintSeraphTagAlert = seraphTagged && !tagsIgnored;
         if (blacklisted || annoylisted) {
             BlacklistedPlayer blacklistedPlayer = blacklisted
                 ? blacklistManager.getBlacklistedPlayer(uuid)
@@ -237,14 +245,14 @@ public class PregameStats {
             MainThreadDispatcher.run(() -> ChatUtils.sendMessage(stats));
         }
 
-        if (urchinTagged) {
+        if (shouldPrintUrchinTagAlert) {
             String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + username + " is tagged on §5Urchin§c for: " + tags;
             MainThreadDispatcher.run(() -> ChatUtils.sendMessage(urchinMessage));
         }
 
-        if (seraphTagged) {
+        if (shouldPrintSeraphTagAlert) {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
             );
@@ -264,7 +272,12 @@ public class PregameStats {
             }
         }
 
-        if (blacklisted || annoylisted || urchinTagged || seraphTagged) {
+        if (
+            blacklisted ||
+            annoylisted ||
+            shouldPrintUrchinTagAlert ||
+            shouldPrintSeraphTagAlert
+        ) {
             MainThreadDispatcher.run(() ->
                 pregameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
             );

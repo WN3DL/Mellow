@@ -23,6 +23,7 @@ import com.roxiun.mellow.util.annoylist.AnnoylistedPlayer;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class StatsChecker {
     private final TagUtils tagUtils;
     private final BlacklistManager blacklistManager;
     private final AnnoylistManager annoylistManager;
+    private final TagIgnoreManager tagIgnoreManager;
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
     private final AlertSoundGate inGameAlertSoundGate = new AlertSoundGate();
@@ -52,7 +54,8 @@ public class StatsChecker {
         Map<String, TabStats> tabStats,
         TagUtils tagUtils,
         BlacklistManager blacklistManager,
-        AnnoylistManager annoylistManager
+        AnnoylistManager annoylistManager,
+        TagIgnoreManager tagIgnoreManager
     ) {
         this.playerCache = playerCache;
         this.nickUtils = nickUtils;
@@ -61,6 +64,7 @@ public class StatsChecker {
         this.tagUtils = tagUtils;
         this.blacklistManager = blacklistManager;
         this.annoylistManager = annoylistManager;
+        this.tagIgnoreManager = tagIgnoreManager;
     }
 
     public void checkPlayerStats(List<String> onlinePlayers) {
@@ -365,11 +369,16 @@ public class StatsChecker {
             return;
         }
 
+        java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
+        boolean tagsIgnored =
+            tagIgnoreManager != null && tagIgnoreManager.isTagIgnored(uuid);
+
         boolean urchinTagged =
             config.urchin &&
             config.printBlacklistTags &&
             profile.isUrchinTagged();
-        if (urchinTagged) {
+        boolean shouldPrintUrchinTagAlert = urchinTagged && !tagsIgnored;
+        if (shouldPrintUrchinTagAlert) {
             String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + profile.getName() + " is tagged on §5Urchin§c for: " + tags;
@@ -380,7 +389,8 @@ public class StatsChecker {
             config.seraph &&
             config.printBlacklistTags &&
             profile.isSeraphTagged();
-        if (seraphTagged) {
+        boolean shouldPrintSeraphTagAlert = seraphTagged && !tagsIgnored;
+        if (shouldPrintSeraphTagAlert) {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
             );
@@ -403,7 +413,6 @@ public class StatsChecker {
             }
         }
 
-        java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
         boolean blacklisted = blacklistManager.isBlacklisted(uuid);
         boolean annoylisted =
             annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
@@ -442,7 +451,12 @@ public class StatsChecker {
             });
         }
 
-        if (blacklisted || annoylisted || urchinTagged || seraphTagged) {
+        if (
+            blacklisted ||
+            annoylisted ||
+            shouldPrintUrchinTagAlert ||
+            shouldPrintSeraphTagAlert
+        ) {
             mc.addScheduledTask(() ->
                 inGameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
             );

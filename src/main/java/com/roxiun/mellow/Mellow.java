@@ -32,6 +32,7 @@ import com.roxiun.mellow.feature.stats.StatsChecker;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.util.annoylist.AnnoylistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
+import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraftforge.client.ClientCommandHandler;
@@ -56,6 +57,7 @@ public class Mellow {
     public static PlayerCache playerCache;
     public static BlacklistManager blacklistManager;
     public static AnnoylistManager annoylistManager;
+    public static TagIgnoreManager tagIgnoreManager;
     private static AnticheatManager anticheatManager;
 
     private ProviderManager providerManager;
@@ -71,6 +73,7 @@ public class Mellow {
         anticheatManager = new AnticheatManager(this);
         blacklistManager = new BlacklistManager();
         annoylistManager = new AnnoylistManager();
+        tagIgnoreManager = new TagIgnoreManager();
 
         mojangApi = new MojangApi();
         providerManager = new ProviderManager();
@@ -107,7 +110,8 @@ public class Mellow {
             playerCache,
             config,
             blacklistManager,
-            annoylistManager
+            annoylistManager,
+            tagIgnoreManager
         );
 
         StatsChecker statsChecker = new StatsChecker(
@@ -117,7 +121,8 @@ public class Mellow {
             tabStats,
             tagUtils,
             blacklistManager,
-            annoylistManager
+            annoylistManager,
+            tagIgnoreManager
         );
         InGameTabStatsSyncService inGameTabStatsSyncService =
             new InGameTabStatsSyncService(statsChecker, nickUtils, config, tabStats);
@@ -170,6 +175,9 @@ public class Mellow {
         );
         ClientCommandHandler.instance.registerCommand(
             new AnnoylistCommand(annoylistManager, mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new TagIgnoreCommand(tagIgnoreManager, mojangApi)
         );
         ClientCommandHandler.instance.registerCommand(
             new UrchinCommand(urchinApi, mojangApi, config)
