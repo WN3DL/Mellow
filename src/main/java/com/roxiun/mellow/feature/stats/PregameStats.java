@@ -205,7 +205,7 @@ public class PregameStats {
             AnnoylistedPlayer annoylistedPlayer = annoylisted
                 ? annoylistManager.getAnnoylistedPlayer(uuid)
                 : null;
-            String blacklistReason = normalizeReason(
+            String blacklistReasonSuffix = formatBlacklistReasonSuffix(
                 blacklistedPlayer == null ? null : blacklistedPlayer.getReason()
             );
             String annoyReason = normalizeReason(
@@ -217,8 +217,8 @@ public class PregameStats {
                     ChatUtils.sendMessage(
                         "§6" +
                         username +
-                        " §cis on your blacklist: " +
-                        blacklistReason
+                        " §cis on your blacklist" +
+                        blacklistReasonSuffix
                     );
                     maybeAutoLeavePregameForBlacklistedChat(username);
                 }
@@ -299,6 +299,20 @@ public class PregameStats {
         } catch (IllegalArgumentException ignored) {
             return false;
         }
+    }
+
+    private String formatBlacklistReasonSuffix(String reason) {
+        if (reason == null) {
+            return "";
+        }
+        String trimmed = reason.trim();
+        if (
+            trimmed.isEmpty() ||
+            BlacklistManager.isExternalFileImportReason(trimmed)
+        ) {
+            return "";
+        }
+        return ": " + trimmed;
     }
 
     private String normalizeReason(String reason) {

@@ -290,11 +290,16 @@ public class PartyBlacklistWarningService {
     private String formatTaggedForDetails(MemberFlagDetection detection) {
         List<String> sourceDetails = new ArrayList<>(3);
         if (detection.sources.contains(FlagSource.LOCAL)) {
-            sourceDetails.add(
-                FlagSource.LOCAL.coloredLabel +
-                "§7: " +
-                formatDetailWithFallback(detection.getDetail(FlagSource.LOCAL))
-            );
+            String localDetail = detection.getDetail(FlagSource.LOCAL);
+            if (BlacklistManager.isExternalFileImportReason(localDetail)) {
+                sourceDetails.add(FlagSource.LOCAL.coloredLabel);
+            } else {
+                sourceDetails.add(
+                    FlagSource.LOCAL.coloredLabel +
+                    "§7: " +
+                    formatDetailWithFallback(localDetail)
+                );
+            }
         }
         if (detection.sources.contains(FlagSource.URCHIN)) {
             sourceDetails.add(

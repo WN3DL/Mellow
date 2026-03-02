@@ -424,7 +424,7 @@ public class StatsChecker {
             AnnoylistedPlayer annoylistedPlayer = annoylisted
                 ? annoylistManager.getAnnoylistedPlayer(uuid)
                 : null;
-            String blacklistReason = normalizeReason(
+            String blacklistReasonSuffix = formatBlacklistReasonSuffix(
                 blacklistedPlayer == null ? null : blacklistedPlayer.getReason()
             );
             String annoyReason = normalizeReason(
@@ -436,8 +436,8 @@ public class StatsChecker {
                     ChatUtils.sendMessage(
                         "§6" +
                         profile.getName() +
-                        " §cis on your blacklist: " +
-                        blacklistReason
+                        " §cis on your blacklist" +
+                        blacklistReasonSuffix
                     );
                 }
                 if (annoylisted) {
@@ -461,6 +461,20 @@ public class StatsChecker {
                 inGameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
             );
         }
+    }
+
+    private String formatBlacklistReasonSuffix(String reason) {
+        if (reason == null) {
+            return "";
+        }
+        String trimmed = reason.trim();
+        if (
+            trimmed.isEmpty() ||
+            BlacklistManager.isExternalFileImportReason(trimmed)
+        ) {
+            return "";
+        }
+        return ": " + trimmed;
     }
 
     private String normalizeReason(String reason) {
