@@ -831,6 +831,13 @@ public class MellowOneConfig extends Config {
     public boolean partyBlacklistWarning = true;
 
     @Switch(
+        name = "Show Party Blacklist Tag Details",
+        subcategory = "Pregame",
+        description = "When warning about flagged party members, also print what they are tagged for."
+    )
+    public boolean partyBlacklistWarningShowTagDetails = false;
+
+    @Switch(
         name = "Auto Leave on Blacklisted Chat",
         subcategory = "Pregame",
         description = "Automatically runs /lobby in BedWars pregame when a blacklisted chatter is detected and more than 2 seconds remain."

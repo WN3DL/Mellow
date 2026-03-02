@@ -11,6 +11,7 @@ import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
+import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -35,6 +36,37 @@ public class PartyBlacklistWarningService {
 
         FlagSource(String coloredLabel) {
             this.coloredLabel = coloredLabel;
+        }
+    }
+
+    private static final class MemberFlagDetection {
+
+        private final EnumSet<FlagSource> sources = EnumSet.noneOf(
+            FlagSource.class
+        );
+        private final Map<FlagSource, String> detailsBySource = new HashMap<>();
+
+        private void addSource(FlagSource source) {
+            sources.add(source);
+        }
+
+        private void setDetail(FlagSource source, String detail) {
+            if (detail == null || detail.trim().isEmpty()) {
+                detailsBySource.remove(source);
+                return;
+            }
+            detailsBySource.put(source, detail);
+        }
+
+        private String getDetail(FlagSource source) {
+            return detailsBySource.get(source);
+        }
+
+        private MemberFlagDetection copy() {
+            MemberFlagDetection copy = new MemberFlagDetection();
+            copy.sources.addAll(sources);
+            copy.detailsBySource.putAll(detailsBySource);
+            return copy;
         }
     }
 
@@ -81,7 +113,7 @@ public class PartyBlacklistWarningService {
         UUID selfUuid = getSelfUuid();
         Set<UUID> partyMemberUuids = new LinkedHashSet<>();
         Map<UUID, String> tabNamesByUuid = new LinkedHashMap<>();
-        Map<UUID, EnumSet<FlagSource>> localFlags = new LinkedHashMap<>();
+        Map<UUID, MemberFlagDetection> localFlags = new LinkedHashMap<>();
 
         for (UUID memberUuid : partyState.getMembers().keySet()) {
             if (memberUuid == null) {
@@ -98,7 +130,12 @@ public class PartyBlacklistWarningService {
             }
 
             if (blacklistManager.isBlacklisted(memberUuid)) {
-                EnumSet<FlagSource> localSource = EnumSet.of(FlagSource.LOCAL);
+                MemberFlagDetection localSource = new MemberFlagDetection();
+                localSource.addSource(FlagSource.LOCAL);
+                localSource.setDetail(
+                    FlagSource.LOCAL,
+                    resolveLocalBlacklistReason(memberUuid)
+                );
                 localFlags.put(memberUuid, localSource);
             }
         }
@@ -118,7 +155,9 @@ public class PartyBlacklistWarningService {
         }
 
         AsyncExecutor.getInstance().profileIo(() -> {
-            Map<UUID, EnumSet<FlagSource>> combined = cloneFlagMap(localFlags);
+            Map<UUID, MemberFlagDetection> combined = cloneDetectionMap(
+                localFlags
+            );
 
             for (UUID memberUuid : partyMemberUuids) {
                 String tabName = tabNamesByUuid.get(memberUuid);
@@ -131,22 +170,30 @@ public class PartyBlacklistWarningService {
                     continue;
                 }
 
-                EnumSet<FlagSource> sources = combined.get(memberUuid);
-                if (sources == null) {
-                    sources = EnumSet.noneOf(FlagSource.class);
+                MemberFlagDetection detection = combined.get(memberUuid);
+                if (detection == null) {
+                    detection = new MemberFlagDetection();
                 }
 
                 if (shouldCheckUrchin && profile.isUrchinTagged()) {
-                    sources.add(FlagSource.URCHIN);
+                    detection.addSource(FlagSource.URCHIN);
+                    detection.setDetail(
+                        FlagSource.URCHIN,
+                        formatUrchinTagDetails(profile)
+                    );
                 }
                 if (shouldCheckSeraph && profile.isSeraphTagged()) {
-                    sources.add(FlagSource.SERAPH);
+                    detection.addSource(FlagSource.SERAPH);
+                    detection.setDetail(
+                        FlagSource.SERAPH,
+                        formatSeraphTagDetails(profile)
+                    );
                 }
 
-                if (sources.isEmpty()) {
+                if (detection.sources.isEmpty()) {
                     combined.remove(memberUuid);
                 } else {
-                    combined.put(memberUuid, sources);
+                    combined.put(memberUuid, detection);
                 }
             }
 
@@ -164,22 +211,22 @@ public class PartyBlacklistWarningService {
 
     private synchronized void applyDetectionResult(
         long evaluationId,
-        Map<UUID, EnumSet<FlagSource>> detectedSourcesByMember
+        Map<UUID, MemberFlagDetection> detectedByMember
     ) {
         if (evaluationId != evaluationVersion) {
             return;
         }
 
-        warnedSourcesByMember.keySet().retainAll(detectedSourcesByMember.keySet());
-        Map<UUID, EnumSet<FlagSource>> changed = new LinkedHashMap<>();
+        warnedSourcesByMember.keySet().retainAll(detectedByMember.keySet());
+        Map<UUID, MemberFlagDetection> changed = new LinkedHashMap<>();
 
-        for (Map.Entry<UUID, EnumSet<FlagSource>> entry : detectedSourcesByMember.entrySet()) {
+        for (Map.Entry<UUID, MemberFlagDetection> entry : detectedByMember.entrySet()) {
             UUID memberUuid = entry.getKey();
-            EnumSet<FlagSource> current = EnumSet.copyOf(entry.getValue());
+            EnumSet<FlagSource> current = EnumSet.copyOf(entry.getValue().sources);
             EnumSet<FlagSource> previous = warnedSourcesByMember.get(memberUuid);
 
             if (previous == null || !previous.equals(current)) {
-                changed.put(memberUuid, current);
+                changed.put(memberUuid, entry.getValue().copy());
             }
 
             warnedSourcesByMember.put(memberUuid, current);
@@ -192,22 +239,22 @@ public class PartyBlacklistWarningService {
         sendWarning(changed);
     }
 
-    private Map<UUID, EnumSet<FlagSource>> cloneFlagMap(
-        Map<UUID, EnumSet<FlagSource>> source
+    private Map<UUID, MemberFlagDetection> cloneDetectionMap(
+        Map<UUID, MemberFlagDetection> source
     ) {
-        Map<UUID, EnumSet<FlagSource>> copy = new HashMap<>();
-        for (Map.Entry<UUID, EnumSet<FlagSource>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), EnumSet.copyOf(entry.getValue()));
+        Map<UUID, MemberFlagDetection> copy = new LinkedHashMap<>();
+        for (Map.Entry<UUID, MemberFlagDetection> entry : source.entrySet()) {
+            copy.put(entry.getKey(), entry.getValue().copy());
         }
         return copy;
     }
 
-    private void sendWarning(Map<UUID, EnumSet<FlagSource>> flaggedMembers) {
+    private void sendWarning(Map<UUID, MemberFlagDetection> flaggedMembers) {
         MainThreadDispatcher.run(() -> {
             List<String> parts = new ArrayList<>(flaggedMembers.size());
-            for (Map.Entry<UUID, EnumSet<FlagSource>> entry : flaggedMembers.entrySet()) {
+            for (Map.Entry<UUID, MemberFlagDetection> entry : flaggedMembers.entrySet()) {
                 String displayName = resolveDisplayName(entry.getKey());
-                String labels = formatSourceLabels(entry.getValue());
+                String labels = formatSourceLabels(entry.getValue().sources);
                 parts.add(displayName + " §7[" + labels + "§7]");
             }
 
@@ -222,8 +269,102 @@ public class PartyBlacklistWarningService {
                 "§7. Consider leaving to avoid risk."
             );
 
+            if (config.partyBlacklistWarningShowTagDetails) {
+                sendDetailLines(flaggedMembers);
+            }
+
             partyWarningSoundGate.tryPlayPling(mc, 1.0F, 0.8F);
         });
+    }
+
+    private void sendDetailLines(Map<UUID, MemberFlagDetection> flaggedMembers) {
+        for (Map.Entry<UUID, MemberFlagDetection> entry : flaggedMembers.entrySet()) {
+            String displayName = resolveDisplayName(entry.getKey());
+            String details = formatTaggedForDetails(entry.getValue());
+            ChatUtils.sendMessage(
+                "§7- " + displayName + " §7tagged for: " + details
+            );
+        }
+    }
+
+    private String formatTaggedForDetails(MemberFlagDetection detection) {
+        List<String> sourceDetails = new ArrayList<>(3);
+        if (detection.sources.contains(FlagSource.LOCAL)) {
+            sourceDetails.add(
+                FlagSource.LOCAL.coloredLabel +
+                "§7: " +
+                formatDetailWithFallback(detection.getDetail(FlagSource.LOCAL))
+            );
+        }
+        if (detection.sources.contains(FlagSource.URCHIN)) {
+            sourceDetails.add(
+                FlagSource.URCHIN.coloredLabel +
+                "§7: " +
+                formatDetailWithFallback(detection.getDetail(FlagSource.URCHIN))
+            );
+        }
+        if (detection.sources.contains(FlagSource.SERAPH)) {
+            sourceDetails.add(
+                FlagSource.SERAPH.coloredLabel +
+                "§7: " +
+                formatDetailWithFallback(detection.getDetail(FlagSource.SERAPH))
+            );
+        }
+        return String.join(" §7| ", sourceDetails);
+    }
+
+    private String formatDetailWithFallback(String detail) {
+        String normalized = normalizeDetailText(detail);
+        if (normalized.isEmpty()) {
+            return "§7Unknown reason";
+        }
+        return normalized;
+    }
+
+    private String resolveLocalBlacklistReason(UUID memberUuid) {
+        BlacklistedPlayer blacklistedPlayer = blacklistManager.getBlacklistedPlayer(
+            memberUuid
+        );
+        if (blacklistedPlayer == null) {
+            return null;
+        }
+        return normalizeDetailText(blacklistedPlayer.getReason());
+    }
+
+    private String formatUrchinTagDetails(PlayerProfile profile) {
+        return normalizeDetailText(
+            FormattingUtils.formatUrchinTags(profile.getUrchinTags())
+        );
+    }
+
+    private String formatSeraphTagDetails(PlayerProfile profile) {
+        String formatted = FormattingUtils.formatSeraphTags(profile.getSeraphTags());
+        if (formatted == null || formatted.trim().isEmpty()) {
+            return "";
+        }
+
+        String[] lines = formatted.split("\n§c");
+        List<String> lineParts = new ArrayList<>(lines.length);
+        for (String line : lines) {
+            String normalized = normalizeDetailText(line);
+            if (!normalized.isEmpty()) {
+                lineParts.add(normalized);
+            }
+        }
+
+        return String.join("§7, ", lineParts);
+    }
+
+    private String normalizeDetailText(String detail) {
+        if (detail == null) {
+            return "";
+        }
+
+        return detail
+            .replace("\r", "")
+            .replace("\n", "§7, ")
+            .replace("(null)", "(Unknown reason)")
+            .trim();
     }
 
     private String formatSourceLabels(EnumSet<FlagSource> sources) {
