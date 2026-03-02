@@ -59,6 +59,7 @@ public class InGameTabStatsSyncService {
             matchStartMillis = now;
             lastScanMillis = 0L;
             fetchedOrScheduledThisMatch.clear();
+            statsChecker.resetInGameAlertSoundGate();
 
             runScan(true);
             return;
@@ -135,5 +136,6 @@ public class InGameTabStatsSyncService {
         matchStartMillis = 0L;
         lastScanMillis = 0L;
         fetchedOrScheduledThisMatch.clear();
+        statsChecker.resetInGameAlertSoundGate();
     }
 }

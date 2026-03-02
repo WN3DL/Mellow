@@ -4,9 +4,10 @@ import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.config.MellowOneConfig;
-import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
+import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.feature.alerts.AlertSoundGate;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
@@ -37,6 +38,7 @@ public class PregameStats {
     private final AnnoylistManager annoylistManager;
 
     private final Set<String> alreadyLookedUp = ConcurrentHashMap.newKeySet();
+    private final AlertSoundGate pregameAlertSoundGate = new AlertSoundGate();
     private boolean autoLeaveTriggeredThisPregame;
 
     private static final Pattern BEDWARS_CHAT_PATTERN = Pattern.compile(
@@ -66,6 +68,7 @@ public class PregameStats {
 
     public void onWorldChange() {
         alreadyLookedUp.clear();
+        pregameAlertSoundGate.reset();
         autoLeaveTriggeredThisPregame = false;
     }
 
@@ -185,6 +188,8 @@ public class PregameStats {
         boolean blacklisted = blacklistManager.isBlacklisted(uuid);
         boolean annoylisted =
             annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
+        boolean urchinTagged = config.urchin && profile.isUrchinTagged();
+        boolean seraphTagged = config.seraph && profile.isSeraphTagged();
         if (blacklisted || annoylisted) {
             BlacklistedPlayer blacklistedPlayer = blacklisted
                 ? blacklistManager.getBlacklistedPlayer(uuid)
@@ -217,9 +222,6 @@ public class PregameStats {
                         annoyReason
                     );
                 }
-                if (mc.thePlayer != null) {
-                    mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
-                }
             });
         }
 
@@ -235,14 +237,14 @@ public class PregameStats {
             MainThreadDispatcher.run(() -> ChatUtils.sendMessage(stats));
         }
 
-        if (config.urchin && profile.isUrchinTagged()) {
+        if (urchinTagged) {
             String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + username + " is tagged on §5Urchin§c for: " + tags;
             MainThreadDispatcher.run(() -> ChatUtils.sendMessage(urchinMessage));
         }
 
-        if (config.seraph && profile.isSeraphTagged()) {
+        if (seraphTagged) {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
             );
@@ -260,6 +262,12 @@ public class PregameStats {
                     }
                 }
             }
+        }
+
+        if (blacklisted || annoylisted || urchinTagged || seraphTagged) {
+            MainThreadDispatcher.run(() ->
+                pregameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
+            );
         }
     }
 

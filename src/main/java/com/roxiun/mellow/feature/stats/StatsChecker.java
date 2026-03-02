@@ -12,6 +12,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
+import com.roxiun.mellow.feature.alerts.AlertSoundGate;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.gamestate.GameSnapshot;
@@ -42,6 +43,7 @@ public class StatsChecker {
     private final AnnoylistManager annoylistManager;
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
+    private final AlertSoundGate inGameAlertSoundGate = new AlertSoundGate();
 
     public StatsChecker(
         PlayerCache playerCache,
@@ -162,6 +164,10 @@ public class StatsChecker {
                 }
             });
         }
+    }
+
+    public void resetInGameAlertSoundGate() {
+        inGameAlertSoundGate.reset();
     }
 
     private StatScope resolveActiveScope() {
@@ -359,22 +365,22 @@ public class StatsChecker {
             return;
         }
 
-        if (
+        boolean urchinTagged =
             config.urchin &&
             config.printBlacklistTags &&
-            profile.isUrchinTagged()
-        ) {
+            profile.isUrchinTagged();
+        if (urchinTagged) {
             String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
             String urchinMessage =
                 "§c" + profile.getName() + " is tagged on §5Urchin§c for: " + tags;
             mc.addScheduledTask(() -> ChatUtils.sendMessage(urchinMessage));
         }
 
-        if (
+        boolean seraphTagged =
             config.seraph &&
             config.printBlacklistTags &&
-            profile.isSeraphTagged()
-        ) {
+            profile.isSeraphTagged();
+        if (seraphTagged) {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
             );
@@ -433,10 +439,13 @@ public class StatsChecker {
                         annoyReason
                     );
                 }
-                if (mc.thePlayer != null) {
-                    mc.thePlayer.playSound("note.pling", 1.0F, 1.0F);
-                }
             });
+        }
+
+        if (blacklisted || annoylisted || urchinTagged || seraphTagged) {
+            mc.addScheduledTask(() ->
+                inGameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
+            );
         }
     }
 

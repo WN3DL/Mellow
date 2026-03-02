@@ -5,6 +5,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.feature.alerts.AlertSoundGate;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.gamestate.PartyState;
 import com.roxiun.mellow.util.ChatUtils;
@@ -43,6 +44,7 @@ public class PartyBlacklistWarningService {
     private final PlayerCache playerCache;
     private final Map<UUID, EnumSet<FlagSource>> warnedSourcesByMember =
         new HashMap<>();
+    private final AlertSoundGate partyWarningSoundGate = new AlertSoundGate();
     private long evaluationVersion;
 
     public PartyBlacklistWarningService(
@@ -157,6 +159,7 @@ public class PartyBlacklistWarningService {
     private synchronized void resetState() {
         evaluationVersion++;
         warnedSourcesByMember.clear();
+        partyWarningSoundGate.reset();
     }
 
     private synchronized void applyDetectionResult(
@@ -219,9 +222,7 @@ public class PartyBlacklistWarningService {
                 "§7. Consider leaving to avoid risk."
             );
 
-            if (mc.thePlayer != null) {
-                mc.thePlayer.playSound("note.pling", 1.0F, 0.8F);
-            }
+            partyWarningSoundGate.tryPlayPling(mc, 1.0F, 0.8F);
         });
     }
 
