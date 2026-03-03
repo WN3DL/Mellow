@@ -814,7 +814,7 @@ public class MellowOneConfig extends Config {
     public boolean printBlacklistTags = true;
 
     @Dropdown(
-        name = "In-Game Blacklist Warning Destination",
+        name = "Blacklist Warn Destination",
         subcategory = "General",
         options = { "None", "All Chat", "Party Chat" },
         description = "When blacklisted BedWars opponents are detected in-game, route warning messages to this chat channel."
