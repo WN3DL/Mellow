@@ -24,14 +24,17 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
+import net.minecraft.scoreboard.ScorePlayerTeam;
 
 public class StatsChecker {
 
@@ -45,6 +48,8 @@ public class StatsChecker {
     private final TagIgnoreManager tagIgnoreManager;
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> outboundWarnedOpponentsThisMatch =
+        ConcurrentHashMap.newKeySet();
     private final AlertSoundGate inGameAlertSoundGate = new AlertSoundGate();
 
     public StatsChecker(
@@ -90,12 +95,10 @@ public class StatsChecker {
                     return;
                 }
 
-                if (!passesScopeFilters(profile, activeScope)) {
-                    return;
-                }
+                boolean passesFilters = passesScopeFilters(profile, activeScope);
 
                 // Populate TabStats for the tab list
-                if (config.tabStats) {
+                if (config.tabStats && passesFilters) {
                     TabStats newTabStats = profile.getTabStats(activeScope);
                     if (newTabStats != null) {
                         tabStats.put(playerName, newTabStats);
@@ -103,7 +106,7 @@ public class StatsChecker {
                 }
 
                 // Print stats to chat if enabled
-                if (config.printStats) {
+                if (config.printStats && passesFilters) {
                     String chatMessage = formatChatStats(profile, activeScope);
                     if (!chatMessage.isEmpty()) {
                         mc.addScheduledTask(() ->
@@ -112,7 +115,7 @@ public class StatsChecker {
                     }
                 }
 
-                sendBlacklistAndTagAlerts(profile);
+                sendBlacklistAndTagAlerts(profile, playerName);
             });
         }
 
@@ -127,7 +130,7 @@ public class StatsChecker {
         if (clearBeforeFetch) {
             tabStats.clear();
         }
-        if (!config.tabStats || playerNames == null || playerNames.isEmpty()) {
+        if (playerNames == null || playerNames.isEmpty()) {
             return;
         }
 
@@ -153,16 +156,19 @@ public class StatsChecker {
                     if (profile == null || !hasStatsForScope(profile, activeScope)) {
                         return;
                     }
-                    if (!passesScopeFilters(profile, activeScope)) {
-                        return;
+                    boolean passesFilters = passesScopeFilters(
+                        profile,
+                        activeScope
+                    );
+
+                    if (config.tabStats && passesFilters) {
+                        TabStats newTabStats = profile.getTabStats(activeScope);
+                        if (newTabStats != null) {
+                            tabStats.put(playerName, newTabStats);
+                        }
                     }
 
-                    TabStats newTabStats = profile.getTabStats(activeScope);
-                    if (newTabStats != null) {
-                        tabStats.put(playerName, newTabStats);
-                    }
-
-                    sendBlacklistAndTagAlerts(profile);
+                    sendBlacklistAndTagAlerts(profile, playerName);
                 } finally {
                     tabFetchInFlight.remove(normalizedName);
                 }
@@ -172,6 +178,29 @@ public class StatsChecker {
 
     public void resetInGameAlertSoundGate() {
         inGameAlertSoundGate.reset();
+    }
+
+    public void resetInGameMatchWarningState() {
+        inGameAlertSoundGate.reset();
+        outboundWarnedOpponentsThisMatch.clear();
+    }
+
+    public boolean shouldScanForInGameWarnings() {
+        if (config == null) {
+            return false;
+        }
+        if (config.inGameBlacklistWarningDestination != 0) {
+            return true;
+        }
+        if (!blacklistManager.getBlacklist().isEmpty()) {
+            return true;
+        }
+        if (
+            annoylistManager != null && !annoylistManager.getAnnoylist().isEmpty()
+        ) {
+            return true;
+        }
+        return config.printBlacklistTags && (config.urchin || config.seraph);
     }
 
     private StatScope resolveActiveScope() {
@@ -364,12 +393,15 @@ public class StatsChecker {
         return tagsValue;
     }
 
-    private void sendBlacklistAndTagAlerts(PlayerProfile profile) {
+    private void sendBlacklistAndTagAlerts(
+        PlayerProfile profile,
+        String tabPlayerName
+    ) {
         if (profile == null) {
             return;
         }
 
-        java.util.UUID uuid = UUIDUtils.fromString(profile.getUuid());
+        UUID uuid = UUIDUtils.fromString(profile.getUuid());
         boolean tagsIgnored =
             tagIgnoreManager != null && tagIgnoreManager.isTagIgnored(uuid);
 
@@ -390,6 +422,17 @@ public class StatsChecker {
             config.printBlacklistTags &&
             profile.isSeraphTagged();
         boolean shouldPrintSeraphTagAlert = seraphTagged && !tagsIgnored;
+
+        boolean blacklisted = blacklistManager.isBlacklisted(uuid);
+        boolean annoylisted =
+            annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
+        BlacklistedPlayer blacklistedPlayer = blacklisted
+            ? blacklistManager.getBlacklistedPlayer(uuid)
+            : null;
+        AnnoylistedPlayer annoylistedPlayer = annoylisted
+            ? annoylistManager.getAnnoylistedPlayer(uuid)
+            : null;
+
         if (shouldPrintSeraphTagAlert) {
             String formattedTags = FormattingUtils.formatSeraphTags(
                 profile.getSeraphTags()
@@ -413,17 +456,7 @@ public class StatsChecker {
             }
         }
 
-        boolean blacklisted = blacklistManager.isBlacklisted(uuid);
-        boolean annoylisted =
-            annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
-
         if (blacklisted || annoylisted) {
-            BlacklistedPlayer blacklistedPlayer = blacklisted
-                ? blacklistManager.getBlacklistedPlayer(uuid)
-                : null;
-            AnnoylistedPlayer annoylistedPlayer = annoylisted
-                ? annoylistManager.getAnnoylistedPlayer(uuid)
-                : null;
             String blacklistReasonSuffix = formatBlacklistReasonSuffix(
                 blacklistedPlayer == null ? null : blacklistedPlayer.getReason()
             );
@@ -452,6 +485,24 @@ public class StatsChecker {
         }
 
         if (
+            shouldSendOutboundOpponentWarning(
+                uuid,
+                tabPlayerName,
+                blacklisted,
+                shouldPrintUrchinTagAlert,
+                shouldPrintSeraphTagAlert
+            )
+        ) {
+            sendOutboundOpponentWarning(
+                profile,
+                blacklistedPlayer,
+                blacklisted,
+                shouldPrintUrchinTagAlert,
+                shouldPrintSeraphTagAlert
+            );
+        }
+
+        if (
             blacklisted ||
             annoylisted ||
             shouldPrintUrchinTagAlert ||
@@ -461,6 +512,194 @@ public class StatsChecker {
                 inGameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
             );
         }
+    }
+
+    private boolean shouldSendOutboundOpponentWarning(
+        UUID uuid,
+        String tabPlayerName,
+        boolean blacklisted,
+        boolean urchinTagged,
+        boolean seraphTagged
+    ) {
+        if (uuid == null) {
+            return false;
+        }
+        if (!blacklisted && !urchinTagged && !seraphTagged) {
+            return false;
+        }
+        if (!isInBedwarsMatch()) {
+            return false;
+        }
+        if (resolveWarningDestination() == InGameBlacklistWarningDestination.NONE) {
+            return false;
+        }
+        if (!isOpponentByTabName(tabPlayerName)) {
+            return false;
+        }
+        return outboundWarnedOpponentsThisMatch.add(uuid);
+    }
+
+    private void sendOutboundOpponentWarning(
+        PlayerProfile profile,
+        BlacklistedPlayer blacklistedPlayer,
+        boolean blacklisted,
+        boolean urchinTagged,
+        boolean seraphTagged
+    ) {
+        InGameBlacklistWarningDestination destination = resolveWarningDestination();
+        String commandPrefix = destination.getCommandPrefix();
+        if (commandPrefix == null) {
+            return;
+        }
+
+        String playerName = profile.getName();
+        if (playerName == null || playerName.trim().isEmpty()) {
+            playerName = "Unknown";
+        }
+
+        List<String> sourceLabels = new ArrayList<>(3);
+        if (blacklisted) {
+            sourceLabels.add("Local");
+        }
+        if (urchinTagged) {
+            sourceLabels.add("Urchin");
+        }
+        if (seraphTagged) {
+            sourceLabels.add("Seraph");
+        }
+
+        List<String> detailParts = new ArrayList<>(3);
+        if (blacklisted) {
+            detailParts.add(
+                "Local: " + formatOutboundBlacklistReason(blacklistedPlayer)
+            );
+        }
+        if (urchinTagged) {
+            detailParts.add(
+                "Urchin: " +
+                normalizeOutboundDetail(
+                    FormattingUtils.formatUrchinTags(profile.getUrchinTags())
+                )
+            );
+        }
+        if (seraphTagged) {
+            detailParts.add(
+                "Seraph: " +
+                normalizeOutboundDetail(
+                    FormattingUtils.formatSeraphTags(profile.getSeraphTags())
+                )
+            );
+        }
+
+        String mainMessage =
+            "[Mellow] Flagged opponent: " +
+            playerName +
+            " [" +
+            String.join(", ", sourceLabels) +
+            "]";
+        String detailMessage = detailParts.isEmpty()
+            ? null
+            : "[Mellow] " + playerName + " tagged for: " + String.join(" | ", detailParts);
+
+        mc.addScheduledTask(() -> {
+            ChatUtils.sendChatCommandMessage(
+                commandPrefix,
+                mainMessage
+            );
+            if (detailMessage != null) {
+                ChatUtils.sendChatCommandMessage(commandPrefix, detailMessage);
+            }
+        });
+    }
+
+    private InGameBlacklistWarningDestination resolveWarningDestination() {
+        if (config == null) {
+            return InGameBlacklistWarningDestination.NONE;
+        }
+        return InGameBlacklistWarningDestination.fromConfig(
+            config.inGameBlacklistWarningDestination
+        );
+    }
+
+    private boolean isInBedwarsMatch() {
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        return snapshot != null && snapshot.isInBedwarsMatch();
+    }
+
+    private boolean isOpponentByTabName(String tabPlayerName) {
+        if (mc == null || mc.thePlayer == null) {
+            return false;
+        }
+        if (tabPlayerName == null || tabPlayerName.trim().isEmpty()) {
+            return false;
+        }
+
+        String selfTeam = resolveTeamKey(mc.thePlayer.getName());
+        String playerTeam = resolveTeamKey(tabPlayerName);
+        if (selfTeam.isEmpty() || playerTeam.isEmpty()) {
+            return false;
+        }
+        return !selfTeam.equalsIgnoreCase(playerTeam);
+    }
+
+    private String resolveTeamKey(String playerName) {
+        if (
+            mc == null ||
+            mc.theWorld == null ||
+            mc.theWorld.getScoreboard() == null ||
+            playerName == null ||
+            playerName.trim().isEmpty()
+        ) {
+            return "";
+        }
+
+        ScorePlayerTeam team = mc.theWorld.getScoreboard().getPlayersTeam(playerName);
+        if (team == null) {
+            return "";
+        }
+
+        String registeredName = team.getRegisteredName();
+        if (registeredName != null && !registeredName.trim().isEmpty()) {
+            return registeredName.trim();
+        }
+
+        return ChatUtils.stripFormatting(team.getColorPrefix()).trim();
+    }
+
+    private String formatOutboundBlacklistReason(BlacklistedPlayer blacklistedPlayer) {
+        if (blacklistedPlayer == null) {
+            return "listed locally";
+        }
+        String reason = blacklistedPlayer.getReason();
+        if (reason == null) {
+            return "listed locally";
+        }
+        String trimmed = reason.trim();
+        if (
+            trimmed.isEmpty() ||
+            BlacklistManager.isExternalFileImportReason(trimmed)
+        ) {
+            return "listed locally";
+        }
+        return normalizeOutboundDetail(trimmed);
+    }
+
+    private String normalizeOutboundDetail(String detail) {
+        if (detail == null) {
+            return "unknown reason";
+        }
+
+        String normalized = ChatUtils
+            .stripFormatting(detail)
+            .replace("\r", "")
+            .replace("\n", ", ")
+            .replace("(null)", "(unknown reason)")
+            .replaceAll("\\s+", " ")
+            .trim();
+        if (normalized.isEmpty()) {
+            return "unknown reason";
+        }
+        return normalized;
     }
 
     private String formatBlacklistReasonSuffix(String reason) {

@@ -813,6 +813,14 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Print Blacklist Tags in /who", subcategory = "General")
     public boolean printBlacklistTags = true;
 
+    @Dropdown(
+        name = "In-Game Blacklist Warning Destination",
+        subcategory = "General",
+        options = { "None", "All Chat", "Party Chat" },
+        description = "When blacklisted BedWars opponents are detected in-game, route warning messages to this chat channel."
+    )
+    public int inGameBlacklistWarningDestination = 0;
+
     @Switch(name = "Auto Pregame Stats", subcategory = "Pregame")
     public boolean pregameStats = true;
 
@@ -1229,6 +1237,10 @@ public class MellowOneConfig extends Config {
             4
         );
         statsProvider = clampIndex(statsProvider, 3);
+        inGameBlacklistWarningDestination = clampIndex(
+            inGameBlacklistWarningDestination,
+            3
+        );
         pingProvider = clampIndex(pingProvider, 3);
         finalsRange = clampIndex(finalsRange, 5);
         bedsRange = clampIndex(bedsRange, 5);

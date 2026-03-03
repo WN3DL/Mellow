@@ -59,7 +59,7 @@ public class InGameTabStatsSyncService {
             matchStartMillis = now;
             lastScanMillis = 0L;
             fetchedOrScheduledThisMatch.clear();
-            statsChecker.resetInGameAlertSoundGate();
+            statsChecker.resetInGameMatchWarningState();
 
             runScan(true);
             return;
@@ -81,7 +81,9 @@ public class InGameTabStatsSyncService {
 
     private void runScan(boolean clearBeforeFetch) {
         lastScanMillis = System.currentTimeMillis();
-        if (config == null || !config.tabStats) {
+        boolean shouldScanForWarnings =
+            config != null && statsChecker.shouldScanForInGameWarnings();
+        if (config == null || (!config.tabStats && !shouldScanForWarnings)) {
             if (clearBeforeFetch) {
                 tabStats.clear();
             }
@@ -136,6 +138,6 @@ public class InGameTabStatsSyncService {
         matchStartMillis = 0L;
         lastScanMillis = 0L;
         fetchedOrScheduledThisMatch.clear();
-        statsChecker.resetInGameAlertSoundGate();
+        statsChecker.resetInGameMatchWarningState();
     }
 }

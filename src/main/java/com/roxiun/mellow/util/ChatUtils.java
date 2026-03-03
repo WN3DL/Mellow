@@ -10,6 +10,7 @@ public class ChatUtils {
 
     private static final String PREFIX = "§r§8[§5Mellow§8]§r ";
     private static final String MULTILINE_PREFIX = "§r§5▐§r ";
+    private static final int MAX_OUTBOUND_CHAT_LENGTH = 240;
 
     public static void sendMessage(String message) {
         if (Minecraft.getMinecraft().thePlayer == null) return;
@@ -88,5 +89,39 @@ public class ChatUtils {
     ) {
         IChatComponent prefixComponent = new ChatComponentText(PREFIX);
         sender.addChatMessage(prefixComponent.appendSibling(message));
+    }
+
+    public static void sendChatCommandMessage(
+        String commandPrefix,
+        String message
+    ) {
+        if (Minecraft.getMinecraft().thePlayer == null) return;
+        if (commandPrefix == null || commandPrefix.trim().isEmpty()) return;
+        if (message == null || message.trim().isEmpty()) return;
+
+        String normalizedPrefix = commandPrefix.trim();
+        if (!normalizedPrefix.startsWith("/")) {
+            normalizedPrefix = "/" + normalizedPrefix;
+        }
+
+        String sanitized = stripFormatting(message).replace("\n", " ").trim();
+        if (sanitized.isEmpty()) {
+            return;
+        }
+
+        if (sanitized.length() > MAX_OUTBOUND_CHAT_LENGTH) {
+            sanitized = sanitized.substring(0, MAX_OUTBOUND_CHAT_LENGTH - 3) + "...";
+        }
+
+        Minecraft.getMinecraft().thePlayer.sendChatMessage(
+            normalizedPrefix + " " + sanitized
+        );
+    }
+
+    public static String stripFormatting(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        return value.replaceAll("§.", "");
     }
 }
