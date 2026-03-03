@@ -82,12 +82,20 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/urchin <username>:§d View a player's urchin tags.§r"
+                "§r§5" +
+                (BlacklistCommandResolver.isSeraphLoaded()
+                        ? "/urchin|/murchin <username>"
+                        : "/urchin <username>") +
+                ":§d View a player's urchin tags.§r"
             )
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/seraph <username>:§d View a player's seraph tags.§r"
+                "§r§5" +
+                (BlacklistCommandResolver.isSeraphLoaded()
+                        ? "/seraph|/mseraph <username>"
+                        : "/seraph <username>") +
+                ":§d View a player's seraph tags.§r"
             )
         );
         sender.addChatMessage(

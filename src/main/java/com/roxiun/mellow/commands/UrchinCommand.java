@@ -8,8 +8,11 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
@@ -41,6 +44,14 @@ public class UrchinCommand extends CommandBase {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         return "/urchin <username>";
+    }
+
+    @Override
+    public List<String> getCommandAliases() {
+        if (!BlacklistCommandResolver.isSeraphLoaded()) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList("murchin");
     }
 
     @Override
