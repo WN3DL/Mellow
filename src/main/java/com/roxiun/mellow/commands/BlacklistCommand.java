@@ -1,5 +1,6 @@
 package com.roxiun.mellow.commands;
 
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
@@ -259,22 +261,28 @@ public class BlacklistCommand extends CommandBase {
                 );
                 if (playerAdded) {
                     MainThreadDispatcher.run(() ->
-                        ChatUtils.sendCommandMessage(
-                            sender,
-                            "§aAdded " + playerName + " to the blacklist."
-                        )
+                        {
+                            ChatUtils.sendCommandMessage(
+                                sender,
+                                "§aAdded " + playerName + " to the blacklist."
+                            );
+                            maybeAlsoBlockNickedInGamePlayer(sender, playerName);
+                        }
                     );
                 } else {
                     MainThreadDispatcher.run(() ->
-                        ChatUtils.sendCommandMessage(
-                            sender,
-                            "§c" +
-                                playerName +
-                                " is already on the blacklist for reason: " +
-                                blacklistManager
-                                    .getBlacklistedPlayer(uuid)
-                                    .getReason()
-                        )
+                        {
+                            ChatUtils.sendCommandMessage(
+                                sender,
+                                "§c" +
+                                    playerName +
+                                    " is already on the blacklist for reason: " +
+                                    blacklistManager
+                                        .getBlacklistedPlayer(uuid)
+                                        .getReason()
+                            );
+                            maybeAlsoBlockNickedInGamePlayer(sender, playerName);
+                        }
                     );
                 }
             } else if ("remove".equalsIgnoreCase(subCommand)) {
@@ -348,5 +356,58 @@ public class BlacklistCommand extends CommandBase {
 
     private String getCommandPrefix() {
         return "/" + baseCommand;
+    }
+
+    private void maybeAlsoBlockNickedInGamePlayer(
+        ICommandSender sender,
+        String requestedName
+    ) {
+        String inGameName = resolveInGamePlayerName(requestedName);
+        if (inGameName == null) {
+            return;
+        }
+        if (Mellow.nickUtils == null || !Mellow.nickUtils.isNicked(inGameName)) {
+            return;
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null) {
+            return;
+        }
+
+        mc.thePlayer.sendChatMessage("/block add " + inGameName);
+        ChatUtils.sendCommandMessage(
+            sender,
+            "§7Also ran §f/block add " +
+                inGameName +
+                "§7 because they are nicked in your game."
+        );
+    }
+
+    private String resolveInGamePlayerName(String requestedName) {
+        if (requestedName == null) {
+            return null;
+        }
+        String trimmed = requestedName.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null || mc.getNetHandler() == null) {
+            return null;
+        }
+
+        for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+            if (info == null || info.getGameProfile() == null) {
+                continue;
+            }
+            String inGameName = info.getGameProfile().getName();
+            if (inGameName != null && inGameName.equalsIgnoreCase(trimmed)) {
+                return inGameName;
+            }
+        }
+
+        return null;
     }
 }

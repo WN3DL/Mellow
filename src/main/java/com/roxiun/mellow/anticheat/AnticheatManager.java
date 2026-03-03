@@ -114,6 +114,10 @@ public class AnticheatManager {
 
                 // Add WDR button if on Hypixel
                 if (HypixelUtils.INSTANCE.isHypixel()) {
+                    String plainName = player.getName().replaceAll("§.", "").trim();
+                    boolean shouldBlockOnClick =
+                        Mellow.nickUtils != null && Mellow.nickUtils.isNicked(plainName);
+
                     IChatComponent reportButton = new ChatComponentText(
                         " §8[§cWDR§8]"
                     );
@@ -121,15 +125,18 @@ public class AnticheatManager {
                     style.setChatClickEvent(
                         new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
-                            "/wdr " +
-                                player.getName().replaceAll("§.", "").trim()
+                            shouldBlockOnClick
+                                ? "/block add " + plainName
+                                : "/wdr " + plainName
                         )
                     );
                     style.setChatHoverEvent(
                         new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
                             new ChatComponentText(
-                                "Click to report " + player.getName()
+                                shouldBlockOnClick
+                                    ? "Click to block " + plainName + " (nicked)"
+                                    : "Click to report " + player.getName()
                             )
                         )
                     );
@@ -188,9 +195,12 @@ public class AnticheatManager {
         }
 
         String plainName = player.getName().replaceAll("§.", "").trim();
+        boolean shouldBlockOnClick =
+            Mellow.nickUtils != null && Mellow.nickUtils.isNicked(plainName);
         String reason = "Anticheat flag: " + check.getName();
-        String command =
-            BlacklistCommandResolver.getCommandPrefix() +
+        String command = shouldBlockOnClick
+            ? "/block add " + plainName
+            : BlacklistCommandResolver.getCommandPrefix() +
             " add " +
             plainName +
             " " +
@@ -205,7 +215,9 @@ public class AnticheatManager {
             new HoverEvent(
                 HoverEvent.Action.SHOW_TEXT,
                 new ChatComponentText(
-                    "Click to add " + plainName + " to your local blacklist"
+                    shouldBlockOnClick
+                        ? "Click to block " + plainName + " (nicked)"
+                        : "Click to add " + plainName + " to your local blacklist"
                 )
             )
         );
