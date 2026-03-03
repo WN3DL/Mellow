@@ -530,7 +530,14 @@ public class StatsChecker {
         if (!isInBedwarsMatch()) {
             return false;
         }
-        if (resolveWarningDestination() == InGameBlacklistWarningDestination.NONE) {
+        InGameBlacklistWarningDestination destination = resolveWarningDestination();
+        if (destination == InGameBlacklistWarningDestination.NONE) {
+            return false;
+        }
+        if (
+            destination == InGameBlacklistWarningDestination.ALL_CHAT &&
+            isBedwarsSolosMode()
+        ) {
             return false;
         }
         if (!isOpponentByTabName(tabPlayerName)) {
@@ -624,6 +631,24 @@ public class StatsChecker {
     private boolean isInBedwarsMatch() {
         GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
         return snapshot != null && snapshot.isInBedwarsMatch();
+    }
+
+    private boolean isBedwarsSolosMode() {
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
+        if (snapshot == null || !snapshot.isInBedwarsMatch()) {
+            return false;
+        }
+
+        String mode = snapshot.getMode();
+        if (mode == null || mode.trim().isEmpty()) {
+            return false;
+        }
+
+        String normalized = mode
+            .toLowerCase(Locale.ROOT)
+            .replace('-', '_')
+            .replaceAll("\\s+", "_");
+        return normalized.contains("eight_one");
     }
 
     private boolean isOpponentByTabName(String tabPlayerName) {
