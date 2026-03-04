@@ -36,6 +36,50 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Auto Update Check", subcategory = "General")
     public boolean autoUpdateCheck = true;
 
+    @Switch(
+        name = "Request Popups",
+        subcategory = "Requests",
+        description = "Shows accept/deny popups for incoming friend requests and party invites."
+    )
+    public boolean requestPopupsEnabled = true;
+
+    @Switch(
+        name = "Friend Request Popups",
+        subcategory = "Requests",
+        description = "Shows popups for incoming friend requests."
+    )
+    public boolean friendRequestPopupsEnabled = true;
+
+    @Switch(
+        name = "Party Invite Popups",
+        subcategory = "Requests",
+        description = "Shows popups for incoming party invites."
+    )
+    public boolean partyInvitePopupsEnabled = true;
+
+    @Switch(
+        name = "Popup Sound",
+        subcategory = "Requests",
+        description = "Play a pling sound when a new request popup is received."
+    )
+    public boolean requestPopupSoundEnabled = true;
+
+    @Dropdown(
+        name = "Popup Position",
+        subcategory = "Requests",
+        options = { "Top-center", "Top-right", "Bottom-right" }
+    )
+    public int requestPopupPosition = 0;
+
+    @Number(
+        name = "Popup Duration (seconds)",
+        subcategory = "Requests",
+        min = 2,
+        max = 15,
+        step = 1
+    )
+    public int requestPopupDurationSeconds = 5;
+
     // Tab Stats Configuration
 
     @Switch(name = "Show Stars with Brackets", category = "Tab Stats")
@@ -1236,6 +1280,7 @@ public class MellowOneConfig extends Config {
             extendedTabStatsTeamColumnMode,
             4
         );
+        requestPopupPosition = clampIndex(requestPopupPosition, 3);
         statsProvider = clampIndex(statsProvider, 3);
         inGameBlacklistWarningDestination = clampIndex(
             inGameBlacklistWarningDestination,

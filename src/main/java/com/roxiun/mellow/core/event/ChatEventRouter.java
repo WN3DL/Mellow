@@ -3,6 +3,7 @@ package com.roxiun.mellow.core.event;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.feature.nicks.NumberDenicker;
+import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.module.bedwars.BedwarsChatSignalParser;
 import net.minecraft.client.Minecraft;
@@ -15,15 +16,18 @@ public class ChatEventRouter {
     private final MellowOneConfig config;
     private final NumberDenicker numberDenicker;
     private final PregameStats pregameStats;
+    private final RequestPopupService requestPopupService;
 
     public ChatEventRouter(
         MellowOneConfig config,
         NumberDenicker numberDenicker,
-        PregameStats pregameStats
+        PregameStats pregameStats,
+        RequestPopupService requestPopupService
     ) {
         this.config = config;
         this.numberDenicker = numberDenicker;
         this.pregameStats = pregameStats;
+        this.requestPopupService = requestPopupService;
     }
 
     @SubscribeEvent
@@ -32,6 +36,9 @@ public class ChatEventRouter {
         pregameStats.onChat(event);
 
         String message = event.message.getUnformattedText();
+        if (requestPopupService != null) {
+            requestPopupService.onChatMessage(message);
+        }
         HypixelFeatures.getInstance().onChat(message);
 
         if (

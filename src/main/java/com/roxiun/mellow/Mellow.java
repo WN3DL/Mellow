@@ -18,6 +18,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.event.ChatEventRouter;
 import com.roxiun.mellow.core.event.ClientTickRouter;
 import com.roxiun.mellow.core.event.NametagColorRouter;
+import com.roxiun.mellow.core.event.RequestPopupRouter;
 import com.roxiun.mellow.core.event.TabOverlayInputRouter;
 import com.roxiun.mellow.core.event.TabOverlayRouter;
 import com.roxiun.mellow.core.event.WorldLifecycleRouter;
@@ -25,6 +26,8 @@ import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
+import com.roxiun.mellow.feature.requestpopup.RequestPopupManager;
+import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
 import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.feature.stats.ProviderHealthWarningService;
@@ -35,10 +38,13 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.client.ClientCommandHandler;
+import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import org.lwjgl.input.Keyboard;
 
 @Mod(modid = Mellow.MODID, name = Mellow.NAME, version = Mellow.VERSION)
 public class Mellow {
@@ -113,6 +119,32 @@ public class Mellow {
             annoylistManager,
             tagIgnoreManager
         );
+        RequestPopupManager requestPopupManager = new RequestPopupManager(config);
+        RequestPopupService requestPopupService = new RequestPopupService(
+            config,
+            requestPopupManager
+        );
+
+        KeyBinding requestAcceptKeybind = new KeyBinding(
+            "Accept Request",
+            Keyboard.KEY_Y,
+            "Mellow Requests"
+        );
+        KeyBinding requestDenyKeybind = new KeyBinding(
+            "Deny Request",
+            Keyboard.KEY_N,
+            "Mellow Requests"
+        );
+        ClientRegistry.registerKeyBinding(requestAcceptKeybind);
+        ClientRegistry.registerKeyBinding(requestDenyKeybind);
+        MinecraftForge.EVENT_BUS.register(
+            new RequestPopupRouter(
+                config,
+                requestPopupManager,
+                requestAcceptKeybind,
+                requestDenyKeybind
+            )
+        );
 
         StatsChecker statsChecker = new StatsChecker(
             playerCache,
@@ -134,7 +166,8 @@ public class Mellow {
             new ChatEventRouter(
                 config,
                 numberDenicker,
-                pregameStats
+                pregameStats,
+                requestPopupService
             )
         );
         MinecraftForge.EVENT_BUS.register(
