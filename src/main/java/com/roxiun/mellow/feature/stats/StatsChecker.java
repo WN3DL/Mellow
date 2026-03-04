@@ -38,6 +38,7 @@ import net.minecraft.scoreboard.ScorePlayerTeam;
 
 public class StatsChecker {
 
+    private static final String MC_COLOR_CODES = "0123456789abcdef";
     private final PlayerCache playerCache;
     private final NickUtils nickUtils;
     private final MellowOneConfig config;
@@ -495,6 +496,7 @@ public class StatsChecker {
         ) {
             sendOutboundOpponentWarning(
                 profile,
+                tabPlayerName,
                 blacklistedPlayer,
                 blacklisted,
                 shouldPrintUrchinTagAlert,
@@ -548,6 +550,7 @@ public class StatsChecker {
 
     private void sendOutboundOpponentWarning(
         PlayerProfile profile,
+        String tabPlayerName,
         BlacklistedPlayer blacklistedPlayer,
         boolean blacklisted,
         boolean urchinTagged,
@@ -563,6 +566,7 @@ public class StatsChecker {
         if (playerName == null || playerName.trim().isEmpty()) {
             playerName = "Unknown";
         }
+        String opponentTeamName = resolveOpponentTeamName(tabPlayerName, playerName);
 
         List<String> sourceLabels = new ArrayList<>(3);
         if (blacklisted) {
@@ -598,8 +602,15 @@ public class StatsChecker {
             );
         }
 
-        String mainMessage =
-            "[Mellow] Flagged opponent: " +
+        String mainMessage = opponentTeamName.isEmpty()
+            ? "[Mellow] Flagged opponent: " +
+            playerName +
+            " [" +
+            String.join(", ", sourceLabels) +
+            "]"
+            : "[Mellow] Flagged opponent on " +
+            opponentTeamName +
+            " team: " +
             playerName +
             " [" +
             String.join(", ", sourceLabels) +
@@ -689,6 +700,171 @@ public class StatsChecker {
         }
 
         return ChatUtils.stripFormatting(team.getColorPrefix()).trim();
+    }
+
+    private String resolveOpponentTeamName(
+        String tabPlayerName,
+        String fallbackPlayerName
+    ) {
+        ScorePlayerTeam team = resolveScoreboardTeam(tabPlayerName, fallbackPlayerName);
+        if (team == null) {
+            return "";
+        }
+
+        String fromRegisteredName = normalizeTeamName(team.getRegisteredName());
+        if (!fromRegisteredName.isEmpty()) {
+            return fromRegisteredName;
+        }
+
+        String colorPrefix = team.getColorPrefix();
+        String fromPrefixText = normalizeTeamName(
+            ChatUtils.stripFormatting(colorPrefix)
+        );
+        if (!fromPrefixText.isEmpty()) {
+            return fromPrefixText;
+        }
+
+        return mapColorCodeToTeamName(extractMinecraftColorCode(colorPrefix));
+    }
+
+    private ScorePlayerTeam resolveScoreboardTeam(
+        String primaryPlayerName,
+        String fallbackPlayerName
+    ) {
+        if (mc == null || mc.theWorld == null || mc.theWorld.getScoreboard() == null) {
+            return null;
+        }
+
+        if (primaryPlayerName != null && !primaryPlayerName.trim().isEmpty()) {
+            ScorePlayerTeam team = mc.theWorld
+                .getScoreboard()
+                .getPlayersTeam(primaryPlayerName);
+            if (team != null) {
+                return team;
+            }
+        }
+
+        if (fallbackPlayerName != null && !fallbackPlayerName.trim().isEmpty()) {
+            return mc.theWorld.getScoreboard().getPlayersTeam(fallbackPlayerName);
+        }
+
+        return null;
+    }
+
+    private String normalizeTeamName(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = ChatUtils
+            .stripFormatting(value)
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z]", "");
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        if (
+            normalized.equals("r") ||
+            normalized.contains("red")
+        ) {
+            return "Red";
+        }
+        if (
+            normalized.equals("b") ||
+            normalized.contains("blue")
+        ) {
+            return "Blue";
+        }
+        if (
+            normalized.equals("g") ||
+            normalized.contains("green")
+        ) {
+            return "Green";
+        }
+        if (
+            normalized.equals("y") ||
+            normalized.contains("yellow")
+        ) {
+            return "Yellow";
+        }
+        if (
+            normalized.equals("a") ||
+            normalized.contains("aqua") ||
+            normalized.contains("cyan")
+        ) {
+            return "Aqua";
+        }
+        if (
+            normalized.equals("w") ||
+            normalized.contains("white")
+        ) {
+            return "White";
+        }
+        if (
+            normalized.equals("p") ||
+            normalized.contains("pink") ||
+            normalized.contains("lightpurple") ||
+            normalized.contains("magenta")
+        ) {
+            return "Pink";
+        }
+        if (
+            normalized.equals("gr") ||
+            normalized.contains("gray") ||
+            normalized.contains("grey") ||
+            normalized.contains("silver")
+        ) {
+            return "Gray";
+        }
+
+        return "";
+    }
+
+    private String mapColorCodeToTeamName(char colorCode) {
+        switch (colorCode) {
+            case 'c':
+            case '4':
+                return "Red";
+            case '9':
+            case '1':
+                return "Blue";
+            case 'a':
+            case '2':
+                return "Green";
+            case 'e':
+            case '6':
+                return "Yellow";
+            case 'b':
+            case '3':
+                return "Aqua";
+            case 'f':
+                return "White";
+            case 'd':
+            case '5':
+                return "Pink";
+            case '7':
+            case '8':
+                return "Gray";
+            default:
+                return "";
+        }
+    }
+
+    private char extractMinecraftColorCode(String input) {
+        if (input == null || input.length() < 2) {
+            return '\0';
+        }
+
+        for (int i = 0; i < input.length() - 1; i++) {
+            if (input.charAt(i) == '\u00A7') {
+                char maybeColor = Character.toLowerCase(input.charAt(i + 1));
+                if (MC_COLOR_CODES.indexOf(maybeColor) >= 0) {
+                    return maybeColor;
+                }
+            }
+        }
+        return '\0';
     }
 
     private String formatOutboundBlacklistReason(BlacklistedPlayer blacklistedPlayer) {
