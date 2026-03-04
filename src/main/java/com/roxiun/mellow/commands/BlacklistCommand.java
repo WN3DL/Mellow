@@ -1,5 +1,6 @@
 package com.roxiun.mellow.commands;
 
+import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.core.async.AsyncExecutor;
@@ -10,9 +11,12 @@ import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
@@ -338,7 +342,19 @@ public class BlacklistCommand extends CommandBase {
             ("add".equalsIgnoreCase(args[0]) ||
                 "remove".equalsIgnoreCase(args[0]))
         ) {
-            return null; // Let the game handle player name completion
+            String subCommand = args[0];
+            List<String> suggestions = "remove".equalsIgnoreCase(subCommand)
+                ? getStoredAndOnlinePlayerNames()
+                : getOnlinePlayerNames();
+
+            if (suggestions.isEmpty()) {
+                return null;
+            }
+
+            return getListOfStringsMatchingLastWord(
+                args,
+                suggestions.toArray(new String[0])
+            );
         }
 
         // For import command, return null to allow file name completion (or default behavior)
@@ -356,6 +372,46 @@ public class BlacklistCommand extends CommandBase {
 
     private String getCommandPrefix() {
         return "/" + baseCommand;
+    }
+
+    private List<String> getOnlinePlayerNames() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.getNetHandler() == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<String> names = new ArrayList<>();
+        for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+            if (info == null) {
+                continue;
+            }
+            GameProfile profile = info.getGameProfile();
+            if (profile == null) {
+                continue;
+            }
+            String name = profile.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        return names;
+    }
+
+    private List<String> getStoredAndOnlinePlayerNames() {
+        Set<String> names = new LinkedHashSet<>();
+        for (BlacklistedPlayer player : blacklistManager.getBlacklist().values()) {
+            if (player == null) {
+                continue;
+            }
+            String name = player.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        names.addAll(getOnlinePlayerNames());
+        return new ArrayList<>(names);
     }
 
     private void maybeAlsoBlockNickedInGamePlayer(

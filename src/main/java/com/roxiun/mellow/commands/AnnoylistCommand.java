@@ -1,5 +1,6 @@
 package com.roxiun.mellow.commands;
 
+import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
@@ -8,11 +9,15 @@ import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.annoylist.AnnoylistManager;
 import com.roxiun.mellow.util.annoylist.AnnoylistedPlayer;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
@@ -313,7 +318,19 @@ public class AnnoylistCommand extends CommandBase {
             ("add".equalsIgnoreCase(args[0]) ||
                 "remove".equalsIgnoreCase(args[0]))
         ) {
-            return null;
+            String subCommand = args[0];
+            List<String> suggestions = "remove".equalsIgnoreCase(subCommand)
+                ? getStoredAndOnlinePlayerNames()
+                : getOnlinePlayerNames();
+
+            if (suggestions.isEmpty()) {
+                return null;
+            }
+
+            return getListOfStringsMatchingLastWord(
+                args,
+                suggestions.toArray(new String[0])
+            );
         }
 
         if (args.length == 2 && "import".equalsIgnoreCase(args[0])) {
@@ -326,5 +343,45 @@ public class AnnoylistCommand extends CommandBase {
     @Override
     public int getRequiredPermissionLevel() {
         return 0;
+    }
+
+    private List<String> getOnlinePlayerNames() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.getNetHandler() == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<String> names = new ArrayList<>();
+        for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+            if (info == null) {
+                continue;
+            }
+            GameProfile profile = info.getGameProfile();
+            if (profile == null) {
+                continue;
+            }
+            String name = profile.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        return names;
+    }
+
+    private List<String> getStoredAndOnlinePlayerNames() {
+        Set<String> names = new LinkedHashSet<>();
+        for (AnnoylistedPlayer player : annoylistManager.getAnnoylist().values()) {
+            if (player == null) {
+                continue;
+            }
+            String name = player.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        names.addAll(getOnlinePlayerNames());
+        return new ArrayList<>(names);
     }
 }
