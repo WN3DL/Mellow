@@ -308,6 +308,7 @@ public class PregameStats {
         String trimmed = reason.trim();
         if (
             trimmed.isEmpty() ||
+            "(none)".equalsIgnoreCase(trimmed) ||
             BlacklistManager.isExternalFileImportReason(trimmed)
         ) {
             return "";
