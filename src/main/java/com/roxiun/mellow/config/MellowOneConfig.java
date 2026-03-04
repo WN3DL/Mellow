@@ -75,10 +75,10 @@ public class MellowOneConfig extends Config {
         name = "Popup Duration (seconds)",
         subcategory = "Requests",
         min = 2,
-        max = 15,
+        max = 30,
         step = 1
     )
-    public int requestPopupDurationSeconds = 5;
+    public int requestPopupDurationSeconds = 10;
 
     // Tab Stats Configuration
 
