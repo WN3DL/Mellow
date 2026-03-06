@@ -3,7 +3,6 @@ package com.roxiun.mellow.feature.replay;
 import net.minecraft.network.EnumPacketDirection;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.Packet;
-import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.IChatComponent;
 
 public class ReplayNetworkManager extends NetworkManager {
@@ -19,6 +18,11 @@ public class ReplayNetworkManager extends NetworkManager {
 
     @Override
     public void closeChannel(IChatComponent message) {
-        super.closeChannel(message == null ? new ChatComponentText("Replay closed") : message);
+        // Replay playback has no backing Netty channel.
+    }
+
+    @Override
+    public void processReceivedPackets() {
+        // Replay packets are injected directly by ReplayPlaybackSession.
     }
 }

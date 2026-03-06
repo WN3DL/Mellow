@@ -112,11 +112,7 @@ public class ReplayPlaybackSession {
         currentTimeMs = 0;
         netHandler = null;
         networkManager = null;
-        if (mc.theWorld != null) {
-            mc.theWorld.sendQuittingDisconnectingPacket();
-        }
-        mc.loadWorld(null);
-        mc.displayGuiScreen(null);
+        unloadReplayWorld();
         if (stopCallback != null) {
             stopCallback.run();
         }
@@ -242,11 +238,7 @@ public class ReplayPlaybackSession {
     }
 
     private void restartFrom(int targetMs, boolean announceRebuild) {
-        if (mc.theWorld != null) {
-            mc.theWorld.sendQuittingDisconnectingPacket();
-        }
-        mc.loadWorld(null);
-        mc.displayGuiScreen(null);
+        unloadReplayWorld();
         networkManager = new ReplayNetworkManager();
         netHandler = new ReplayNetHandlerPlayClient(
             mc,
@@ -557,6 +549,13 @@ public class ReplayPlaybackSession {
     private String resolveViewerName() {
         String name = replay.getMetadata().getViewerName();
         return name == null || name.trim().isEmpty() ? "ReplayPlayer" : name;
+    }
+
+    private void unloadReplayWorld() {
+        if (mc.theWorld != null || mc.getNetHandler() != null) {
+            mc.loadWorld(null);
+        }
+        mc.displayGuiScreen(null);
     }
 
     private boolean hasRecordedPlayerSpawns(ReplayLoadedData replayData) {
