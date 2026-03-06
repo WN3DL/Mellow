@@ -2,16 +2,13 @@ package com.roxiun.mellow.feature.replay;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonStreamParser;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -25,17 +22,26 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class ReplayIo {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Gson COMPACT_GSON = new Gson();
     private static final String META_FILE = "meta.json";
     private static final String PACKETS_FILE = "packets.bin";
-    private static final String EVENTS_FILE = "events.jsonl";
+    private static final String EVENTS_FILE = "events.bin";
     private static final String INDEX_FILE = "index.bin";
+    private static final int FORMAT_VERSION_V2 = 2;
+    private static final int PACKETS_MAGIC = 0x4D52504B; // MRPK
+    private static final int EVENTS_MAGIC = 0x4D524556; // MREV
+    private static final byte EVENT_CHAT = 1;
+    private static final byte EVENT_SCOREBOARD = 2;
+    private static final byte EVENT_LOCAL_PLAYER = 3;
 
     public File getReplayRoot(File mcDataDir) {
         File root = new File(mcDataDir, "mellow-replays");
@@ -70,6 +76,7 @@ public class ReplayIo {
         List<ReplayScoreboardFrame> scoreboards,
         List<ReplayLocalPlayerSnapshot> localSnapshots
     ) throws IOException {
+        metadata.setFormatVersion(FORMAT_VERSION_V2);
         metadata.setPacketCount(packets.size());
         writeMetadata(new File(directory, META_FILE), metadata);
         writePackets(new File(directory, PACKETS_FILE), packets);
@@ -79,44 +86,21 @@ public class ReplayIo {
 
     public ReplayLoadedData loadReplay(File directory) throws IOException {
         ReplayMetadata metadata = readMetadata(new File(directory, META_FILE));
+        if (metadata.getFormatVersion() != FORMAT_VERSION_V2) {
+            throw new IOException(
+                "Replay format v" + metadata.getFormatVersion() +
+                " is no longer supported. Please record a new replay."
+            );
+        }
+
         List<ReplayPacketFrame> packets = readPackets(new File(directory, PACKETS_FILE));
         List<ReplayChatEvent> chats = new ArrayList<>();
         List<ReplayScoreboardFrame> scoreboards = new ArrayList<>();
         List<ReplayLocalPlayerSnapshot> localSnapshots = new ArrayList<>();
         readEvents(new File(directory, EVENTS_FILE), chats, scoreboards, localSnapshots);
-        Collections.sort(
-            chats,
-            new Comparator<ReplayChatEvent>() {
-                @Override
-                public int compare(ReplayChatEvent left, ReplayChatEvent right) {
-                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
-                }
-            }
-        );
-        Collections.sort(
-            scoreboards,
-            new Comparator<ReplayScoreboardFrame>() {
-                @Override
-                public int compare(
-                    ReplayScoreboardFrame left,
-                    ReplayScoreboardFrame right
-                ) {
-                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
-                }
-            }
-        );
-        Collections.sort(
-            localSnapshots,
-            new Comparator<ReplayLocalPlayerSnapshot>() {
-                @Override
-                public int compare(
-                    ReplayLocalPlayerSnapshot left,
-                    ReplayLocalPlayerSnapshot right
-                ) {
-                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
-                }
-            }
-        );
+        sortChats(chats);
+        sortScoreboards(scoreboards);
+        sortLocalSnapshots(localSnapshots);
         return new ReplayLoadedData(
             directory,
             metadata,
@@ -198,19 +182,33 @@ public class ReplayIo {
     }
 
     private void writePackets(File file, List<ReplayPacketFrame> packets) throws IOException {
+        Map<String, Integer> packetTypeIds = new LinkedHashMap<>();
+        for (ReplayPacketFrame frame : packets) {
+            if (!packetTypeIds.containsKey(frame.getClassName())) {
+                packetTypeIds.put(frame.getClassName(), packetTypeIds.size());
+            }
+        }
+
         try (
             DataOutputStream out = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream(file))
+                new GZIPOutputStream(
+                    new BufferedOutputStream(new FileOutputStream(file))
+                )
             )
         ) {
-            out.writeInt(packets.size());
+            out.writeInt(PACKETS_MAGIC);
+            out.writeInt(FORMAT_VERSION_V2);
+            writeVarInt(out, packetTypeIds.size());
+            for (String className : packetTypeIds.keySet()) {
+                writeString(out, className);
+            }
+            writeVarInt(out, packets.size());
+            int previousTimestamp = 0;
             for (ReplayPacketFrame frame : packets) {
-                byte[] nameBytes = frame.getClassName().getBytes(StandardCharsets.UTF_8);
-                out.writeInt(frame.getTimestampMs());
-                out.writeInt(nameBytes.length);
-                out.write(nameBytes);
-                out.writeInt(frame.getPayload().length);
-                out.write(frame.getPayload());
+                writeVarInt(out, frame.getTimestampMs() - previousTimestamp);
+                previousTimestamp = frame.getTimestampMs();
+                writeVarInt(out, packetTypeIds.get(frame.getClassName()).intValue());
+                writeByteArray(out, frame.getPayload());
             }
         }
     }
@@ -220,25 +218,39 @@ public class ReplayIo {
         if (!file.exists()) {
             return packets;
         }
+
         try (
             DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new FileInputStream(file))
+                new GZIPInputStream(
+                    new BufferedInputStream(new FileInputStream(file))
+                )
             )
         ) {
-            int size = in.readInt();
+            int magic = in.readInt();
+            int version = in.readInt();
+            if (magic != PACKETS_MAGIC || version != FORMAT_VERSION_V2) {
+                throw new IOException("Invalid replay packet stream.");
+            }
+
+            int packetTypeCount = readVarInt(in);
+            List<String> packetTypes = new ArrayList<>(packetTypeCount);
+            for (int i = 0; i < packetTypeCount; i++) {
+                packetTypes.add(readString(in));
+            }
+
+            int size = readVarInt(in);
+            int timestamp = 0;
             for (int i = 0; i < size; i++) {
-                int timestamp = in.readInt();
-                int classNameLength = in.readInt();
-                byte[] classNameBytes = new byte[classNameLength];
-                in.readFully(classNameBytes);
-                int payloadLength = in.readInt();
-                byte[] payload = new byte[payloadLength];
-                in.readFully(payload);
+                timestamp += readVarInt(in);
+                int packetTypeId = readVarInt(in);
+                if (packetTypeId < 0 || packetTypeId >= packetTypes.size()) {
+                    throw new IOException("Invalid replay packet type id: " + packetTypeId);
+                }
                 packets.add(
                     new ReplayPacketFrame(
                         timestamp,
-                        new String(classNameBytes, StandardCharsets.UTF_8),
-                        payload
+                        packetTypes.get(packetTypeId),
+                        readByteArray(in)
                     )
                 );
             }
@@ -252,28 +264,18 @@ public class ReplayIo {
         List<ReplayScoreboardFrame> scoreboards,
         List<ReplayLocalPlayerSnapshot> localSnapshots
     ) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            for (ReplayChatEvent event : chats) {
-                JsonObject object = new JsonObject();
-                object.addProperty("type", "chat");
-                object.add("payload", GSON.toJsonTree(event));
-                writer.write(COMPACT_GSON.toJson(object));
-                writer.newLine();
-            }
-            for (ReplayScoreboardFrame event : scoreboards) {
-                JsonObject object = new JsonObject();
-                object.addProperty("type", "scoreboard");
-                object.add("payload", GSON.toJsonTree(event));
-                writer.write(COMPACT_GSON.toJson(object));
-                writer.newLine();
-            }
-            for (ReplayLocalPlayerSnapshot event : localSnapshots) {
-                JsonObject object = new JsonObject();
-                object.addProperty("type", "local_player");
-                object.add("payload", GSON.toJsonTree(event));
-                writer.write(COMPACT_GSON.toJson(object));
-                writer.newLine();
-            }
+        try (
+            DataOutputStream out = new DataOutputStream(
+                new GZIPOutputStream(
+                    new BufferedOutputStream(new FileOutputStream(file))
+                )
+            )
+        ) {
+            out.writeInt(EVENTS_MAGIC);
+            out.writeInt(FORMAT_VERSION_V2);
+            writeChatEvents(out, chats);
+            writeScoreboardEvents(out, scoreboards);
+            writeLocalPlayerEvents(out, localSnapshots);
         }
     }
 
@@ -287,24 +289,137 @@ public class ReplayIo {
             return;
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            JsonStreamParser parser = new JsonStreamParser(reader);
-            while (parser.hasNext()) {
-                JsonObject object = parser.next().getAsJsonObject();
-                String type = object.get("type").getAsString();
-                JsonElement payload = object.get("payload");
-                if ("chat".equals(type)) {
-                    chats.add(GSON.fromJson(payload, ReplayChatEvent.class));
-                } else if ("scoreboard".equals(type)) {
-                    scoreboards.add(
-                        GSON.fromJson(payload, ReplayScoreboardFrame.class)
-                    );
-                } else if ("local_player".equals(type)) {
-                    localSnapshots.add(
-                        GSON.fromJson(payload, ReplayLocalPlayerSnapshot.class)
-                    );
-                }
+        try (
+            DataInputStream in = new DataInputStream(
+                new GZIPInputStream(
+                    new BufferedInputStream(new FileInputStream(file))
+                )
+            )
+        ) {
+            int magic = in.readInt();
+            int version = in.readInt();
+            if (magic != EVENTS_MAGIC || version != FORMAT_VERSION_V2) {
+                throw new IOException("Invalid replay event stream.");
             }
+            readChatEvents(in, chats);
+            readScoreboardEvents(in, scoreboards);
+            readLocalPlayerEvents(in, localSnapshots);
+        }
+    }
+
+    private void writeChatEvents(
+        DataOutputStream out,
+        List<ReplayChatEvent> chats
+    ) throws IOException {
+        writeVarInt(out, chats.size());
+        int previousTimestamp = 0;
+        for (ReplayChatEvent event : chats) {
+            out.writeByte(EVENT_CHAT);
+            writeVarInt(out, event.getTimestampMs() - previousTimestamp);
+            previousTimestamp = event.getTimestampMs();
+            writeString(out, event.getComponentJson());
+            out.writeByte(event.getType() & 0xFF);
+        }
+    }
+
+    private void readChatEvents(
+        DataInputStream in,
+        List<ReplayChatEvent> chats
+    ) throws IOException {
+        int count = readVarInt(in);
+        int timestamp = 0;
+        for (int i = 0; i < count; i++) {
+            expectEventType(in, EVENT_CHAT);
+            timestamp += readVarInt(in);
+            chats.add(
+                new ReplayChatEvent(
+                    timestamp,
+                    readString(in),
+                    (byte) in.readUnsignedByte()
+                )
+            );
+        }
+    }
+
+    private void writeScoreboardEvents(
+        DataOutputStream out,
+        List<ReplayScoreboardFrame> scoreboards
+    ) throws IOException {
+        writeVarInt(out, scoreboards.size());
+        int previousTimestamp = 0;
+        for (ReplayScoreboardFrame event : scoreboards) {
+            out.writeByte(EVENT_SCOREBOARD);
+            writeVarInt(out, event.getTimestampMs() - previousTimestamp);
+            previousTimestamp = event.getTimestampMs();
+            writeString(out, event.getTitle());
+            List<String> lines = event.getLines();
+            writeVarInt(out, lines.size());
+            for (String line : lines) {
+                writeString(out, line);
+            }
+        }
+    }
+
+    private void readScoreboardEvents(
+        DataInputStream in,
+        List<ReplayScoreboardFrame> scoreboards
+    ) throws IOException {
+        int count = readVarInt(in);
+        int timestamp = 0;
+        for (int i = 0; i < count; i++) {
+            expectEventType(in, EVENT_SCOREBOARD);
+            timestamp += readVarInt(in);
+            String title = readString(in);
+            int lineCount = readVarInt(in);
+            List<String> lines = new ArrayList<>(lineCount);
+            for (int lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+                lines.add(readString(in));
+            }
+            scoreboards.add(new ReplayScoreboardFrame(timestamp, title, lines));
+        }
+    }
+
+    private void writeLocalPlayerEvents(
+        DataOutputStream out,
+        List<ReplayLocalPlayerSnapshot> localSnapshots
+    ) throws IOException {
+        writeVarInt(out, localSnapshots.size());
+        int previousTimestamp = 0;
+        for (ReplayLocalPlayerSnapshot event : localSnapshots) {
+            out.writeByte(EVENT_LOCAL_PLAYER);
+            writeVarInt(out, event.getTimestampMs() - previousTimestamp);
+            previousTimestamp = event.getTimestampMs();
+            out.writeDouble(event.getX());
+            out.writeDouble(event.getY());
+            out.writeDouble(event.getZ());
+            out.writeFloat(event.getYaw());
+            out.writeFloat(event.getPitch());
+            out.writeBoolean(event.isSneaking());
+            out.writeBoolean(event.isSprinting());
+        }
+    }
+
+    private void readLocalPlayerEvents(
+        DataInputStream in,
+        List<ReplayLocalPlayerSnapshot> localSnapshots
+    ) throws IOException {
+        int count = readVarInt(in);
+        int timestamp = 0;
+        for (int i = 0; i < count; i++) {
+            expectEventType(in, EVENT_LOCAL_PLAYER);
+            timestamp += readVarInt(in);
+            localSnapshots.add(
+                new ReplayLocalPlayerSnapshot(
+                    timestamp,
+                    in.readDouble(),
+                    in.readDouble(),
+                    in.readDouble(),
+                    in.readFloat(),
+                    in.readFloat(),
+                    in.readBoolean(),
+                    in.readBoolean()
+                )
+            );
         }
     }
 
@@ -334,6 +449,109 @@ public class ReplayIo {
                 }
             }
         }
+    }
+
+    private void expectEventType(DataInputStream in, byte expected) throws IOException {
+        byte actual = in.readByte();
+        if (actual != expected) {
+            throw new IOException("Invalid replay event type: " + actual);
+        }
+    }
+
+    private void writeByteArray(DataOutputStream out, byte[] bytes) throws IOException {
+        byte[] value = bytes == null ? new byte[0] : bytes;
+        writeVarInt(out, value.length);
+        out.write(value);
+    }
+
+    private byte[] readByteArray(DataInputStream in) throws IOException {
+        int length = readVarInt(in);
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return bytes;
+    }
+
+    private void writeString(DataOutputStream out, String value) throws IOException {
+        byte[] bytes = (value == null ? "" : value).getBytes(StandardCharsets.UTF_8);
+        writeVarInt(out, bytes.length);
+        out.write(bytes);
+    }
+
+    private String readString(DataInputStream in) throws IOException {
+        int length = readVarInt(in);
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private void writeVarInt(DataOutputStream out, int value) throws IOException {
+        int current = value;
+        while ((current & ~0x7F) != 0) {
+            out.writeByte((current & 0x7F) | 0x80);
+            current >>>= 7;
+        }
+        out.writeByte(current);
+    }
+
+    private int readVarInt(DataInputStream in) throws IOException {
+        int value = 0;
+        int position = 0;
+        while (position < 32) {
+            int current = in.read();
+            if (current == -1) {
+                throw new EOFException("Unexpected end of replay stream.");
+            }
+            value |= (current & 0x7F) << position;
+            if ((current & 0x80) == 0) {
+                return value;
+            }
+            position += 7;
+        }
+        throw new IOException("Replay varint is too large.");
+    }
+
+    private void sortChats(List<ReplayChatEvent> chats) {
+        Collections.sort(
+            chats,
+            new Comparator<ReplayChatEvent>() {
+                @Override
+                public int compare(ReplayChatEvent left, ReplayChatEvent right) {
+                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
+                }
+            }
+        );
+    }
+
+    private void sortScoreboards(List<ReplayScoreboardFrame> scoreboards) {
+        Collections.sort(
+            scoreboards,
+            new Comparator<ReplayScoreboardFrame>() {
+                @Override
+                public int compare(
+                    ReplayScoreboardFrame left,
+                    ReplayScoreboardFrame right
+                ) {
+                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
+                }
+            }
+        );
+    }
+
+    private void sortLocalSnapshots(
+        List<ReplayLocalPlayerSnapshot> localSnapshots
+    ) {
+        Collections.sort(
+            localSnapshots,
+            new Comparator<ReplayLocalPlayerSnapshot>() {
+                @Override
+                public int compare(
+                    ReplayLocalPlayerSnapshot left,
+                    ReplayLocalPlayerSnapshot right
+                ) {
+                    return Integer.compare(left.getTimestampMs(), right.getTimestampMs());
+                }
+            }
+        );
     }
 
     private boolean deleteRecursively(File file) {

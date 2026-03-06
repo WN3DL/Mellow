@@ -333,7 +333,7 @@ public class ReplayManager {
         private final long baseTime;
         private String lastScoreboardTitle = "";
         private List<String> lastScoreboardLines = Collections.emptyList();
-        private long lastScoreboardCaptureAt;
+        private ReplayLocalPlayerSnapshot lastLocalSnapshot;
 
         private RecordingSession(GameSnapshot snapshot, List<PendingFrame> pending) {
             long now = System.currentTimeMillis();
@@ -393,22 +393,21 @@ public class ReplayManager {
         }
 
         private void captureScoreboard(GameSnapshot snapshot) {
-            long now = System.currentTimeMillis();
             String title = snapshot == null ? "" : snapshot.getScoreboardTitle();
             List<String> lines = snapshot == null
                 ? Collections.<String>emptyList()
                 : new ArrayList<>(snapshot.getScoreboardLines());
             boolean changed = !safe(title).equals(safe(lastScoreboardTitle)) ||
             !lines.equals(lastScoreboardLines);
-            if (!changed && now - lastScoreboardCaptureAt < 1000L) {
+            if (!changed) {
                 return;
             }
+            long now = System.currentTimeMillis();
             scoreboards.add(
                 new ReplayScoreboardFrame(toRelativeTime(now), title, lines)
             );
             lastScoreboardTitle = title;
             lastScoreboardLines = lines;
-            lastScoreboardCaptureAt = now;
         }
 
         private void captureLocalPlayerSnapshot() {
@@ -416,19 +415,35 @@ public class ReplayManager {
             if (player == null) {
                 return;
             }
-            int timestamp = toRelativeTime(System.currentTimeMillis());
-            localSnapshots.add(
-                new ReplayLocalPlayerSnapshot(
-                    timestamp,
-                    player.posX,
-                    player.posY,
-                    player.posZ,
-                    player.rotationYaw,
-                    player.rotationPitch,
-                    player.isSneaking(),
-                    player.isSprinting()
-                )
+            ReplayLocalPlayerSnapshot snapshot = new ReplayLocalPlayerSnapshot(
+                toRelativeTime(System.currentTimeMillis()),
+                player.posX,
+                player.posY,
+                player.posZ,
+                player.rotationYaw,
+                player.rotationPitch,
+                player.isSneaking(),
+                player.isSprinting()
             );
+            if (!shouldCaptureLocalSnapshot(snapshot)) {
+                return;
+            }
+            localSnapshots.add(snapshot);
+            lastLocalSnapshot = snapshot;
+        }
+
+        private boolean shouldCaptureLocalSnapshot(ReplayLocalPlayerSnapshot snapshot) {
+            if (lastLocalSnapshot == null) {
+                return true;
+            }
+            return
+                Double.compare(snapshot.getX(), lastLocalSnapshot.getX()) != 0 ||
+                Double.compare(snapshot.getY(), lastLocalSnapshot.getY()) != 0 ||
+                Double.compare(snapshot.getZ(), lastLocalSnapshot.getZ()) != 0 ||
+                Float.compare(snapshot.getYaw(), lastLocalSnapshot.getYaw()) != 0 ||
+                Float.compare(snapshot.getPitch(), lastLocalSnapshot.getPitch()) != 0 ||
+                snapshot.isSneaking() != lastLocalSnapshot.isSneaking() ||
+                snapshot.isSprinting() != lastLocalSnapshot.isSprinting();
         }
 
         private void observeInboundPacket(Packet<?> packet) {
