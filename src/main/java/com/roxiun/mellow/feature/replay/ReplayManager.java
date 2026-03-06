@@ -6,13 +6,19 @@ import com.roxiun.mellow.util.ChatUtils;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S01PacketJoinGame;
+import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
+import net.minecraft.network.play.server.S13PacketDestroyEntities;
 import net.minecraft.util.IChatComponent;
 
 public class ReplayManager {
@@ -80,6 +86,7 @@ public class ReplayManager {
             }
             if (activeRecording != null) {
                 activeRecording.addPacket(now, frame);
+                activeRecording.observeInboundPacket(packet);
             } else {
                 pendingFrames.add(new PendingFrame(now, frame));
                 trimPendingFrames(now);
@@ -322,6 +329,7 @@ public class ReplayManager {
         private final List<ReplayChatEvent> chats = new ArrayList<>();
         private final List<ReplayScoreboardFrame> scoreboards = new ArrayList<>();
         private final List<ReplayLocalPlayerSnapshot> localSnapshots = new ArrayList<>();
+        private final Set<Integer> knownRemotePlayerEntityIds = new HashSet<>();
         private final long baseTime;
         private String lastScoreboardTitle = "";
         private List<String> lastScoreboardLines = Collections.emptyList();
@@ -340,8 +348,10 @@ public class ReplayManager {
             updateSnapshot(snapshot);
             for (PendingFrame frame : pending) {
                 addPacket(frame.capturedAt, frame.frame);
+                observeStoredFrame(frame.frame);
             }
             pendingFrames.clear();
+            captureVisiblePlayers(now);
         }
 
         private void updateSnapshot(GameSnapshot snapshot) {
@@ -375,6 +385,7 @@ public class ReplayManager {
         }
 
         private void captureTick(GameSnapshot snapshot) {
+            captureVisiblePlayers(System.currentTimeMillis());
             captureScoreboard(snapshot);
             captureLocalPlayerSnapshot();
             metadata.setEndedAt(System.currentTimeMillis());
@@ -418,6 +429,85 @@ public class ReplayManager {
                     player.isSprinting()
                 )
             );
+        }
+
+        private void observeInboundPacket(Packet<?> packet) {
+            if (packet instanceof S0CPacketSpawnPlayer) {
+                markRemotePlayerEntity(((S0CPacketSpawnPlayer) packet).getEntityID());
+            } else if (packet instanceof S13PacketDestroyEntities) {
+                forgetRemotePlayerEntities(((S13PacketDestroyEntities) packet).getEntityIDs());
+            }
+        }
+
+        private void observeStoredFrame(ReplayPacketFrame frame) {
+            if (
+                !S0CPacketSpawnPlayer.class.getName().equals(frame.getClassName()) &&
+                !S13PacketDestroyEntities.class.getName().equals(frame.getClassName())
+            ) {
+                return;
+            }
+            try {
+                Packet<?> packet = ReplayPacketCodec.decode(frame);
+                observeInboundPacket(packet);
+            } catch (Exception ignored) {}
+        }
+
+        private void captureVisiblePlayers(long capturedAt) {
+            if (mc.theWorld == null || mc.thePlayer == null || mc.getNetHandler() == null) {
+                return;
+            }
+
+            for (Object playerObj : mc.theWorld.playerEntities) {
+                if (!(playerObj instanceof EntityPlayer)) {
+                    continue;
+                }
+
+                EntityPlayer player = (EntityPlayer) playerObj;
+                if (player == mc.thePlayer) {
+                    continue;
+                }
+
+                int entityId = player.getEntityId();
+                if (knownRemotePlayerEntityIds.contains(entityId)) {
+                    continue;
+                }
+
+                if (
+                    player.getGameProfile() == null ||
+                    player.getGameProfile().getId() == null ||
+                    player.getGameProfile().getName() == null ||
+                    player.getGameProfile().getName().trim().isEmpty()
+                ) {
+                    continue;
+                }
+
+                NetworkPlayerInfo playerInfo = mc.getNetHandler().getPlayerInfo(
+                    player.getUniqueID()
+                );
+                if (playerInfo == null) {
+                    continue;
+                }
+
+                try {
+                    addPacket(capturedAt, ReplayPacketCodec.encode(0, new S0CPacketSpawnPlayer(player)));
+                    markRemotePlayerEntity(entityId);
+                } catch (Exception ignored) {}
+            }
+        }
+
+        private void markRemotePlayerEntity(int entityId) {
+            if (mc.thePlayer == null || entityId != mc.thePlayer.getEntityId()) {
+                knownRemotePlayerEntityIds.add(entityId);
+            }
+        }
+
+        private void forgetRemotePlayerEntities(int[] entityIds) {
+            if (entityIds == null || entityIds.length == 0) {
+                return;
+            }
+            for (int entityId : entityIds) {
+                knownRemotePlayerEntityIds.remove(entityId);
+            }
         }
 
         private int toRelativeTime(long capturedAt) {

@@ -5,7 +5,9 @@ import com.roxiun.mellow.mixin.replay.NetHandlerPlayClientAccessor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -14,6 +16,7 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.PlayerControllerMP;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.network.NetHandlerPlayClient;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.S01PacketJoinGame;
@@ -22,6 +25,8 @@ import net.minecraft.network.play.server.S06PacketUpdateHealth;
 import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.network.play.server.S09PacketHeldItemChange;
+import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
+import net.minecraft.network.play.server.S13PacketDestroyEntities;
 import net.minecraft.network.play.server.S14PacketEntity;
 import net.minecraft.network.play.server.S18PacketEntityTeleport;
 import net.minecraft.network.play.server.S19PacketEntityHeadLook;
@@ -46,8 +51,10 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     private final Minecraft mc;
     private final ReplayPlaybackSession session;
-    private final Deque<String> fallbackNames = new ArrayDeque<>();
-    private final Set<String> claimedNames = new HashSet<>();
+    private final Deque<GameProfile> fallbackProfiles = new ArrayDeque<>();
+    private final Set<UUID> queuedFallbackProfileIds = new HashSet<>();
+    private final Set<UUID> claimedFallbackProfileIds = new HashSet<>();
+    private final Map<Integer, GameProfile> knownPlayerProfilesByEntityId = new HashMap<>();
     private int fallbackCounter = 1;
 
     public ReplayNetHandlerPlayClient(
@@ -160,6 +167,24 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
     }
 
     @Override
+    public void handleSpawnPlayer(S0CPacketSpawnPlayer packetIn) {
+        claimFallbackProfile(packetIn.getPlayer());
+        super.handleSpawnPlayer(packetIn);
+        NetworkPlayerInfo info = getPlayerInfo(packetIn.getPlayer());
+        if (info != null && info.getGameProfile() != null) {
+            knownPlayerProfilesByEntityId.put(
+                packetIn.getEntityID(),
+                copyProfile(info.getGameProfile())
+            );
+        }
+    }
+
+    @Override
+    public void handleDestroyEntities(S13PacketDestroyEntities packetIn) {
+        super.handleDestroyEntities(packetIn);
+    }
+
+    @Override
     public void handleEntityMovement(S14PacketEntity packetIn) {
         Entity entity = packetIn.getEntity(mc.theWorld);
         if (entity == null) {
@@ -195,16 +220,26 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
                 if (entry == null || entry.getProfile() == null) {
                     continue;
                 }
+                UUID uuid = entry.getProfile().getId();
                 String name = entry.getProfile().getName();
-                if (name == null || name.trim().isEmpty()) {
+                if (uuid == null || name == null || name.trim().isEmpty()) {
                     continue;
                 }
-                if (mc.thePlayer != null && name.equalsIgnoreCase(mc.thePlayer.getName())) {
+                if (
+                    mc.thePlayer != null &&
+                    (uuid.equals(mc.thePlayer.getUniqueID()) ||
+                    name.equalsIgnoreCase(mc.thePlayer.getName()))
+                ) {
                     continue;
                 }
-                if (!claimedNames.contains(name)) {
-                    fallbackNames.add(name);
+                if (
+                    claimedFallbackProfileIds.contains(uuid) ||
+                    queuedFallbackProfileIds.contains(uuid)
+                ) {
+                    continue;
                 }
+                fallbackProfiles.addLast(copyProfile(entry.getProfile()));
+                queuedFallbackProfileIds.add(uuid);
             }
         }
         super.handlePlayerListItem(packetIn);
@@ -274,6 +309,7 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
         }
         if (
             entityId == ReplayPlaybackSession.REPLAY_VIEWER_ENTITY_ID ||
+            entityId <= 0 ||
             (mc.thePlayer != null && entityId == mc.thePlayer.getEntityId())
         ) {
             return;
@@ -283,32 +319,55 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
             return;
         }
 
-        String name = nextFallbackName();
-        EntityOtherPlayerMP player = new EntityOtherPlayerMP(
-            mc.theWorld,
-            new GameProfile(
-                UUID.nameUUIDFromBytes(
-                    ("mellow-replay-fallback-" + entityId).getBytes(StandardCharsets.UTF_8)
-                ),
-                name
-            )
-        );
+        GameProfile profile = knownPlayerProfilesByEntityId.get(entityId);
+        if (profile == null) {
+            if (!session.allowLegacyFallbackPlayers()) {
+                return;
+            }
+            profile = nextFallbackProfile(entityId);
+            if (profile == null) {
+                return;
+            }
+            knownPlayerProfilesByEntityId.put(entityId, copyProfile(profile));
+        }
+
+        EntityOtherPlayerMP player = new EntityOtherPlayerMP(mc.theWorld, copyProfile(profile));
         player.setEntityId(entityId);
         player.setPositionAndRotation(x, y, z, yaw, pitch);
         mc.theWorld.addEntityToWorld(entityId, player);
     }
 
-    private String nextFallbackName() {
-        while (!fallbackNames.isEmpty()) {
-            String next = fallbackNames.removeFirst();
-            if (next == null || next.trim().isEmpty() || claimedNames.contains(next)) {
+    private GameProfile nextFallbackProfile(int entityId) {
+        while (!fallbackProfiles.isEmpty()) {
+            GameProfile next = fallbackProfiles.removeFirst();
+            UUID uuid = next.getId();
+            queuedFallbackProfileIds.remove(uuid);
+            if (
+                next.getName() == null ||
+                next.getName().trim().isEmpty() ||
+                (uuid != null && claimedFallbackProfileIds.contains(uuid))
+            ) {
                 continue;
             }
-            claimedNames.add(next);
+            if (uuid != null) {
+                claimedFallbackProfileIds.add(uuid);
+            }
             return next;
         }
-        String generated = "ReplayPlayer" + fallbackCounter++;
-        claimedNames.add(generated);
-        return generated;
+        return null;
+    }
+
+    private void claimFallbackProfile(UUID uuid) {
+        if (uuid == null) {
+            return;
+        }
+        queuedFallbackProfileIds.remove(uuid);
+        claimedFallbackProfileIds.add(uuid);
+    }
+
+    private GameProfile copyProfile(GameProfile profile) {
+        GameProfile copy = new GameProfile(profile.getId(), profile.getName());
+        copy.getProperties().putAll(profile.getProperties());
+        return copy;
     }
 }

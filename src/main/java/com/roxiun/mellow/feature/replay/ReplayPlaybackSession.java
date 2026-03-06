@@ -17,6 +17,7 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S01PacketJoinGame;
 import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
+import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.world.EnumDifficulty;
@@ -49,10 +50,12 @@ public class ReplayPlaybackSession {
     private String spectatingName = "";
     private boolean bootstrapPacketOpen;
     private boolean worldBootstrapped;
+    private final boolean allowLegacyFallbackPlayers;
 
     public ReplayPlaybackSession(ReplayLoadedData replay, Runnable stopCallback) {
         this.replay = replay;
         this.stopCallback = stopCallback;
+        this.allowLegacyFallbackPlayers = !hasRecordedPlayerSpawns(replay);
     }
 
     public void open() {
@@ -522,6 +525,10 @@ public class ReplayPlaybackSession {
         return worldBootstrapped;
     }
 
+    public boolean allowLegacyFallbackPlayers() {
+        return allowLegacyFallbackPlayers;
+    }
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private void processPacket(Packet<?> packet) {
         ((Packet) packet).processPacket(netHandler);
@@ -550,5 +557,14 @@ public class ReplayPlaybackSession {
     private String resolveViewerName() {
         String name = replay.getMetadata().getViewerName();
         return name == null || name.trim().isEmpty() ? "ReplayPlayer" : name;
+    }
+
+    private boolean hasRecordedPlayerSpawns(ReplayLoadedData replayData) {
+        for (ReplayPacketFrame frame : replayData.getPackets()) {
+            if (S0CPacketSpawnPlayer.class.getName().equals(frame.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
