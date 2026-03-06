@@ -19,6 +19,9 @@ import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.IChatComponent;
+import net.minecraft.world.EnumDifficulty;
+import net.minecraft.world.WorldSettings;
+import net.minecraft.world.WorldType;
 
 public class ReplayPlaybackSession {
 
@@ -44,6 +47,8 @@ public class ReplayPlaybackSession {
     private int speedIndex = 2;
     private int lastControlSlot = 4;
     private String spectatingName = "";
+    private boolean bootstrapPacketOpen;
+    private boolean worldBootstrapped;
 
     public ReplayPlaybackSession(ReplayLoadedData replay, Runnable stopCallback) {
         this.replay = replay;
@@ -211,6 +216,7 @@ public class ReplayPlaybackSession {
     public void onJoinGame(S01PacketJoinGame packetIn) {
         localReplayPlayer = null;
         viewerPositionInitialized = false;
+        worldBootstrapped = true;
     }
 
     public void onRespawn(S07PacketRespawn packetIn) {
@@ -256,6 +262,9 @@ public class ReplayPlaybackSession {
         currentScoreboard = null;
         viewerPositionInitialized = false;
         lastControlSlot = 4;
+        bootstrapPacketOpen = false;
+        worldBootstrapped = false;
+        bootstrapReplayWorld();
         applyPacketsUpTo(targetMs);
         advanceScoreboardTo(targetMs);
         updateLocalReplayPlayer(targetMs);
@@ -495,9 +504,37 @@ public class ReplayPlaybackSession {
             : replay.getMetadata().getViewerUuid();
     }
 
+    public boolean shouldProcessWorldBootstrapPacket() {
+        return bootstrapPacketOpen;
+    }
+
+    public boolean hasWorldBootstrapped() {
+        return worldBootstrapped;
+    }
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private void processPacket(Packet<?> packet) {
         ((Packet) packet).processPacket(netHandler);
+    }
+
+    private void bootstrapReplayWorld() {
+        bootstrapPacketOpen = true;
+        try {
+            processPacket(
+                new S01PacketJoinGame(
+                    REPLAY_VIEWER_ENTITY_ID,
+                    WorldSettings.GameType.CREATIVE,
+                    false,
+                    0,
+                    EnumDifficulty.NORMAL,
+                    20,
+                    WorldType.DEFAULT,
+                    true
+                )
+            );
+        } finally {
+            bootstrapPacketOpen = false;
+        }
     }
 
     private String resolveViewerName() {

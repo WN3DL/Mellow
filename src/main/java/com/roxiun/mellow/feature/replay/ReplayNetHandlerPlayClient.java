@@ -61,6 +61,9 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     @Override
     public void handleJoinGame(S01PacketJoinGame packetIn) {
+        if (!session.shouldProcessWorldBootstrapPacket()) {
+            return;
+        }
         WorldType worldType = packetIn.getWorldType() == null
             ? WorldType.DEFAULT
             : packetIn.getWorldType();
@@ -99,6 +102,9 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     @Override
     public void handleRespawn(S07PacketRespawn packetIn) {
+        if (!session.shouldProcessWorldBootstrapPacket()) {
+            return;
+        }
         WorldType worldType = packetIn.getWorldType() == null
             ? WorldType.DEFAULT
             : packetIn.getWorldType();
