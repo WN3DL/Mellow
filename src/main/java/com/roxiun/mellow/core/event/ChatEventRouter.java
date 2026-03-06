@@ -4,6 +4,7 @@ import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
+import com.roxiun.mellow.feature.replay.ReplayManager;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.module.bedwars.BedwarsChatSignalParser;
 import net.minecraft.client.Minecraft;
@@ -40,6 +41,7 @@ public class ChatEventRouter {
             requestPopupService.onChatMessage(message);
         }
         HypixelFeatures.getInstance().onChat(message);
+        ReplayManager.getInstance().onChatReceived(event.message, event.type);
 
         if (
             BedwarsChatSignalParser.isBedwarsStartMessage(message) ||

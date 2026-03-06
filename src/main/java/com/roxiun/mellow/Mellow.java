@@ -28,6 +28,8 @@ import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupManager;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
+import com.roxiun.mellow.feature.replay.ReplayHudRouter;
+import com.roxiun.mellow.feature.replay.ReplayManager;
 import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.feature.stats.ProviderHealthWarningService;
@@ -124,6 +126,7 @@ public class Mellow {
             config,
             requestPopupManager
         );
+        ReplayManager replayManager = ReplayManager.getInstance();
 
         KeyBinding requestAcceptKeybind = new KeyBinding(
             "Accept Request",
@@ -161,6 +164,7 @@ public class Mellow {
         HypixelFeatures
             .getInstance()
             .addGameStateListener(inGameTabStatsSyncService::onSnapshotUpdate);
+        HypixelFeatures.getInstance().addGameStateListener(replayManager::onGameSnapshot);
 
         MinecraftForge.EVENT_BUS.register(
             new ChatEventRouter(
@@ -176,6 +180,7 @@ public class Mellow {
         MinecraftForge.EVENT_BUS.register(
             new ClientTickRouter(HypixelFeatures.getInstance())
         );
+        MinecraftForge.EVENT_BUS.register(new ReplayHudRouter(replayManager));
         MinecraftForge.EVENT_BUS.register(new NametagColorRouter(config));
         TabOverlayRouter tabOverlayRouter = new TabOverlayRouter(config);
         MinecraftForge.EVENT_BUS.register(tabOverlayRouter);
@@ -218,6 +223,7 @@ public class Mellow {
         ClientCommandHandler.instance.registerCommand(
             new SeraphCommand(seraphApi, mojangApi, config)
         );
+        ClientCommandHandler.instance.registerCommand(new ReplayCommand(replayManager));
     }
 
     public StatsProvider getStatsProvider() {

@@ -14,6 +14,8 @@
     "nametag.RendererLivingEntityNametagColorMixin",
     "OverflowAnimationsTabCompatMixin",
     "PingMixin",
+    "replay.NetworkManagerReplayCaptureMixin",
+    "replay.NetHandlerPlayClientAccessor",
     "VanillaHudTabBackgroundCompatMixin"
   ],
   "mixins": [
