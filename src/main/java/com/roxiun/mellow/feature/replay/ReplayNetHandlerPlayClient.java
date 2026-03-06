@@ -2,12 +2,19 @@ package com.roxiun.mellow.feature.replay;
 
 import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.mixin.replay.NetHandlerPlayClientAccessor;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.multiplayer.PlayerControllerMP;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.network.NetHandlerPlayClient;
+import net.minecraft.entity.Entity;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.play.server.S01PacketJoinGame;
 import net.minecraft.network.play.server.S02PacketChat;
@@ -15,6 +22,9 @@ import net.minecraft.network.play.server.S06PacketUpdateHealth;
 import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.network.play.server.S09PacketHeldItemChange;
+import net.minecraft.network.play.server.S14PacketEntity;
+import net.minecraft.network.play.server.S18PacketEntityTeleport;
+import net.minecraft.network.play.server.S19PacketEntityHeadLook;
 import net.minecraft.network.play.server.S1FPacketSetExperience;
 import net.minecraft.network.play.server.S2BPacketChangeGameState;
 import net.minecraft.network.play.server.S2DPacketOpenWindow;
@@ -23,6 +33,7 @@ import net.minecraft.network.play.server.S2FPacketSetSlot;
 import net.minecraft.network.play.server.S30PacketWindowItems;
 import net.minecraft.network.play.server.S32PacketConfirmTransaction;
 import net.minecraft.network.play.server.S37PacketStatistics;
+import net.minecraft.network.play.server.S38PacketPlayerListItem;
 import net.minecraft.network.play.server.S39PacketPlayerAbilities;
 import net.minecraft.network.play.server.S43PacketCamera;
 import net.minecraft.network.play.server.S45PacketTitle;
@@ -35,6 +46,9 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     private final Minecraft mc;
     private final ReplayPlaybackSession session;
+    private final Deque<String> fallbackNames = new ArrayDeque<>();
+    private final Set<String> claimedNames = new HashSet<>();
+    private int fallbackCounter = 1;
 
     public ReplayNetHandlerPlayClient(
         Minecraft mc,
@@ -146,6 +160,57 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
     }
 
     @Override
+    public void handleEntityMovement(S14PacketEntity packetIn) {
+        Entity entity = packetIn.getEntity(mc.theWorld);
+        if (entity == null) {
+            return;
+        }
+        super.handleEntityMovement(packetIn);
+    }
+
+    @Override
+    public void handleEntityTeleport(S18PacketEntityTeleport packetIn) {
+        ensureReplayPlayer(
+            packetIn.getEntityId(),
+            packetIn.getX() / 32.0D,
+            packetIn.getY() / 32.0D,
+            packetIn.getZ() / 32.0D,
+            (packetIn.getYaw() * 360.0F) / 256.0F,
+            (packetIn.getPitch() * 360.0F) / 256.0F
+        );
+        super.handleEntityTeleport(packetIn);
+    }
+
+    @Override
+    public void handleEntityHeadLook(S19PacketEntityHeadLook packetIn) {
+        if (packetIn.getEntity(mc.theWorld) != null) {
+            super.handleEntityHeadLook(packetIn);
+        }
+    }
+
+    @Override
+    public void handlePlayerListItem(S38PacketPlayerListItem packetIn) {
+        if (packetIn.getAction() == S38PacketPlayerListItem.Action.ADD_PLAYER) {
+            for (S38PacketPlayerListItem.AddPlayerData entry : packetIn.getEntries()) {
+                if (entry == null || entry.getProfile() == null) {
+                    continue;
+                }
+                String name = entry.getProfile().getName();
+                if (name == null || name.trim().isEmpty()) {
+                    continue;
+                }
+                if (mc.thePlayer != null && name.equalsIgnoreCase(mc.thePlayer.getName())) {
+                    continue;
+                }
+                if (!claimedNames.contains(name)) {
+                    fallbackNames.add(name);
+                }
+            }
+        }
+        super.handlePlayerListItem(packetIn);
+    }
+
+    @Override
     public void handleChat(S02PacketChat packetIn) {}
 
     @Override
@@ -194,5 +259,56 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     private static Profiler resolveProfiler(Minecraft minecraft) {
         return minecraft == null ? new Profiler() : minecraft.mcProfiler;
+    }
+
+    private void ensureReplayPlayer(
+        int entityId,
+        double x,
+        double y,
+        double z,
+        float yaw,
+        float pitch
+    ) {
+        if (mc.theWorld == null) {
+            return;
+        }
+        if (
+            entityId == ReplayPlaybackSession.REPLAY_VIEWER_ENTITY_ID ||
+            (mc.thePlayer != null && entityId == mc.thePlayer.getEntityId())
+        ) {
+            return;
+        }
+        Entity existing = mc.theWorld.getEntityByID(entityId);
+        if (existing != null) {
+            return;
+        }
+
+        String name = nextFallbackName();
+        EntityOtherPlayerMP player = new EntityOtherPlayerMP(
+            mc.theWorld,
+            new GameProfile(
+                UUID.nameUUIDFromBytes(
+                    ("mellow-replay-fallback-" + entityId).getBytes(StandardCharsets.UTF_8)
+                ),
+                name
+            )
+        );
+        player.setEntityId(entityId);
+        player.setPositionAndRotation(x, y, z, yaw, pitch);
+        mc.theWorld.addEntityToWorld(entityId, player);
+    }
+
+    private String nextFallbackName() {
+        while (!fallbackNames.isEmpty()) {
+            String next = fallbackNames.removeFirst();
+            if (next == null || next.trim().isEmpty() || claimedNames.contains(next)) {
+                continue;
+            }
+            claimedNames.add(next);
+            return next;
+        }
+        String generated = "ReplayPlayer" + fallbackCounter++;
+        claimedNames.add(generated);
+        return generated;
     }
 }

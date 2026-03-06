@@ -69,6 +69,12 @@ public class ReplayManager {
         long now = System.currentTimeMillis();
         try {
             ReplayPacketFrame frame = ReplayPacketCodec.encode(0, packet);
+            if (packet instanceof S01PacketJoinGame && activeRecording != null) {
+                stopRecording();
+                pendingFrames.clear();
+                pendingFrames.add(new PendingFrame(now, frame));
+                return;
+            }
             if (packet instanceof S01PacketJoinGame) {
                 pendingFrames.clear();
             }
@@ -99,7 +105,6 @@ public class ReplayManager {
 
     public void onWorldChange() {
         if (!isPlaybackActive()) {
-            pendingFrames.clear();
             if (activeRecording != null) {
                 stopRecording();
             }

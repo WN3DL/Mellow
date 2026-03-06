@@ -344,17 +344,27 @@ public class ReplayPlaybackSession {
                 new GameProfile(resolveViewerUuid(), resolveViewerName())
             );
             localReplayPlayer.setEntityId(REPLAY_LOCAL_PLAYER_ENTITY_ID);
+            localReplayPlayer.setPositionAndRotation(
+                snapshot.getX(),
+                snapshot.getY(),
+                snapshot.getZ(),
+                snapshot.getYaw(),
+                snapshot.getPitch()
+            );
             mc.theWorld.addEntityToWorld(REPLAY_LOCAL_PLAYER_ENTITY_ID, localReplayPlayer);
+        } else {
+            localReplayPlayer.setPositionAndRotation2(
+                snapshot.getX(),
+                snapshot.getY(),
+                snapshot.getZ(),
+                snapshot.getYaw(),
+                snapshot.getPitch(),
+                3,
+                true
+            );
         }
         localReplayPlayer.setSneaking(snapshot.isSneaking());
         localReplayPlayer.setSprinting(snapshot.isSprinting());
-        localReplayPlayer.setPositionAndRotation(
-            snapshot.getX(),
-            snapshot.getY(),
-            snapshot.getZ(),
-            snapshot.getYaw(),
-            snapshot.getPitch()
-        );
         localReplayPlayer.rotationYawHead = snapshot.getYaw();
         localReplayPlayer.renderYawOffset = snapshot.getYaw();
         if (!viewerPositionInitialized && mc.thePlayer != null) {
