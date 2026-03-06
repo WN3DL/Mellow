@@ -94,6 +94,7 @@ configurations { shade }
 dependencies {
     shade("com.squareup.okhttp3:okhttp:4.9.3") { exclude(group = "org.jetbrains.kotlin") }
     shade("net.hypixel:mod-api:1.0")
+    shade("org.tukaani:xz:1.9")
     testImplementation("junit:junit:4.13.2")
     // Adds the OneConfig library, so we can develop with it.
     modCompileOnly("cc.polyfrost:oneconfig-$platform:0.2.2-alpha+")

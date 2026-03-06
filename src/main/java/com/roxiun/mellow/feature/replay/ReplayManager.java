@@ -17,8 +17,21 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S01PacketJoinGame;
+import net.minecraft.network.play.server.S02PacketChat;
+import net.minecraft.network.play.server.S06PacketUpdateHealth;
+import net.minecraft.network.play.server.S09PacketHeldItemChange;
 import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
 import net.minecraft.network.play.server.S13PacketDestroyEntities;
+import net.minecraft.network.play.server.S1FPacketSetExperience;
+import net.minecraft.network.play.server.S2DPacketOpenWindow;
+import net.minecraft.network.play.server.S2EPacketCloseWindow;
+import net.minecraft.network.play.server.S2FPacketSetSlot;
+import net.minecraft.network.play.server.S30PacketWindowItems;
+import net.minecraft.network.play.server.S32PacketConfirmTransaction;
+import net.minecraft.network.play.server.S37PacketStatistics;
+import net.minecraft.network.play.server.S39PacketPlayerAbilities;
+import net.minecraft.network.play.server.S43PacketCamera;
+import net.minecraft.network.play.server.S45PacketTitle;
 import net.minecraft.util.IChatComponent;
 
 public class ReplayManager {
@@ -68,7 +81,12 @@ public class ReplayManager {
     }
 
     public void onInboundPacket(Packet<?> packet) {
-        if (packet == null || isPlaybackActive() || !isRecordingEnabled()) {
+        if (
+            packet == null ||
+            isPlaybackActive() ||
+            !isRecordingEnabled() ||
+            shouldSkipPacket(packet)
+        ) {
             return;
         }
 
@@ -306,6 +324,23 @@ public class ReplayManager {
 
     private int maxStoredReplays() {
         return Mellow.config == null ? 0 : Mellow.config.maxStoredReplays;
+    }
+
+    private boolean shouldSkipPacket(Packet<?> packet) {
+        return
+            packet instanceof S02PacketChat ||
+            packet instanceof S06PacketUpdateHealth ||
+            packet instanceof S09PacketHeldItemChange ||
+            packet instanceof S1FPacketSetExperience ||
+            packet instanceof S2DPacketOpenWindow ||
+            packet instanceof S2EPacketCloseWindow ||
+            packet instanceof S2FPacketSetSlot ||
+            packet instanceof S30PacketWindowItems ||
+            packet instanceof S32PacketConfirmTransaction ||
+            packet instanceof S37PacketStatistics ||
+            packet instanceof S39PacketPlayerAbilities ||
+            packet instanceof S43PacketCamera ||
+            packet instanceof S45PacketTitle;
     }
 
     private String safe(String value) {

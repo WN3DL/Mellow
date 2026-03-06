@@ -15,6 +15,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,7 +28,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
+import org.tukaani.xz.LZMA2Options;
+import org.tukaani.xz.XZInputStream;
+import org.tukaani.xz.XZOutputStream;
 
 public class ReplayIo {
 
@@ -42,6 +45,15 @@ public class ReplayIo {
     private static final byte EVENT_CHAT = 1;
     private static final byte EVENT_SCOREBOARD = 2;
     private static final byte EVENT_LOCAL_PLAYER = 3;
+    private static final byte[] XZ_HEADER = new byte[] {
+        (byte) 0xFD,
+        '7',
+        'z',
+        'X',
+        'Z',
+        0x00,
+    };
+    private static final int XZ_COMPRESSION_PRESET = 4;
 
     public File getReplayRoot(File mcDataDir) {
         File root = new File(mcDataDir, "mellow-replays");
@@ -190,11 +202,7 @@ public class ReplayIo {
         }
 
         try (
-            DataOutputStream out = new DataOutputStream(
-                new GZIPOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(file))
-                )
-            )
+            DataOutputStream out = openCompressedOutput(file)
         ) {
             out.writeInt(PACKETS_MAGIC);
             out.writeInt(FORMAT_VERSION_V2);
@@ -220,11 +228,7 @@ public class ReplayIo {
         }
 
         try (
-            DataInputStream in = new DataInputStream(
-                new GZIPInputStream(
-                    new BufferedInputStream(new FileInputStream(file))
-                )
-            )
+            DataInputStream in = openCompressedInput(file)
         ) {
             int magic = in.readInt();
             int version = in.readInt();
@@ -265,11 +269,7 @@ public class ReplayIo {
         List<ReplayLocalPlayerSnapshot> localSnapshots
     ) throws IOException {
         try (
-            DataOutputStream out = new DataOutputStream(
-                new GZIPOutputStream(
-                    new BufferedOutputStream(new FileOutputStream(file))
-                )
-            )
+            DataOutputStream out = openCompressedOutput(file)
         ) {
             out.writeInt(EVENTS_MAGIC);
             out.writeInt(FORMAT_VERSION_V2);
@@ -290,11 +290,7 @@ public class ReplayIo {
         }
 
         try (
-            DataInputStream in = new DataInputStream(
-                new GZIPInputStream(
-                    new BufferedInputStream(new FileInputStream(file))
-                )
-            )
+            DataInputStream in = openCompressedInput(file)
         ) {
             int magic = in.readInt();
             int version = in.readInt();
@@ -456,6 +452,39 @@ public class ReplayIo {
         if (actual != expected) {
             throw new IOException("Invalid replay event type: " + actual);
         }
+    }
+
+    private DataOutputStream openCompressedOutput(File file) throws IOException {
+        return new DataOutputStream(
+            new XZOutputStream(
+                new BufferedOutputStream(new FileOutputStream(file)),
+                new LZMA2Options(XZ_COMPRESSION_PRESET)
+            )
+        );
+    }
+
+    private DataInputStream openCompressedInput(File file) throws IOException {
+        BufferedInputStream input = new BufferedInputStream(new FileInputStream(file));
+        input.mark(XZ_HEADER.length);
+        byte[] header = new byte[XZ_HEADER.length];
+        int read = input.read(header);
+        input.reset();
+        InputStream compressed = isXzHeader(header, read)
+            ? new XZInputStream(input)
+            : new GZIPInputStream(input);
+        return new DataInputStream(compressed);
+    }
+
+    private boolean isXzHeader(byte[] header, int read) {
+        if (read < XZ_HEADER.length) {
+            return false;
+        }
+        for (int i = 0; i < XZ_HEADER.length; i++) {
+            if (header[i] != XZ_HEADER[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void writeByteArray(DataOutputStream out, byte[] bytes) throws IOException {
