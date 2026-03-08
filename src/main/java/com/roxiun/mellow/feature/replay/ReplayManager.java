@@ -5,6 +5,7 @@ import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.module.bedwars.BedwarsChatSignalParser;
 import com.roxiun.mellow.util.ChatUtils;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -115,6 +116,7 @@ public class ReplayManager {
             if (activeRecording != null) {
                 activeRecording.addPacket(now, frame);
                 activeRecording.observeInboundPacket(packet);
+                abortRecordingIfFailed();
             } else {
                 pendingFrames.add(new PendingFrame(now, frame));
                 trimPendingFrames(now);
@@ -141,6 +143,7 @@ public class ReplayManager {
             return;
         }
         activeRecording.addChat(component, type);
+        abortRecordingIfFailed();
     }
 
     public void onOutboundPacket(Packet<?> packet) {
@@ -156,6 +159,7 @@ public class ReplayManager {
         try {
             if (activeRecording != null) {
                 activeRecording.observeOutboundPacket(now, packet);
+                abortRecordingIfFailed();
             } else {
                 pendingLocalPlayerRecorder.observeOutboundPacket(
                     packet,
@@ -180,6 +184,7 @@ public class ReplayManager {
         }
         if (activeRecording != null) {
             activeRecording.captureTick(snapshot);
+            abortRecordingIfFailed();
         } else if (!isPlaybackActive() && isRecordingEnabled()) {
             capturePendingLocalPlayer();
         }
@@ -313,33 +318,33 @@ public class ReplayManager {
         if (!isRecordingEnabled()) {
             return;
         }
-        activeRecording = new RecordingSession(
-            snapshot,
-            pendingFrames,
-            pendingLocalPlayerRecorder.copy()
-        );
-        pendingLocalPlayerRecorder.reset();
-        ChatUtils.sendMessage(
-            "§7Started recording replay for §f" + safe(snapshot.getMap()) + "§7."
-        );
+        try {
+            activeRecording = new RecordingSession(
+                snapshot,
+                pendingFrames,
+                pendingLocalPlayerRecorder.copy()
+            );
+            pendingLocalPlayerRecorder.reset();
+            ChatUtils.sendMessage(
+                "§7Started recording replay for §f" + safe(snapshot.getMap()) + "§7."
+            );
+        } catch (IOException e) {
+            ChatUtils.sendMessage("§cFailed to start replay recording: §f" + e.getMessage());
+        }
     }
 
     private void stopRecording() {
         RecordingSession session = activeRecording;
         activeRecording = null;
-        if (session == null || session.getPackets().isEmpty()) {
+        if (session == null) {
             return;
         }
         try {
+            if (!session.hasPackets()) {
+                return;
+            }
             File directory = io.createReplayDirectory(mc.mcDataDir, session.getMetadata());
-            io.saveReplay(
-                directory,
-                session.getMetadata(),
-                session.getPackets(),
-                session.getChats(),
-                session.getScoreboards(),
-                session.getLocalSnapshots()
-            );
+            io.saveReplay(directory, session.getMetadata(), session.getSpool());
             io.pruneOldest(mc.mcDataDir, maxStoredReplays());
             ChatUtils.sendMessage(
                 "§7Saved replay §f" + directory.getName() + "§7 (" +
@@ -347,7 +352,21 @@ public class ReplayManager {
             );
         } catch (Exception e) {
             ChatUtils.sendMessage("§cFailed to save replay: §f" + e.getMessage());
+        } finally {
+            session.discard();
         }
+    }
+
+    private void abortRecordingIfFailed() {
+        RecordingSession session = activeRecording;
+        if (session == null || !session.isFailed()) {
+            return;
+        }
+        activeRecording = null;
+        session.discard();
+        ChatUtils.sendMessage(
+            "§cStopped replay recording: §f" + safe(session.getFailureMessage())
+        );
     }
 
     private void trimPendingFrames(long now) {
@@ -430,24 +449,24 @@ public class ReplayManager {
     private final class RecordingSession {
 
         private final ReplayMetadata metadata = new ReplayMetadata();
-        private final List<ReplayPacketFrame> packets = new ArrayList<>();
-        private final List<ReplayChatEvent> chats = new ArrayList<>();
-        private final List<ReplayScoreboardFrame> scoreboards = new ArrayList<>();
-        private final List<ReplayLocalPlayerSnapshot> localSnapshots = new ArrayList<>();
         private final Set<Integer> knownRemotePlayerEntityIds = new HashSet<>();
         private final ReplayLocalPlayerPacketRecorder localPlayerRecorder;
+        private final ReplayRecordingSpool spool;
         private final long baseTime;
         private String lastScoreboardTitle = "";
         private List<String> lastScoreboardLines = Collections.emptyList();
+        private boolean failed;
+        private String failureMessage = "";
 
         private RecordingSession(
             GameSnapshot snapshot,
             List<PendingFrame> pending,
             ReplayLocalPlayerPacketRecorder localPlayerRecorder
-        ) {
+        ) throws IOException {
             long now = System.currentTimeMillis();
             this.baseTime = pending.isEmpty() ? now : pending.get(0).capturedAt;
             this.localPlayerRecorder = localPlayerRecorder;
+            this.spool = io.createRecordingSpool(mc.mcDataDir);
             metadata.setStartedAt(baseTime);
             metadata.setViewerName(
                 mc.thePlayer == null ? "" : mc.thePlayer.getName()
@@ -464,6 +483,14 @@ public class ReplayManager {
             pendingFrames.clear();
             captureVisiblePlayers(now);
             captureLocalPlayerPackets(now);
+            if (failed) {
+                discard();
+                throw new IOException(
+                    failureMessage == null || failureMessage.trim().isEmpty()
+                        ? "Unknown replay spool error."
+                        : failureMessage
+                );
+            }
         }
 
         private void updateSnapshot(GameSnapshot snapshot) {
@@ -479,21 +506,31 @@ public class ReplayManager {
 
         private void addPacket(long capturedAt, ReplayPacketFrame frame) {
             int timestamp = toRelativeTime(capturedAt);
-            packets.add(
-                new ReplayPacketFrame(timestamp, frame.getClassName(), frame.getPayload())
-            );
+            tryWrite(new IoRunnable() {
+                @Override
+                public void run() throws IOException {
+                    spool.appendPacket(
+                        new ReplayPacketFrame(timestamp, frame.getClassName(), frame.getPayload())
+                    );
+                }
+            });
             metadata.setDurationMs(Math.max(metadata.getDurationMs(), timestamp));
         }
 
         private void addChat(IChatComponent component, byte type) {
             int timestamp = toRelativeTime(System.currentTimeMillis());
-            chats.add(
-                new ReplayChatEvent(
-                    timestamp,
-                    IChatComponent.Serializer.componentToJson(component),
-                    type
-                )
-            );
+            tryWrite(new IoRunnable() {
+                @Override
+                public void run() throws IOException {
+                    spool.appendChat(
+                        new ReplayChatEvent(
+                            timestamp,
+                            IChatComponent.Serializer.componentToJson(component),
+                            type
+                        )
+                    );
+                }
+            });
         }
 
         private void captureTick(GameSnapshot snapshot) {
@@ -516,9 +553,17 @@ public class ReplayManager {
                 return;
             }
             long now = System.currentTimeMillis();
-            scoreboards.add(
-                new ReplayScoreboardFrame(toRelativeTime(now), title, lines)
+            final ReplayScoreboardFrame frame = new ReplayScoreboardFrame(
+                toRelativeTime(now),
+                title,
+                lines
             );
+            tryWrite(new IoRunnable() {
+                @Override
+                public void run() throws IOException {
+                    spool.appendScoreboard(frame);
+                }
+            });
             lastScoreboardTitle = title;
             lastScoreboardLines = lines;
         }
@@ -660,20 +705,40 @@ public class ReplayManager {
             return metadata;
         }
 
-        private List<ReplayPacketFrame> getPackets() {
-            return packets;
+        private ReplayRecordingSpool getSpool() {
+            return spool;
         }
 
-        private List<ReplayChatEvent> getChats() {
-            return chats;
+        private boolean hasPackets() {
+            return spool.getPacketCount() > 0;
         }
 
-        private List<ReplayScoreboardFrame> getScoreboards() {
-            return scoreboards;
+        private boolean isFailed() {
+            return failed;
         }
 
-        private List<ReplayLocalPlayerSnapshot> getLocalSnapshots() {
-            return localSnapshots;
+        private String getFailureMessage() {
+            return failureMessage;
         }
+
+        private void discard() {
+            spool.discard();
+        }
+
+        private void tryWrite(IoRunnable action) {
+            if (failed) {
+                return;
+            }
+            try {
+                action.run();
+            } catch (IOException e) {
+                failed = true;
+                failureMessage = e.getMessage();
+            }
+        }
+    }
+
+    private interface IoRunnable {
+        void run() throws IOException;
     }
 }

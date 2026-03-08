@@ -63,6 +63,11 @@ public class ReplayIo {
         return root;
     }
 
+    public ReplayRecordingSpool createRecordingSpool(File mcDataDir)
+        throws IOException {
+        return new ReplayRecordingSpool(getReplayRoot(mcDataDir));
+    }
+
     public File createReplayDirectory(File mcDataDir, ReplayMetadata metadata) {
         File root = getReplayRoot(mcDataDir);
         String stamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.ROOT)
@@ -94,6 +99,20 @@ public class ReplayIo {
         writePackets(new File(directory, PACKETS_FILE), packets);
         writeEvents(new File(directory, EVENTS_FILE), chats, scoreboards, localSnapshots);
         writeIndex(new File(directory, INDEX_FILE), packets);
+    }
+
+    public void saveReplay(
+        File directory,
+        ReplayMetadata metadata,
+        ReplayRecordingSpool spool
+    ) throws IOException {
+        spool.finish();
+        metadata.setFormatVersion(FORMAT_VERSION_V2);
+        metadata.setPacketCount(spool.getPacketCount());
+        writeMetadata(new File(directory, META_FILE), metadata);
+        writePackets(new File(directory, PACKETS_FILE), spool);
+        writeEvents(new File(directory, EVENTS_FILE), spool);
+        writeSpoolIndex(new File(directory, INDEX_FILE), spool.getIndexEntries());
     }
 
     public ReplayLoadedData loadReplay(File directory) throws IOException {
@@ -221,6 +240,33 @@ public class ReplayIo {
         }
     }
 
+    private void writePackets(File file, ReplayRecordingSpool spool)
+        throws IOException {
+        List<String> packetTypes = spool.getPacketTypes();
+
+        try (
+            DataOutputStream out = openCompressedOutput(file);
+            DataInputStream in = spool.openPacketsInput()
+        ) {
+            out.writeInt(PACKETS_MAGIC);
+            out.writeInt(FORMAT_VERSION_V2);
+            writeVarInt(out, packetTypes.size());
+            for (String className : packetTypes) {
+                writeString(out, className);
+            }
+            writeVarInt(out, spool.getPacketCount());
+            int previousTimestamp = 0;
+            for (int i = 0; i < spool.getPacketCount(); i++) {
+                int timestamp = in.readInt();
+                int packetTypeId = in.readInt();
+                writeVarInt(out, timestamp - previousTimestamp);
+                previousTimestamp = timestamp;
+                writeVarInt(out, packetTypeId);
+                writeByteArray(out, readSpoolByteArray(in));
+            }
+        }
+    }
+
     private List<ReplayPacketFrame> readPackets(File file) throws IOException {
         List<ReplayPacketFrame> packets = new ArrayList<>();
         if (!file.exists()) {
@@ -276,6 +322,61 @@ public class ReplayIo {
             writeChatEvents(out, chats);
             writeScoreboardEvents(out, scoreboards);
             writeLocalPlayerEvents(out, localSnapshots);
+        }
+    }
+
+    private void writeEvents(File file, ReplayRecordingSpool spool)
+        throws IOException {
+        try (
+            DataOutputStream out = openCompressedOutput(file);
+            DataInputStream chatsIn = spool.openChatsInput();
+            DataInputStream scoreboardsIn = spool.openScoreboardsInput();
+            DataInputStream localsIn = spool.openLocalSnapshotsInput()
+        ) {
+            out.writeInt(EVENTS_MAGIC);
+            out.writeInt(FORMAT_VERSION_V2);
+
+            writeVarInt(out, spool.getChatCount());
+            int previousChatTimestamp = 0;
+            for (int i = 0; i < spool.getChatCount(); i++) {
+                int timestamp = chatsIn.readInt();
+                out.writeByte(EVENT_CHAT);
+                writeVarInt(out, timestamp - previousChatTimestamp);
+                previousChatTimestamp = timestamp;
+                writeString(out, readSpoolString(chatsIn));
+                out.writeByte(chatsIn.readUnsignedByte());
+            }
+
+            writeVarInt(out, spool.getScoreboardCount());
+            int previousScoreboardTimestamp = 0;
+            for (int i = 0; i < spool.getScoreboardCount(); i++) {
+                int timestamp = scoreboardsIn.readInt();
+                out.writeByte(EVENT_SCOREBOARD);
+                writeVarInt(out, timestamp - previousScoreboardTimestamp);
+                previousScoreboardTimestamp = timestamp;
+                writeString(out, readSpoolString(scoreboardsIn));
+                int lineCount = scoreboardsIn.readInt();
+                writeVarInt(out, lineCount);
+                for (int lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+                    writeString(out, readSpoolString(scoreboardsIn));
+                }
+            }
+
+            writeVarInt(out, spool.getLocalSnapshotCount());
+            int previousLocalTimestamp = 0;
+            for (int i = 0; i < spool.getLocalSnapshotCount(); i++) {
+                int timestamp = localsIn.readInt();
+                out.writeByte(EVENT_LOCAL_PLAYER);
+                writeVarInt(out, timestamp - previousLocalTimestamp);
+                previousLocalTimestamp = timestamp;
+                out.writeDouble(localsIn.readDouble());
+                out.writeDouble(localsIn.readDouble());
+                out.writeDouble(localsIn.readDouble());
+                out.writeFloat(localsIn.readFloat());
+                out.writeFloat(localsIn.readFloat());
+                out.writeBoolean(localsIn.readBoolean());
+                out.writeBoolean(localsIn.readBoolean());
+            }
         }
     }
 
@@ -447,6 +548,23 @@ public class ReplayIo {
         }
     }
 
+    private void writeSpoolIndex(
+        File file,
+        List<ReplayRecordingSpool.IndexEntry> indexEntries
+    ) throws IOException {
+        try (
+            DataOutputStream out = new DataOutputStream(
+                new BufferedOutputStream(new FileOutputStream(file))
+            )
+        ) {
+            out.writeInt(indexEntries.size());
+            for (ReplayRecordingSpool.IndexEntry entry : indexEntries) {
+                out.writeInt(entry.getTimestampMs());
+                out.writeInt(entry.getPacketIndex());
+            }
+        }
+    }
+
     private void expectEventType(DataInputStream in, byte expected) throws IOException {
         byte actual = in.readByte();
         if (actual != expected) {
@@ -500,6 +618,13 @@ public class ReplayIo {
         return bytes;
     }
 
+    private byte[] readSpoolByteArray(DataInputStream in) throws IOException {
+        int length = in.readInt();
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return bytes;
+    }
+
     private void writeString(DataOutputStream out, String value) throws IOException {
         byte[] bytes = (value == null ? "" : value).getBytes(StandardCharsets.UTF_8);
         writeVarInt(out, bytes.length);
@@ -508,6 +633,13 @@ public class ReplayIo {
 
     private String readString(DataInputStream in) throws IOException {
         int length = readVarInt(in);
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private String readSpoolString(DataInputStream in) throws IOException {
+        int length = in.readInt();
         byte[] bytes = new byte[length];
         in.readFully(bytes);
         return new String(bytes, StandardCharsets.UTF_8);

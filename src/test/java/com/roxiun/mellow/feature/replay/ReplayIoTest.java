@@ -35,21 +35,7 @@ public class ReplayIoTest {
         File tempDir = Files.createTempDirectory("replay-io-roundtrip").toFile();
         try {
             ReplayIo io = new ReplayIo();
-            ReplayMetadata metadata = new ReplayMetadata();
-            metadata.setMap("Picnic");
-            metadata.setMode("BEDWARS_TWO_FOUR");
-            metadata.setServerName("mini74CS");
-            metadata.setGameType("bedwars");
-            metadata.setStartedAt(1_772_818_863_383L);
-            metadata.setEndedAt(1_772_818_962_191L);
-            metadata.setDurationMs(98_776);
-            metadata.setViewerName("Roxiun");
-            metadata.setRecordedPlayerEntityId(Integer.valueOf(77));
-            metadata.setRecordedPlayerUuid(
-                UUID.fromString("11111111-2222-3333-4444-555555555555")
-            );
-            metadata.setRecordedPlayerName("Recorder");
-            metadata.setFormatVersion(1);
+            ReplayMetadata metadata = buildMetadata();
 
             File directory = io.createReplayDirectory(tempDir, metadata);
             List<ReplayPacketFrame> packets = Arrays.asList(
@@ -111,6 +97,80 @@ public class ReplayIoTest {
             Assert.assertEquals(95.0F, loaded.getLocalSnapshots().get(1).getYaw(), 0.0F);
             Assert.assertTrue(loaded.getLocalSnapshots().get(1).isSneaking());
         } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    public void spooledReplaySaveMatchesListBasedOutput() throws Exception {
+        File tempDir = Files.createTempDirectory("replay-io-spooled").toFile();
+        ReplayRecordingSpool spool = null;
+        try {
+            ReplayIo io = new ReplayIo();
+            ReplayMetadata listMetadata = buildMetadata();
+            ReplayMetadata spoolMetadata = buildMetadata();
+            List<ReplayPacketFrame> packets = Arrays.asList(
+                new ReplayPacketFrame(0, "net.minecraft.network.play.server.S21PacketChunkData", repeatedPayload(1024, 0x11)),
+                new ReplayPacketFrame(50, "net.minecraft.network.play.server.S21PacketChunkData", repeatedPayload(1024, 0x11)),
+                new ReplayPacketFrame(95, "net.minecraft.network.play.server.S14PacketEntity$S17PacketEntityLookMove", repeatedPayload(128, 0x22))
+            );
+            List<ReplayChatEvent> chats = Collections.singletonList(
+                new ReplayChatEvent(75, "{\"text\":\"hi\"}", (byte) 0)
+            );
+            List<ReplayScoreboardFrame> scoreboards = Collections.singletonList(
+                new ReplayScoreboardFrame(100, "Bed Wars", Arrays.asList("R Red", "B Blue"))
+            );
+            List<ReplayLocalPlayerSnapshot> localSnapshots = Arrays.asList(
+                new ReplayLocalPlayerSnapshot(0, 1.5D, 64.0D, 1.5D, 90.0F, 10.0F, false, true),
+                new ReplayLocalPlayerSnapshot(150, 2.5D, 64.0D, 1.5D, 95.0F, 12.0F, true, true)
+            );
+
+            File listDirectory = new File(tempDir, "list");
+            File spoolDirectory = new File(tempDir, "spool");
+            Assert.assertTrue(listDirectory.mkdirs());
+            Assert.assertTrue(spoolDirectory.mkdirs());
+
+            io.saveReplay(
+                listDirectory,
+                listMetadata,
+                packets,
+                chats,
+                scoreboards,
+                localSnapshots
+            );
+
+            spool = io.createRecordingSpool(tempDir);
+            for (ReplayPacketFrame packet : packets) {
+                spool.appendPacket(packet);
+            }
+            for (ReplayChatEvent chat : chats) {
+                spool.appendChat(chat);
+            }
+            for (ReplayScoreboardFrame scoreboard : scoreboards) {
+                spool.appendScoreboard(scoreboard);
+            }
+            for (ReplayLocalPlayerSnapshot snapshot : localSnapshots) {
+                spool.appendLocalSnapshot(snapshot);
+            }
+
+            io.saveReplay(spoolDirectory, spoolMetadata, spool);
+
+            Assert.assertArrayEquals(
+                Files.readAllBytes(new File(listDirectory, "packets.bin").toPath()),
+                Files.readAllBytes(new File(spoolDirectory, "packets.bin").toPath())
+            );
+            Assert.assertArrayEquals(
+                Files.readAllBytes(new File(listDirectory, "events.bin").toPath()),
+                Files.readAllBytes(new File(spoolDirectory, "events.bin").toPath())
+            );
+            Assert.assertArrayEquals(
+                Files.readAllBytes(new File(listDirectory, "index.bin").toPath()),
+                Files.readAllBytes(new File(spoolDirectory, "index.bin").toPath())
+            );
+        } finally {
+            if (spool != null) {
+                spool.discard();
+            }
             deleteRecursively(tempDir);
         }
     }
@@ -203,6 +263,25 @@ public class ReplayIoTest {
         byte[] payload = new byte[length];
         Arrays.fill(payload, (byte) value);
         return payload;
+    }
+
+    private static ReplayMetadata buildMetadata() {
+        ReplayMetadata metadata = new ReplayMetadata();
+        metadata.setMap("Picnic");
+        metadata.setMode("BEDWARS_TWO_FOUR");
+        metadata.setServerName("mini74CS");
+        metadata.setGameType("bedwars");
+        metadata.setStartedAt(1_772_818_863_383L);
+        metadata.setEndedAt(1_772_818_962_191L);
+        metadata.setDurationMs(98_776);
+        metadata.setViewerName("Roxiun");
+        metadata.setRecordedPlayerEntityId(Integer.valueOf(77));
+        metadata.setRecordedPlayerUuid(
+            UUID.fromString("11111111-2222-3333-4444-555555555555")
+        );
+        metadata.setRecordedPlayerName("Recorder");
+        metadata.setFormatVersion(1);
+        return metadata;
     }
 
     private static void writeGzipPackets(
