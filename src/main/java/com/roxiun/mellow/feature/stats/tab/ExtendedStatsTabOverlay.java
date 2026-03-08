@@ -575,12 +575,18 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return value == null ? "" : value;
         }
         if (value == null || value.isEmpty()) {
-            return trimVisibleTrailingWhitespace(team);
+            return shouldStripCombinedTeamPadding()
+                ? trimVisibleTrailingWhitespace(team)
+                : team;
         }
         return joinCombinedTeamValue(team, value);
     }
 
     private String joinCombinedTeamValue(String team, String value) {
+        if (!shouldStripCombinedTeamPadding()) {
+            return team + value;
+        }
+
         String trimmedTeam = trimVisibleTrailingWhitespace(team);
         String trimmedValue = trimVisibleLeadingWhitespace(value);
 
@@ -591,6 +597,10 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return trimmedTeam;
         }
         return trimmedTeam + " " + trimmedValue;
+    }
+
+    private boolean shouldStripCombinedTeamPadding() {
+        return config.extendedTabStatsStripCombinedTeamPadding;
     }
 
     private String trimVisibleLeadingWhitespace(String value) {

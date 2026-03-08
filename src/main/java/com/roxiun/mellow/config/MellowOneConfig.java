@@ -148,6 +148,14 @@ public class MellowOneConfig extends Config {
     public int extendedTabStatsTeamColumnMode = 3;
 
     @Switch(
+        name = "Strip Team Padding",
+        category = "Tab Stats",
+        subcategory = "Extended View",
+        description = "Collapses extra whitespace when Team is combined with Name or Stars."
+    )
+    public boolean extendedTabStatsStripCombinedTeamPadding = true;
+
+    @Switch(
         name = "Show Ranks In-Game",
         category = "Tab Stats",
         description = "When enabled, Name stat includes rank prefix during games. Lobbies always show rank."
