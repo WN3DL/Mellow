@@ -381,11 +381,9 @@ public class StatsChecker {
             return;
         }
 
-        AsyncExecutor.getInstance().supplementalIo(() ->
-            Mellow.seraphClientCacheService.refreshClient(
-                playerName,
-                profile.getUuid()
-            )
+        Mellow.seraphClientCacheService.refreshClientAsync(
+            playerName,
+            profile.getUuid()
         );
     }
 

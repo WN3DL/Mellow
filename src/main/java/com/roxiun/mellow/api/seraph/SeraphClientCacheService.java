@@ -1,7 +1,10 @@
 package com.roxiun.mellow.api.seraph;
 
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SeraphClientCacheService {
@@ -10,6 +13,7 @@ public class SeraphClientCacheService {
     private final MellowOneConfig config;
     private final Map<String, SeraphClientType> clientCache =
         new ConcurrentHashMap<>();
+    private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
 
     public SeraphClientCacheService(
         SeraphApi seraphApi,
@@ -26,8 +30,16 @@ public class SeraphClientCacheService {
         return clientCache.get(playerName);
     }
 
+    public boolean hasCachedClient(String playerName) {
+        if (playerName == null) {
+            return false;
+        }
+        return clientCache.containsKey(playerName);
+    }
+
     public void clearCache() {
         clientCache.clear();
+        fetchInProgress.clear();
     }
 
     public void clearPlayer(String playerName) {
@@ -35,6 +47,30 @@ public class SeraphClientCacheService {
             return;
         }
         clientCache.remove(playerName);
+        fetchInProgress.remove(playerName.toLowerCase(Locale.ROOT));
+    }
+
+    public void refreshClientAsync(String playerName, String uuid) {
+        if (
+            playerName == null ||
+            playerName.trim().isEmpty() ||
+            hasCachedClient(playerName)
+        ) {
+            return;
+        }
+
+        String normalizedName = playerName.toLowerCase(Locale.ROOT);
+        if (!fetchInProgress.add(normalizedName)) {
+            return;
+        }
+
+        AsyncExecutor.getInstance().supplementalIo(() -> {
+            try {
+                refreshClient(playerName, uuid);
+            } finally {
+                fetchInProgress.remove(normalizedName);
+            }
+        });
     }
 
     public void refreshClient(String playerName, String uuid) {

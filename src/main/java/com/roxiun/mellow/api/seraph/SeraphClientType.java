@@ -42,23 +42,23 @@ public enum SeraphClientType {
             .trim()
             .toUpperCase(Locale.ROOT)
             .replace(" ", "");
-        switch (normalized) {
-            case "ESSENTIAL/FORGE":
-            case "ESSENTIALS/FORGE":
-            case "ESSENTIAL":
-            case "ESSENTIALS":
-                return ESSENTIAL;
-            case "LABYMOD":
-            case "LABY":
-                return LABYMOD;
-            case "BADLION":
-                return BADLION;
-            case "LUNAR":
-                return LUNAR;
-            case "FEATHER":
-                return FEATHER;
-            default:
-                return UNKNOWN;
+
+        if (normalized.contains("ESSENTIAL")) {
+            return ESSENTIAL;
         }
+        if (normalized.contains("LABY")) {
+            return LABYMOD;
+        }
+        if (normalized.contains("BADLION")) {
+            return BADLION;
+        }
+        if (normalized.contains("LUNAR")) {
+            return LUNAR;
+        }
+        if (normalized.contains("FEATHER")) {
+            return FEATHER;
+        }
+
+        return UNKNOWN;
     }
 }
