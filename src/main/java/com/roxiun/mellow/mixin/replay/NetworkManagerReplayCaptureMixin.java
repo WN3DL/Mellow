@@ -20,4 +20,12 @@ public class NetworkManagerReplayCaptureMixin {
     ) {
         ReplayManager.getInstance().onInboundPacket(packet);
     }
+
+    @Inject(method = "sendPacket(Lnet/minecraft/network/Packet;)V", at = @At("HEAD"))
+    private void mellow$captureOutboundPacket(
+        Packet<?> packet,
+        CallbackInfo ci
+    ) {
+        ReplayManager.getInstance().onOutboundPacket(packet);
+    }
 }

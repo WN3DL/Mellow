@@ -62,18 +62,18 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
         GuiScreen parentScreen,
         NetworkManager networkManager,
         ReplayPlaybackSession session,
-        String viewerName,
-        UUID viewerUuid
+        String replayId
     ) {
         super(
             mc,
             parentScreen,
             networkManager,
             new GameProfile(
-                viewerUuid == null ? UUID.randomUUID() : viewerUuid,
-                viewerName == null || viewerName.trim().isEmpty()
-                    ? "ReplayViewer"
-                    : viewerName
+                UUID.nameUUIDFromBytes(
+                    ("mellow-replay-viewer-" + safeReplayId(replayId))
+                        .getBytes(StandardCharsets.UTF_8)
+                ),
+                "ReplayViewer"
             )
         );
         this.mc = mc;
@@ -294,6 +294,10 @@ public class ReplayNetHandlerPlayClient extends NetHandlerPlayClient {
 
     private static Profiler resolveProfiler(Minecraft minecraft) {
         return minecraft == null ? new Profiler() : minecraft.mcProfiler;
+    }
+
+    private static String safeReplayId(String replayId) {
+        return replayId == null || replayId.trim().isEmpty() ? "unknown" : replayId;
     }
 
     private void ensureReplayPlayer(

@@ -44,6 +44,8 @@ public class ReplayManager {
     private final Minecraft mc = Minecraft.getMinecraft();
     private final ReplayIo io = new ReplayIo();
     private final List<PendingFrame> pendingFrames = new ArrayList<>();
+    private final ReplayLocalPlayerPacketRecorder pendingLocalPlayerRecorder =
+        new ReplayLocalPlayerPacketRecorder();
 
     private RecordingSession activeRecording;
     private ReplayPlaybackSession activePlayback;
@@ -98,11 +100,13 @@ public class ReplayManager {
             if (packet instanceof S01PacketJoinGame && activeRecording != null) {
                 stopRecording();
                 pendingFrames.clear();
+                pendingLocalPlayerRecorder.reset();
                 pendingFrames.add(new PendingFrame(now, frame));
                 return;
             }
             if (packet instanceof S01PacketJoinGame) {
                 pendingFrames.clear();
+                pendingLocalPlayerRecorder.reset();
             }
             if (activeRecording != null) {
                 activeRecording.addPacket(now, frame);
@@ -121,6 +125,36 @@ public class ReplayManager {
         activeRecording.addChat(component, type);
     }
 
+    public void onOutboundPacket(Packet<?> packet) {
+        if (packet == null || isPlaybackActive() || !isRecordingEnabled()) {
+            return;
+        }
+        EntityPlayerSP player = mc.thePlayer;
+        if (player == null || mc.getNetHandler() == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        try {
+            if (activeRecording != null) {
+                activeRecording.observeOutboundPacket(now, packet);
+            } else {
+                pendingLocalPlayerRecorder.observeOutboundPacket(
+                    packet,
+                    player,
+                    mc.getNetHandler().getPlayerInfo(player.getUniqueID()),
+                    new ReplayLocalPlayerPacketRecorder.FrameSink() {
+                        @Override
+                        public void accept(ReplayPacketFrame frame) {
+                            pendingFrames.add(new PendingFrame(now, frame));
+                        }
+                    }
+                );
+                trimPendingFrames(now);
+            }
+        } catch (Exception ignored) {}
+    }
+
     public void onClientTick(GameSnapshot snapshot) {
         if (replayBrowserOpenRequested && !(mc.currentScreen instanceof GuiChat)) {
             replayBrowserOpenRequested = false;
@@ -128,6 +162,8 @@ public class ReplayManager {
         }
         if (activeRecording != null) {
             activeRecording.captureTick(snapshot);
+        } else if (!isPlaybackActive() && isRecordingEnabled()) {
+            capturePendingLocalPlayer();
         }
         if (activePlayback != null) {
             activePlayback.tick();
@@ -136,6 +172,7 @@ public class ReplayManager {
 
     public void onWorldChange() {
         if (!isPlaybackActive()) {
+            pendingLocalPlayerRecorder.reset();
             if (activeRecording != null) {
                 stopRecording();
             }
@@ -186,6 +223,7 @@ public class ReplayManager {
                 stopRecording();
             }
             pendingFrames.clear();
+            pendingLocalPlayerRecorder.reset();
             if (activePlayback != null) {
                 activePlayback.stop();
             }
@@ -257,7 +295,12 @@ public class ReplayManager {
         if (!isRecordingEnabled()) {
             return;
         }
-        activeRecording = new RecordingSession(snapshot, pendingFrames);
+        activeRecording = new RecordingSession(
+            snapshot,
+            pendingFrames,
+            pendingLocalPlayerRecorder.copy()
+        );
+        pendingLocalPlayerRecorder.reset();
         ChatUtils.sendMessage(
             "§7Started recording replay for §f" + safe(snapshot.getMap()) + "§7."
         );
@@ -300,6 +343,27 @@ public class ReplayManager {
             }
             pendingFrames.remove(0);
         }
+    }
+
+    private void capturePendingLocalPlayer() {
+        EntityPlayerSP player = mc.thePlayer;
+        if (player == null || mc.getNetHandler() == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        try {
+            pendingLocalPlayerRecorder.capture(
+                player,
+                mc.getNetHandler().getPlayerInfo(player.getUniqueID()),
+                new ReplayLocalPlayerPacketRecorder.FrameSink() {
+                    @Override
+                    public void accept(ReplayPacketFrame frame) {
+                        pendingFrames.add(new PendingFrame(now, frame));
+                    }
+                }
+            );
+            trimPendingFrames(now);
+        } catch (Exception ignored) {}
     }
 
     private boolean isRecordingEnabled() {
@@ -353,14 +417,19 @@ public class ReplayManager {
         private final List<ReplayScoreboardFrame> scoreboards = new ArrayList<>();
         private final List<ReplayLocalPlayerSnapshot> localSnapshots = new ArrayList<>();
         private final Set<Integer> knownRemotePlayerEntityIds = new HashSet<>();
+        private final ReplayLocalPlayerPacketRecorder localPlayerRecorder;
         private final long baseTime;
         private String lastScoreboardTitle = "";
         private List<String> lastScoreboardLines = Collections.emptyList();
-        private ReplayLocalPlayerSnapshot lastLocalSnapshot;
 
-        private RecordingSession(GameSnapshot snapshot, List<PendingFrame> pending) {
+        private RecordingSession(
+            GameSnapshot snapshot,
+            List<PendingFrame> pending,
+            ReplayLocalPlayerPacketRecorder localPlayerRecorder
+        ) {
             long now = System.currentTimeMillis();
             this.baseTime = pending.isEmpty() ? now : pending.get(0).capturedAt;
+            this.localPlayerRecorder = localPlayerRecorder;
             metadata.setStartedAt(baseTime);
             metadata.setViewerName(
                 mc.thePlayer == null ? "" : mc.thePlayer.getName()
@@ -368,6 +437,7 @@ public class ReplayManager {
             metadata.setViewerUuid(
                 mc.thePlayer == null ? null : mc.thePlayer.getUniqueID()
             );
+            configureRecordedPlayerMetadata();
             updateSnapshot(snapshot);
             for (PendingFrame frame : pending) {
                 addPacket(frame.capturedAt, frame.frame);
@@ -375,6 +445,7 @@ public class ReplayManager {
             }
             pendingFrames.clear();
             captureVisiblePlayers(now);
+            captureLocalPlayerPackets(now);
         }
 
         private void updateSnapshot(GameSnapshot snapshot) {
@@ -408,11 +479,12 @@ public class ReplayManager {
         }
 
         private void captureTick(GameSnapshot snapshot) {
-            captureVisiblePlayers(System.currentTimeMillis());
+            long now = System.currentTimeMillis();
+            captureVisiblePlayers(now);
+            captureLocalPlayerPackets(now);
             captureScoreboard(snapshot);
-            captureLocalPlayerSnapshot();
-            metadata.setEndedAt(System.currentTimeMillis());
-            metadata.setDurationMs(toRelativeTime(System.currentTimeMillis()));
+            metadata.setEndedAt(now);
+            metadata.setDurationMs(toRelativeTime(now));
         }
 
         private void captureScoreboard(GameSnapshot snapshot) {
@@ -433,40 +505,33 @@ public class ReplayManager {
             lastScoreboardLines = lines;
         }
 
-        private void captureLocalPlayerSnapshot() {
+        private void configureRecordedPlayerMetadata() {
             EntityPlayerSP player = mc.thePlayer;
             if (player == null) {
                 return;
             }
-            ReplayLocalPlayerSnapshot snapshot = new ReplayLocalPlayerSnapshot(
-                toRelativeTime(System.currentTimeMillis()),
-                player.posX,
-                player.posY,
-                player.posZ,
-                player.rotationYaw,
-                player.rotationPitch,
-                player.isSneaking(),
-                player.isSprinting()
-            );
-            if (!shouldCaptureLocalSnapshot(snapshot)) {
-                return;
-            }
-            localSnapshots.add(snapshot);
-            lastLocalSnapshot = snapshot;
+            metadata.setRecordedPlayerEntityId(Integer.valueOf(player.getEntityId()));
+            metadata.setRecordedPlayerUuid(player.getUniqueID());
+            metadata.setRecordedPlayerName(player.getName());
         }
 
-        private boolean shouldCaptureLocalSnapshot(ReplayLocalPlayerSnapshot snapshot) {
-            if (lastLocalSnapshot == null) {
-                return true;
+        private void captureLocalPlayerPackets(long capturedAt) {
+            EntityPlayerSP player = mc.thePlayer;
+            if (player == null || mc.getNetHandler() == null) {
+                return;
             }
-            return
-                Double.compare(snapshot.getX(), lastLocalSnapshot.getX()) != 0 ||
-                Double.compare(snapshot.getY(), lastLocalSnapshot.getY()) != 0 ||
-                Double.compare(snapshot.getZ(), lastLocalSnapshot.getZ()) != 0 ||
-                Float.compare(snapshot.getYaw(), lastLocalSnapshot.getYaw()) != 0 ||
-                Float.compare(snapshot.getPitch(), lastLocalSnapshot.getPitch()) != 0 ||
-                snapshot.isSneaking() != lastLocalSnapshot.isSneaking() ||
-                snapshot.isSprinting() != lastLocalSnapshot.isSprinting();
+            try {
+                localPlayerRecorder.capture(
+                    player,
+                    mc.getNetHandler().getPlayerInfo(player.getUniqueID()),
+                    new ReplayLocalPlayerPacketRecorder.FrameSink() {
+                        @Override
+                        public void accept(ReplayPacketFrame frame) {
+                            addPacket(capturedAt, frame);
+                        }
+                    }
+                );
+            } catch (Exception ignored) {}
         }
 
         private void observeInboundPacket(Packet<?> packet) {
@@ -475,6 +540,26 @@ public class ReplayManager {
             } else if (packet instanceof S13PacketDestroyEntities) {
                 forgetRemotePlayerEntities(((S13PacketDestroyEntities) packet).getEntityIDs());
             }
+        }
+
+        private void observeOutboundPacket(long capturedAt, Packet<?> packet) {
+            EntityPlayerSP player = mc.thePlayer;
+            if (player == null || mc.getNetHandler() == null) {
+                return;
+            }
+            try {
+                localPlayerRecorder.observeOutboundPacket(
+                    packet,
+                    player,
+                    mc.getNetHandler().getPlayerInfo(player.getUniqueID()),
+                    new ReplayLocalPlayerPacketRecorder.FrameSink() {
+                        @Override
+                        public void accept(ReplayPacketFrame frame) {
+                            addPacket(capturedAt, frame);
+                        }
+                    }
+                );
+            } catch (Exception ignored) {}
         }
 
         private void observeStoredFrame(ReplayPacketFrame frame) {

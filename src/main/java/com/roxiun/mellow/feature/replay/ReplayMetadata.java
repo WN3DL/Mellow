@@ -15,6 +15,9 @@ public class ReplayMetadata {
     private int packetCount;
     private UUID viewerUuid;
     private String viewerName;
+    private Integer recordedPlayerEntityId;
+    private UUID recordedPlayerUuid;
+    private String recordedPlayerName;
     private int formatVersion = 1;
 
     public String getReplayId() {
@@ -103,6 +106,30 @@ public class ReplayMetadata {
 
     public void setViewerName(String viewerName) {
         this.viewerName = viewerName;
+    }
+
+    public Integer getRecordedPlayerEntityId() {
+        return recordedPlayerEntityId;
+    }
+
+    public void setRecordedPlayerEntityId(Integer recordedPlayerEntityId) {
+        this.recordedPlayerEntityId = recordedPlayerEntityId;
+    }
+
+    public UUID getRecordedPlayerUuid() {
+        return recordedPlayerUuid;
+    }
+
+    public void setRecordedPlayerUuid(UUID recordedPlayerUuid) {
+        this.recordedPlayerUuid = recordedPlayerUuid;
+    }
+
+    public String getRecordedPlayerName() {
+        return recordedPlayerName == null ? "" : recordedPlayerName;
+    }
+
+    public void setRecordedPlayerName(String recordedPlayerName) {
+        this.recordedPlayerName = recordedPlayerName;
     }
 
     public int getFormatVersion() {

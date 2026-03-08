@@ -71,6 +71,7 @@ public class ReplayPlaybackSession {
     private boolean bootstrapPacketOpen;
     private boolean worldBootstrapped;
     private final boolean allowLegacyFallbackPlayers;
+    private final boolean usesLegacyLocalSnapshots;
 
     enum ControlAction {
         NONE,
@@ -123,6 +124,9 @@ public class ReplayPlaybackSession {
         this.replay = replay;
         this.stopCallback = stopCallback;
         this.allowLegacyFallbackPlayers = !hasRecordedPlayerSpawns(replay);
+        this.usesLegacyLocalSnapshots =
+            replay.getMetadata().getRecordedPlayerEntityId() == null &&
+            !replay.getLocalSnapshots().isEmpty();
     }
 
     public void open() {
@@ -160,6 +164,7 @@ public class ReplayPlaybackSession {
         emitChatsUpTo(currentTimeMs);
         advanceScoreboardTo(currentTimeMs);
         updateLocalReplayPlayer(currentTimeMs);
+        initializeViewerPosition();
 
         if (!paused && isAtEnd(currentTimeMs, replay.getMetadata().getDurationMs())) {
             paused = true;
@@ -382,8 +387,7 @@ public class ReplayPlaybackSession {
             null,
             networkManager,
             this,
-            replay.getMetadata().getViewerName(),
-            replay.getMetadata().getViewerUuid()
+            replay.getMetadata().getReplayId()
         );
         packetIndex = 0;
         chatIndex = 0;
@@ -401,6 +405,7 @@ public class ReplayPlaybackSession {
         applyPacketsUpTo(targetMs);
         advanceScoreboardTo(targetMs);
         updateLocalReplayPlayer(targetMs);
+        initializeViewerPosition();
         currentTimeMs = targetMs;
         if (announceRebuild && targetMs > 0) {
             ChatUtils.sendMessage("§7Rebuilt replay state at §f" + formatTime(targetMs) + "§7.");
@@ -452,6 +457,10 @@ public class ReplayPlaybackSession {
     }
 
     private void updateLocalReplayPlayer(int targetMs) {
+        if (!usesLegacyLocalSnapshots) {
+            localReplayPlayer = null;
+            return;
+        }
         ReplayLocalPlayerSnapshot snapshot = null;
         while (localSnapshotIndex < replay.getLocalSnapshots().size()) {
             ReplayLocalPlayerSnapshot next = replay.getLocalSnapshots().get(localSnapshotIndex);
@@ -474,7 +483,10 @@ public class ReplayPlaybackSession {
         if (localReplayPlayer == null) {
             localReplayPlayer = new EntityOtherPlayerMP(
                 mc.theWorld,
-                new GameProfile(resolveViewerUuid(), resolveViewerName())
+                new GameProfile(
+                    resolveRecordedPlayerUuid(),
+                    resolveRecordedPlayerName()
+                )
             );
             localReplayPlayer.setEntityId(REPLAY_LOCAL_PLAYER_ENTITY_ID);
             localReplayPlayer.setPositionAndRotation(
@@ -510,6 +522,31 @@ public class ReplayPlaybackSession {
             );
             viewerPositionInitialized = true;
         }
+    }
+
+    private void initializeViewerPosition() {
+        if (viewerPositionInitialized || mc.thePlayer == null || mc.theWorld == null) {
+            return;
+        }
+        Entity anchor = null;
+        Integer recordedPlayerEntityId = replay.getMetadata().getRecordedPlayerEntityId();
+        if (recordedPlayerEntityId != null) {
+            anchor = mc.theWorld.getEntityByID(recordedPlayerEntityId.intValue());
+        }
+        if (anchor == null) {
+            anchor = localReplayPlayer;
+        }
+        if (anchor == null) {
+            return;
+        }
+        mc.thePlayer.setPositionAndRotation(
+            anchor.posX,
+            anchor.posY + 2.0D,
+            anchor.posZ,
+            anchor.rotationYaw,
+            anchor.rotationPitch
+        );
+        viewerPositionInitialized = true;
     }
 
     private Entity findPlayerEntity(String name) {
@@ -991,7 +1028,10 @@ public class ReplayPlaybackSession {
         return value == null || value.trim().isEmpty() ? "Unknown" : value;
     }
 
-    private UUID resolveViewerUuid() {
+    private UUID resolveRecordedPlayerUuid() {
+        if (replay.getMetadata().getRecordedPlayerUuid() != null) {
+            return replay.getMetadata().getRecordedPlayerUuid();
+        }
         return replay.getMetadata().getViewerUuid() == null
             ? UUID.nameUUIDFromBytes(
                 ("mellow-replay-" + replay.getMetadata().getReplayId()).getBytes()
@@ -1036,8 +1076,11 @@ public class ReplayPlaybackSession {
         }
     }
 
-    private String resolveViewerName() {
-        String name = replay.getMetadata().getViewerName();
+    private String resolveRecordedPlayerName() {
+        String name = replay.getMetadata().getRecordedPlayerName();
+        if (name == null || name.trim().isEmpty()) {
+            name = replay.getMetadata().getViewerName();
+        }
         return name == null || name.trim().isEmpty() ? "ReplayPlayer" : name;
     }
 

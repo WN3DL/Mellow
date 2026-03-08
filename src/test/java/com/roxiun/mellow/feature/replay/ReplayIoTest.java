@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.zip.GZIPOutputStream;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,6 +44,11 @@ public class ReplayIoTest {
             metadata.setEndedAt(1_772_818_962_191L);
             metadata.setDurationMs(98_776);
             metadata.setViewerName("Roxiun");
+            metadata.setRecordedPlayerEntityId(Integer.valueOf(77));
+            metadata.setRecordedPlayerUuid(
+                UUID.fromString("11111111-2222-3333-4444-555555555555")
+            );
+            metadata.setRecordedPlayerName("Recorder");
             metadata.setFormatVersion(1);
 
             File directory = io.createReplayDirectory(tempDir, metadata);
@@ -81,6 +87,18 @@ public class ReplayIoTest {
             Assert.assertEquals(2, loaded.getMetadata().getFormatVersion());
             Assert.assertEquals("Picnic", loaded.getMetadata().getMap());
             Assert.assertEquals("BEDWARS_TWO_FOUR", loaded.getMetadata().getMode());
+            Assert.assertEquals(
+                Integer.valueOf(77),
+                loaded.getMetadata().getRecordedPlayerEntityId()
+            );
+            Assert.assertEquals(
+                UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                loaded.getMetadata().getRecordedPlayerUuid()
+            );
+            Assert.assertEquals(
+                "Recorder",
+                loaded.getMetadata().getRecordedPlayerName()
+            );
             Assert.assertEquals(3, loaded.getPackets().size());
             assertPacketEquals(packets.get(0), loaded.getPackets().get(0));
             assertPacketEquals(packets.get(1), loaded.getPackets().get(1));
