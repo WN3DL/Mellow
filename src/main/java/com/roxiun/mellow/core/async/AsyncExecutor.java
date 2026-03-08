@@ -22,6 +22,10 @@ public final class AsyncExecutor {
         4,
         namedFactory("Mellow-Command")
     );
+    private final ExecutorService supplementalIoExecutor = Executors.newFixedThreadPool(
+        4,
+        namedFactory("Mellow-SupplementalIO")
+    );
     private final ExecutorService replayIoExecutor = Executors.newSingleThreadExecutor(
         namedFactory("Mellow-ReplayIO")
     );
@@ -42,6 +46,10 @@ public final class AsyncExecutor {
 
     public void command(Runnable task) {
         commandExecutor.submit(task);
+    }
+
+    public void supplementalIo(Runnable task) {
+        supplementalIoExecutor.submit(task);
     }
 
     public void replayIo(Runnable task) {

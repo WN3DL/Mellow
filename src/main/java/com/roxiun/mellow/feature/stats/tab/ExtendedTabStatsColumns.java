@@ -19,6 +19,9 @@ public final class ExtendedTabStatsColumns {
     public static final int BUILD_BATTLE_HP_INDEX = 5;
     public static final int TNT_RUN_NONE_INDEX = 4;
     public static final int TNT_RUN_HP_INDEX = 5;
+    public static final int TAGS_COLUMN = 12;
+    public static final int PING_COLUMN = 13;
+    public static final int CLIENT_COLUMN = 14;
 
     private static final int[] BUILD_BATTLE_DEFAULT_COLUMNS = new int[] {
         0, 1, 2, 3, BUILD_BATTLE_NONE_INDEX, BUILD_BATTLE_NONE_INDEX,
@@ -133,6 +136,13 @@ public final class ExtendedTabStatsColumns {
     }
 
     public static boolean isSupportedColumn(StatScope scope, int statIndex) {
+        if (
+            statIndex == TAGS_COLUMN ||
+            statIndex == PING_COLUMN ||
+            statIndex == CLIENT_COLUMN
+        ) {
+            return true;
+        }
         if (scope == StatScope.SKYWARS) {
             return (
                 (statIndex >= 0 && statIndex < SKYWARS_NONE_INDEX) ||
@@ -180,6 +190,15 @@ public final class ExtendedTabStatsColumns {
     }
 
     public static String getHeaderLabel(StatScope scope, int statIndex) {
+        if (statIndex == TAGS_COLUMN) {
+            return "TAGS";
+        }
+        if (statIndex == PING_COLUMN) {
+            return "PING";
+        }
+        if (statIndex == CLIENT_COLUMN) {
+            return "CLIENT";
+        }
         if (scope == StatScope.SKYWARS) {
             switch (statIndex) {
                 case 0:
@@ -295,6 +314,15 @@ public final class ExtendedTabStatsColumns {
     }
 
     public static int getMinimumColumnWidth(StatScope scope, int statIndex) {
+        if (statIndex == TAGS_COLUMN) {
+            return 36;
+        }
+        if (statIndex == PING_COLUMN) {
+            return 30;
+        }
+        if (statIndex == CLIENT_COLUMN) {
+            return 34;
+        }
         if (scope == StatScope.SKYWARS) {
             switch (statIndex) {
                 case 0:

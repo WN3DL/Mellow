@@ -2,7 +2,10 @@ package com.roxiun.mellow;
 
 import com.roxiun.mellow.anticheat.AnticheatManager;
 import com.roxiun.mellow.api.aurora.AuroraApi;
+import com.roxiun.mellow.api.aurora.AuroraPingService;
+import com.roxiun.mellow.api.aurora.AuroraWinstreakService;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.api.luna.LunaPingService;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.AbyssApi;
 import com.roxiun.mellow.api.provider.HypixelPublicApi;
@@ -10,6 +13,7 @@ import com.roxiun.mellow.api.provider.NadeshikoApi;
 import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
+import com.roxiun.mellow.api.seraph.SeraphClientCacheService;
 import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
@@ -61,6 +65,10 @@ public class Mellow {
     public static final Map<String, TabStats> tabStats = new ConcurrentHashMap<>();
     public static NickUtils nickUtils;
 
+    public static AuroraPingService auroraPingService;
+    public static AuroraWinstreakService auroraWinstreakService;
+    public static LunaPingService lunaPingService;
+    public static SeraphClientCacheService seraphClientCacheService;
     public static MojangApi mojangApi;
     public static UrchinApi urchinApi;
     public static SeraphApi seraphApi;
@@ -85,6 +93,9 @@ public class Mellow {
         annoylistManager = new AnnoylistManager();
         tagIgnoreManager = new TagIgnoreManager();
 
+        auroraPingService = new AuroraPingService();
+        auroraWinstreakService = new AuroraWinstreakService();
+        lunaPingService = new LunaPingService();
         mojangApi = new MojangApi();
         providerManager = new ProviderManager();
         providerManager.register(new HypixelPublicApi(mojangApi, config));
@@ -93,6 +104,7 @@ public class Mellow {
 
         urchinApi = new UrchinApi(mojangApi);
         seraphApi = new SeraphApi(mojangApi);
+        seraphClientCacheService = new SeraphClientCacheService(seraphApi, config);
         AuroraApi auroraApi = new AuroraApi();
 
         playerCache = new PlayerCache(
@@ -223,6 +235,9 @@ public class Mellow {
             new ClearCacheCommand(playerCache, tabStats)
         );
         ClientCommandHandler.instance.registerCommand(
+            new RefreshCommand(inGameTabStatsSyncService)
+        );
+        ClientCommandHandler.instance.registerCommand(
             new DenickCommand(config, auroraApi)
         );
         ClientCommandHandler.instance.registerCommand(
@@ -242,6 +257,15 @@ public class Mellow {
         );
         ClientCommandHandler.instance.registerCommand(
             new SeraphCommand(seraphApi, mojangApi, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new StatusCommand(mojangApi, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new NameHistoryCommand(mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new WinstreakCommand(playerCache, config)
         );
         ClientCommandHandler.instance.registerCommand(new ReplayCommand(replayManager));
     }

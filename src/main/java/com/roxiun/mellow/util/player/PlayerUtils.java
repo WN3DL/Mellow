@@ -1,5 +1,7 @@
 package com.roxiun.mellow.util.player;
 
+import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.util.UUIDUtils;
 import java.util.Collection;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -39,9 +41,35 @@ public class PlayerUtils {
         return null; // Player not found in tab list
     }
 
-    public static boolean hasTrustedTabUuid(String playerName) {
+    public static UUID getTrustedTabUuid(String playerName) {
         UUID uuid = getTabUuid(playerName);
-        return uuid != null && uuid.version() == 4;
+        return uuid != null && uuid.version() == 4 ? uuid : null;
+    }
+
+    public static UUID resolveLookupUuid(String playerName, MojangApi mojangApi) {
+        if (playerName == null || playerName.trim().isEmpty() || mojangApi == null) {
+            return null;
+        }
+
+        UUID trustedTabUuid = getTrustedTabUuid(playerName);
+        if (trustedTabUuid != null) {
+            return trustedTabUuid;
+        }
+
+        String uuid = mojangApi.fetchUUID(playerName);
+        if (uuid == null || uuid.isEmpty() || "ERROR".equals(uuid)) {
+            return null;
+        }
+
+        try {
+            return UUIDUtils.fromString(uuid);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    public static boolean hasTrustedTabUuid(String playerName) {
+        return getTrustedTabUuid(playerName) != null;
     }
 
     public static boolean isNickedOrNpc(String playerName) {

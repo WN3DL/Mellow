@@ -7,6 +7,51 @@ import java.util.stream.Collectors;
 
 public class FormattingUtils {
 
+    public static String formatBedwarsWinstreakWithColor(int winstreak) {
+        if (winstreak < 5) {
+            return "§7" + winstreak;
+        }
+        if (winstreak < 15) {
+            return "§e" + winstreak;
+        }
+        if (winstreak < 25) {
+            return "§6" + winstreak;
+        }
+        if (winstreak < 40) {
+            return "§c" + winstreak;
+        }
+        if (winstreak < 50) {
+            return "§4" + winstreak;
+        }
+        if (winstreak < 75) {
+            return "§a" + winstreak;
+        }
+        if (winstreak < 100) {
+            return "§2" + winstreak;
+        }
+        if (winstreak < 250) {
+            return "§b" + winstreak;
+        }
+        if (winstreak < 500) {
+            return "§3" + winstreak;
+        }
+        return "§d" + winstreak;
+    }
+
+    public static boolean isHiddenOrEmptyWinstreakDisplay(String value) {
+        if (value == null || value.isEmpty()) {
+            return true;
+        }
+
+        String plain = value.replaceAll("§.", "").trim();
+        return (
+            plain.isEmpty() ||
+            "0".equals(plain) ||
+            "?".equals(plain) ||
+            "-".equals(plain)
+        );
+    }
+
     public static String formatWinstreak(String text) {
         String color = "§r";
         int winstreak = Integer.parseInt(text);

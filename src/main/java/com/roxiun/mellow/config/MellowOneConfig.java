@@ -151,6 +151,9 @@ public class MellowOneConfig extends Config {
     )
     public boolean showRanksInGameTabStats = false;
 
+    @Switch(name = "Highlight Tagged Players", category = "Tab Stats")
+    public boolean highlightTaggedPlayers = false;
+
     @Info(
         text = "Set the order of stats in the tab list",
         type = InfoType.INFO,
@@ -174,6 +177,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -194,6 +200,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -214,6 +223,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -234,6 +246,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -254,6 +269,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -274,6 +292,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -294,6 +315,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -314,6 +338,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -334,6 +361,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -354,6 +384,9 @@ public class MellowOneConfig extends Config {
             "Finals",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats"
     )
@@ -380,6 +413,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -398,6 +434,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -416,6 +455,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -434,6 +476,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -452,6 +497,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -470,6 +518,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -488,6 +539,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -506,6 +560,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -524,6 +581,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -542,6 +602,9 @@ public class MellowOneConfig extends Config {
             "Kills",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "SkyWars"
@@ -572,6 +635,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -593,6 +659,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -614,6 +683,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -635,6 +707,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -656,6 +731,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -677,6 +755,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -698,6 +779,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -719,6 +803,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -740,6 +827,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -761,6 +851,9 @@ public class MellowOneConfig extends Config {
             "Winstreak",
             "None",
             "HP",
+            "Tags",
+            "Ping",
+            "Client",
         },
         category = "Tab Stats",
         subcategory = "Duels"
@@ -866,20 +959,67 @@ public class MellowOneConfig extends Config {
     public int statsProvider = 2;
 
     @Info(
-        text = "Hypixel provider requires an API key from developer.hypixel.net. Other providers do not require a key.",
+        text = "Hypixel provider requires an API key from developer.hypixel.net. Configure it in API Keys > Hypixel. Other providers do not require a key.",
         type = InfoType.INFO,
         size = OptionSize.DUAL,
         subcategory = "Stats"
     )
     public static boolean ignoredHypixelApiInfo;
 
+    @Info(
+        text = "Manage all service API keys here. Feature-specific toggles remain in their own categories.",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        category = "API Keys"
+    )
+    public static boolean ignoredApiKeysInfo;
+
     @Text(
         name = "Hypixel API Key",
-        subcategory = "Stats",
+        category = "API Keys",
+        subcategory = "Hypixel",
         secure = true,
         multiline = false
     )
     public String hypixelApiKey = "";
+
+    @Text(
+        name = "Aurora API Key",
+        placeholder = "Enter your Aurora API key",
+        category = "API Keys",
+        subcategory = "Aurora",
+        secure = true,
+        multiline = false
+    )
+    public String auroraApiKey = "";
+
+    @Text(
+        name = "Luna API Key",
+        placeholder = "Enter your Luna API key",
+        category = "API Keys",
+        subcategory = "Luna",
+        secure = true,
+        multiline = false
+    )
+    public String lunaPingApiKey = "";
+
+    @Text(
+        name = "Urchin API Key",
+        category = "API Keys",
+        subcategory = "Urchin",
+        secure = true,
+        multiline = false
+    )
+    public String urchinKey = "";
+
+    @Text(
+        name = "Seraph API Key",
+        category = "API Keys",
+        subcategory = "Seraph",
+        secure = true,
+        multiline = false
+    )
+    public String seraphKey = "";
 
     @Switch(name = "Print Blacklist Tags in /who", subcategory = "General")
     public boolean printBlacklistTags = true;
@@ -949,7 +1089,7 @@ public class MellowOneConfig extends Config {
     public boolean showUrchinTagsInTab = true;
 
     @Info(
-        text = "Enabling Urchin will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Urchin API Key, Game Info).",
+        text = "Enabling Urchin will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Urchin API Key, Game Info). Configure the key in API Keys > Urchin.",
         size = OptionSize.DUAL,
         type = InfoType.WARNING,
         category = "Urchin"
@@ -963,14 +1103,6 @@ public class MellowOneConfig extends Config {
     //     category = "Urchin"
     // )
     // public static boolean ignoredUrchinDeprecated;
-
-    @Text(
-        name = "Private access Urchin API Key",
-        category = "Urchin",
-        secure = true,
-        multiline = false
-    )
-    public String urchinKey = "";
 
     // Seraph Configs
     @Info(
@@ -987,8 +1119,11 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Show Seraph Tags in Tab", category = "Seraph")
     public boolean showSeraphTagsInTab = true;
 
+    @Switch(name = "Show Client in Tab", category = "Seraph")
+    public boolean showSeraphClientInTab = false;
+
     @Info(
-        text = "Enabling Seraph will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Seraph API Key, Game Info).",
+        text = "Enabling Seraph will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Seraph API Key, Game Info). Configure the key in API Keys > Seraph.",
         size = OptionSize.DUAL,
         type = InfoType.WARNING,
         category = "Seraph"
@@ -1003,52 +1138,153 @@ public class MellowOneConfig extends Config {
     )
     public static boolean ignoredSeraphInfo;
 
-    @Text(
-        name = "Seraph API Key",
-        category = "Seraph",
-        secure = true,
-        multiline = false
+    // Winstreaks Configs
+    @Info(
+        text = "Shows hidden or zero BedWars winstreaks fetched from the Bordic Aurora API",
+        size = OptionSize.DUAL,
+        type = InfoType.INFO,
+        category = "Winstreaks"
     )
-    public String seraphKey = "";
+    public static boolean ignoredWinstreaksDescription;
+
+    @Switch(name = "Show Hidden Winstreaks", category = "Winstreaks")
+    public boolean showHiddenWinstreaks = false;
+
+    @Info(
+        text = "When hidden winstreaks are enabled, Mellow only uses Aurora when the visible BedWars winstreak is missing or hidden.",
+        size = OptionSize.DUAL,
+        type = InfoType.INFO,
+        category = "Winstreaks"
+    )
+    public static boolean ignoredWinstreaksVisibleFirstInfo;
+
+    @Info(
+        text = "Enabling this will send requests to Bordic and be subject to their ToS, this could enable tracking of your data (IP, Aurora API Key, Game Info). Configure the key in API Keys > Aurora.",
+        size = OptionSize.DUAL,
+        type = InfoType.WARNING,
+        category = "Winstreaks"
+    )
+    public static boolean ignoredWinstreaksWarning;
+
+    @Dropdown(
+        name = "Minimum Stars to Fetch WS",
+        options = {
+            "None",
+            "100",
+            "200",
+            "300",
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900",
+            "1000",
+            "1100",
+            "1200",
+            "1300",
+            "1400",
+            "1500",
+            "1600",
+            "1700",
+            "1800",
+            "1900",
+            "2000",
+            "2100",
+            "2200",
+            "2300",
+            "2400",
+            "2500",
+            "2600",
+            "2700",
+            "2800",
+            "2900",
+            "3000",
+            "3100",
+            "3200",
+            "3300",
+            "3400",
+            "3500",
+            "3600",
+            "3700",
+            "3800",
+            "3900",
+            "4000",
+            "4100",
+            "4200",
+            "4300",
+            "4400",
+            "4500",
+            "4600",
+            "4700",
+            "4800",
+            "4900",
+            "5000",
+        },
+        category = "Winstreaks"
+    )
+    public int winstreakMinStars = 0;
+
+    @Dropdown(
+        name = "Minimum FKDR to Fetch WS",
+        options = {
+            "None",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "10",
+            "15",
+            "20",
+            "25",
+            "30",
+            "40",
+            "50",
+            "60",
+            "70",
+            "80",
+            "90",
+            "100",
+        },
+        category = "Winstreaks"
+    )
+    public int winstreakMinFkdr = 0;
+
+    @Switch(
+        name = "Use Luna's API for Ping",
+        category = "Winstreaks",
+        description = "When hidden winstreaks are enabled, use Luna to keep the Ping column populated."
+    )
+    public boolean useLunaPingForWinstreaks = false;
 
     // Ping Configs
     @Dropdown(
         name = "Ping Provider",
         category = "Ping",
-        options = { "None", "Polsu", "Urchin" }
+        options = { "None", "Aurora API", "Luna's API" }
     )
     public int pingProvider = 0;
 
     @Info(
-        text = "Polsu requires an API key to be able to be used, Urchin does not.",
+        text = "Aurora API provides historical ping averages per player UUID. Configure the key in API Keys > Aurora.",
         type = InfoType.INFO,
         size = OptionSize.DUAL,
         category = "Ping"
     )
-    public static boolean ignoredPolsuAPI;
+    public static boolean ignoredAuroraPingInfo;
 
-    @Button(
-        name = "Polsu API Key",
-        text = "Get Key",
-        category = "Ping",
-        subcategory = "Polsu"
+    @Info(
+        text = "Luna's API provides ping averages per player UUID. Configure the key in API Keys > Luna.",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        category = "Ping"
     )
-    Runnable polsuLinkButton = () -> {
-        NetworkUtils.browseLink("https://polsu.xyz/api/apikey");
-    };
-
-    @Text(
-        name = "Polsu API Key",
-        category = "Ping",
-        subcategory = "Polsu",
-        secure = true,
-        multiline = false
-    )
-    public String polsuApiKey = "";
+    public static boolean ignoredLunaPingInfo;
 
     // Number denicker
     @Info(
-        text = "This module attempts to denick players based the number of finals and beds broken from chat messages.",
+        text = "This module attempts to denick players based the number of finals and beds broken from chat messages. Configure the Aurora key in API Keys > Aurora.",
         type = InfoType.INFO,
         size = OptionSize.DUAL,
         category = "Number Denicker"
@@ -1080,15 +1316,6 @@ public class MellowOneConfig extends Config {
         category = "Number Denicker"
     )
     public static boolean ignoredNumberDenickerFuzzyInfo;
-
-    @Text(
-        name = "Aurora API Key",
-        placeholder = "Enter your Aurora API key",
-        category = "Number Denicker",
-        secure = true,
-        multiline = false
-    )
-    public String auroraApiKey = "";
 
     @Dropdown(
         name = "Finals Range",
@@ -1266,41 +1493,41 @@ public class MellowOneConfig extends Config {
     }
 
     private void sanitizeDropdownIndexes() {
-        // BedWars tab stats dropdowns: Team..None (12 options)
-        customStat1 = clampIndex(customStat1, 12);
-        customStat2 = clampIndex(customStat2, 12);
-        customStat3 = clampIndex(customStat3, 12);
-        customStat4 = clampIndex(customStat4, 12);
-        customStat5 = clampIndex(customStat5, 12);
-        customStat6 = clampIndex(customStat6, 12);
-        customStat7 = clampIndex(customStat7, 12);
-        customStat8 = clampIndex(customStat8, 12);
-        customStat9 = clampIndex(customStat9, 12);
-        customStat10 = clampIndex(customStat10, 12);
+        // BedWars tab stats dropdowns: Team..Client (15 options)
+        customStat1 = clampIndex(customStat1, 15);
+        customStat2 = clampIndex(customStat2, 15);
+        customStat3 = clampIndex(customStat3, 15);
+        customStat4 = clampIndex(customStat4, 15);
+        customStat5 = clampIndex(customStat5, 15);
+        customStat6 = clampIndex(customStat6, 15);
+        customStat7 = clampIndex(customStat7, 15);
+        customStat8 = clampIndex(customStat8, 15);
+        customStat9 = clampIndex(customStat9, 15);
+        customStat10 = clampIndex(customStat10, 15);
 
-        // SkyWars tab stats dropdowns: Team..None (9 options)
-        skywarsCustomStat1 = clampIndex(skywarsCustomStat1, 9);
-        skywarsCustomStat2 = clampIndex(skywarsCustomStat2, 9);
-        skywarsCustomStat3 = clampIndex(skywarsCustomStat3, 9);
-        skywarsCustomStat4 = clampIndex(skywarsCustomStat4, 9);
-        skywarsCustomStat5 = clampIndex(skywarsCustomStat5, 9);
-        skywarsCustomStat6 = clampIndex(skywarsCustomStat6, 9);
-        skywarsCustomStat7 = clampIndex(skywarsCustomStat7, 9);
-        skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 9);
-        skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 9);
-        skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 9);
+        // SkyWars tab stats dropdowns: Team..Client (12 options)
+        skywarsCustomStat1 = clampIndex(skywarsCustomStat1, 12);
+        skywarsCustomStat2 = clampIndex(skywarsCustomStat2, 12);
+        skywarsCustomStat3 = clampIndex(skywarsCustomStat3, 12);
+        skywarsCustomStat4 = clampIndex(skywarsCustomStat4, 12);
+        skywarsCustomStat5 = clampIndex(skywarsCustomStat5, 12);
+        skywarsCustomStat6 = clampIndex(skywarsCustomStat6, 12);
+        skywarsCustomStat7 = clampIndex(skywarsCustomStat7, 12);
+        skywarsCustomStat8 = clampIndex(skywarsCustomStat8, 12);
+        skywarsCustomStat9 = clampIndex(skywarsCustomStat9, 12);
+        skywarsCustomStat10 = clampIndex(skywarsCustomStat10, 12);
 
-        // Duels tab stats dropdowns: Team..None (12 options)
-        duelsCustomStat1 = clampIndex(duelsCustomStat1, 12);
-        duelsCustomStat2 = clampIndex(duelsCustomStat2, 12);
-        duelsCustomStat3 = clampIndex(duelsCustomStat3, 12);
-        duelsCustomStat4 = clampIndex(duelsCustomStat4, 12);
-        duelsCustomStat5 = clampIndex(duelsCustomStat5, 12);
-        duelsCustomStat6 = clampIndex(duelsCustomStat6, 12);
-        duelsCustomStat7 = clampIndex(duelsCustomStat7, 12);
-        duelsCustomStat8 = clampIndex(duelsCustomStat8, 12);
-        duelsCustomStat9 = clampIndex(duelsCustomStat9, 12);
-        duelsCustomStat10 = clampIndex(duelsCustomStat10, 12);
+        // Duels tab stats dropdowns: Team..Client (15 options)
+        duelsCustomStat1 = clampIndex(duelsCustomStat1, 15);
+        duelsCustomStat2 = clampIndex(duelsCustomStat2, 15);
+        duelsCustomStat3 = clampIndex(duelsCustomStat3, 15);
+        duelsCustomStat4 = clampIndex(duelsCustomStat4, 15);
+        duelsCustomStat5 = clampIndex(duelsCustomStat5, 15);
+        duelsCustomStat6 = clampIndex(duelsCustomStat6, 15);
+        duelsCustomStat7 = clampIndex(duelsCustomStat7, 15);
+        duelsCustomStat8 = clampIndex(duelsCustomStat8, 15);
+        duelsCustomStat9 = clampIndex(duelsCustomStat9, 15);
+        duelsCustomStat10 = clampIndex(duelsCustomStat10, 15);
 
         // Misc dropdowns
         extendedTabStatsTeamColumnMode = clampIndex(
@@ -1314,6 +1541,8 @@ public class MellowOneConfig extends Config {
             3
         );
         pingProvider = clampIndex(pingProvider, 3);
+        winstreakMinStars = clampIndex(winstreakMinStars, 51);
+        winstreakMinFkdr = clampIndex(winstreakMinFkdr, 18);
         finalsRange = clampIndex(finalsRange, 5);
         bedsRange = clampIndex(bedsRange, 5);
         maxResults = clampIndex(maxResults, 3);

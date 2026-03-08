@@ -1,5 +1,6 @@
 package com.roxiun.mellow.cache;
 
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
 
@@ -622,11 +624,47 @@ public class PlayerCache {
 
     public void clearCache() {
         cache.clear();
+        if (Mellow.seraphClientCacheService != null) {
+            Mellow.seraphClientCacheService.clearCache();
+        }
+        if (Mellow.auroraPingService != null) {
+            Mellow.auroraPingService.clearCache();
+        }
+        if (Mellow.auroraWinstreakService != null) {
+            Mellow.auroraWinstreakService.clearCache();
+        }
+        if (Mellow.lunaPingService != null) {
+            Mellow.lunaPingService.clearCache();
+        }
     }
 
     public void clearPlayer(String playerName) {
+        if (playerName == null || playerName.trim().isEmpty()) {
+            return;
+        }
+
         String lower = playerName.toLowerCase(Locale.ROOT);
         cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+        if (Mellow.seraphClientCacheService != null) {
+            Mellow.seraphClientCacheService.clearPlayer(playerName);
+        }
+
+        UUID trustedTabUuid = PlayerUtils.getTrustedTabUuid(playerName);
+        if (trustedTabUuid == null) {
+            return;
+        }
+
+        String fullUuid = trustedTabUuid.toString();
+        String compactUuid = fullUuid.replace("-", "");
+        if (Mellow.auroraPingService != null) {
+            Mellow.auroraPingService.clearPlayer(compactUuid);
+        }
+        if (Mellow.auroraWinstreakService != null) {
+            Mellow.auroraWinstreakService.clearPlayer(compactUuid);
+        }
+        if (Mellow.lunaPingService != null) {
+            Mellow.lunaPingService.clearPlayer(fullUuid);
+        }
     }
 
     private void maybeInvalidateCacheOnApiKeyChange() {

@@ -2,19 +2,21 @@ package com.roxiun.mellow.feature.stats.tab;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
+import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
+import com.roxiun.mellow.api.seraph.SeraphClientType;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.ping.PingProviderUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import com.mojang.authlib.GameProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiIngame;
@@ -47,6 +49,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int HEAD_ICON_SIZE = 8;
     private static final int HEAD_TEXT_GAP = 2;
     private static final int TEAM_COLLAPSED_GAP = 1;
+    private static final int CLIENT_ICON_SIZE = 8;
 
     private final Minecraft mc;
     private final MellowOneConfig config;
@@ -143,7 +146,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
         int rowY = HEADER_HEIGHT + ROW_GAP;
         for (NetworkPlayerInfo info : visible) {
-            drawRect(0, rowY, totalWidth, rowY + ENTRY_HEIGHT, 553648127);
+            drawRect(0, rowY, totalWidth, rowY + ENTRY_HEIGHT, getRowBackground(info));
             drawValues(
                 columns,
                 columnWidths,
@@ -343,14 +346,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             );
 
             for (NetworkPlayerInfo info : players) {
-                String value = getDisplayValue(info, column, scope, i);
+                int contentWidth = getCellContentWidth(info, column, scope, i);
                 int extra =
                     column == 2 && shouldShowHeadsInExtendedView()
                         ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
                         : 0;
                 width = Math.max(
                     width,
-                    mc.fontRendererObj.getStringWidth(value) + CELL_PADDING_X * 2 + extra
+                    contentWidth + CELL_PADDING_X * 2 + extra
                 );
             }
 
@@ -387,12 +390,19 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             int width = columnWidths.get(i);
             if (!header.isEmpty()) {
                 int headerWidth = mc.fontRendererObj.getStringWidth(header);
-                int drawX =
-                    isRightAlignedColumn(column, i)
-                        ? x + width - CELL_PADDING_X - headerWidth
-                        : x + CELL_PADDING_X + (column == 2 && shouldShowHeadsInExtendedView()
-                            ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
-                            : 0);
+                int drawX;
+                if (isCenterAlignedColumn(column)) {
+                    drawX = x + (width - headerWidth) / 2;
+                } else if (isRightAlignedColumn(column, i)) {
+                    drawX = x + width - CELL_PADDING_X - headerWidth;
+                } else {
+                    drawX =
+                        x +
+                        CELL_PADDING_X +
+                        (column == 2 && shouldShowHeadsInExtendedView()
+                                ? HEAD_ICON_SIZE + HEAD_TEXT_GAP
+                                : 0);
+                }
                 mc.fontRendererObj.drawStringWithShadow(header, drawX, y, -1);
             }
             x += columnWidths.get(i);
@@ -427,15 +437,32 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
             int maxTextWidth = Math.max(1, width - reservedLeft);
 
+            if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+                drawClientIcon(info, x, width, baselineY);
+                x += width;
+                if (i < columns.size() - 1) {
+                    x += getGapAfterColumn(columns, i);
+                }
+                continue;
+            }
+
             String value = fitToWidth(
                 getDisplayValue(info, column, scope, i),
                 maxTextWidth
             );
             if (value != null && !value.isEmpty()) {
-                int drawX =
-                    isRightAlignedColumn(column, i)
-                        ? x + width - CELL_PADDING_X - mc.fontRendererObj.getStringWidth(value)
-                        : textStartX;
+                int drawX;
+                if (isCenterAlignedColumn(column)) {
+                    drawX = x + (width - mc.fontRendererObj.getStringWidth(value)) / 2;
+                } else if (isRightAlignedColumn(column, i)) {
+                    drawX =
+                        x +
+                        width -
+                        CELL_PADDING_X -
+                        mc.fontRendererObj.getStringWidth(value);
+                } else {
+                    drawX = textStartX;
+                }
                 mc.fontRendererObj.drawStringWithShadow(value, drawX, baselineY, -1);
             }
             x += width;
@@ -443,6 +470,20 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
                 x += getGapAfterColumn(columns, i);
             }
         }
+    }
+
+    private int getCellContentWidth(
+        NetworkPlayerInfo info,
+        int column,
+        StatScope scope,
+        int columnIndex
+    ) {
+        if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+            return getCachedClientType(info) == null ? 0 : CLIENT_ICON_SIZE;
+        }
+        return mc.fontRendererObj.getStringWidth(
+            getDisplayValue(info, column, scope, columnIndex)
+        );
     }
 
     private String fitToWidth(String value, int width) {
@@ -530,6 +571,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         if (isTeamCombinedTargetColumn(columnIndex)) {
             return false;
         }
+        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+            return false;
+        }
         return column != 0 && column != 2;
     }
 
@@ -573,6 +617,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 18;
         }
+        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+            return 20;
+        }
 
         switch (column) {
             case 0: // TEAM
@@ -589,6 +636,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private int getMaximumColumnWidth(StatScope scope, int column) {
         if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 34;
+        }
+        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+            return 110;
         }
 
         if (scope == StatScope.SKYWARS) {
@@ -714,11 +764,25 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             stats = Mellow.nickUtils.getResolvedTabStatsForNick(playerName, scope);
         }
 
+        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+            return buildTagsColumnValue(info, stats);
+        }
+        if (column == ExtendedTabStatsColumns.PING_COLUMN) {
+            return buildPingColumnValue(info);
+        }
+        if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+            return buildClientColumnValue(playerName);
+        }
+
         String[] tabData = PlayerUtils.getTabDisplayName2(playerName);
         String team = tabData != null && tabData.length > 0 ? tabData[0] : "";
         String name = tabData != null && tabData.length > 1 ? tabData[1] : playerName;
         String suffix = tabData != null && tabData.length > 2 ? tabData[2] : "";
         String teamColor = team.length() >= 2 ? team.substring(0, 2) : "§f";
+
+        if (column == 4 && scope == StatScope.BEDWARS) {
+            return buildBedwarsWinstreakValue(stats, isNicked, info);
+        }
 
         String value;
         if (scope == StatScope.SKYWARS) {
@@ -778,7 +842,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             );
         }
 
-        if (column == 2) {
+        if (column == 2 && shouldKeepTagsInName(scope)) {
             value = appendTagSuffixes(value, stats);
             value = appendListTags(value, info.getGameProfile().getId());
         }
@@ -1092,6 +1156,249 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
 
         return safe;
+    }
+
+    private int getRowBackground(NetworkPlayerInfo info) {
+        if (
+            Mellow.config != null &&
+            Mellow.config.highlightTaggedPlayers &&
+            isPlayerTagged(info)
+        ) {
+            return 0x99550000;
+        }
+        return 553648127;
+    }
+
+    private boolean isPlayerTagged(NetworkPlayerInfo info) {
+        if (info == null || info.getGameProfile() == null) {
+            return false;
+        }
+
+        String playerName = info.getGameProfile().getName();
+        if (playerName != null) {
+            TabStats stats = Mellow.tabStats.get(playerName);
+            if (stats != null && (stats.isUrchinTagged() || stats.isSeraphTagged())) {
+                return true;
+            }
+        }
+
+        UUID playerUuid = info.getGameProfile().getId();
+        if (playerUuid == null) {
+            return false;
+        }
+        if (
+            Mellow.blacklistManager != null &&
+            Mellow.blacklistManager.isBlacklisted(playerUuid)
+        ) {
+            return true;
+        }
+        return (
+            Mellow.annoylistManager != null &&
+            Mellow.annoylistManager.isAnnoylisted(playerUuid)
+        );
+    }
+
+    private String buildTagsColumnValue(NetworkPlayerInfo info, TabStats stats) {
+        StringBuilder builder = new StringBuilder();
+        UUID playerUuid =
+            info == null || info.getGameProfile() == null
+                ? null
+                : info.getGameProfile().getId();
+
+        if (
+            playerUuid != null &&
+            Mellow.blacklistManager != null &&
+            Mellow.blacklistManager.isBlacklisted(playerUuid)
+        ) {
+            builder.append("§8[§4BL§8]§r");
+        }
+        if (
+            playerUuid != null &&
+            Mellow.annoylistManager != null &&
+            Mellow.annoylistManager.isAnnoylisted(playerUuid)
+        ) {
+            if (builder.length() > 0) {
+                builder.append(" ");
+            }
+            builder.append("§8[§3AL§8]§r");
+        }
+
+        if (stats != null && Mellow.config != null) {
+            if (Mellow.config.showUrchinTagsInTab && stats.isUrchinTagged()) {
+                for (UrchinTag tag : stats.getUrchinTags()) {
+                    if (builder.length() > 0) {
+                        builder.append(" ");
+                    }
+                    builder.append(FormattingUtils.formatUrchinTagIcon(tag));
+                }
+            }
+            if (Mellow.config.showSeraphTagsInTab && stats.isSeraphTagged()) {
+                for (SeraphTag tag : stats.getSeraphTags()) {
+                    if (builder.length() > 0) {
+                        builder.append(" ");
+                    }
+                    builder.append(FormattingUtils.formatSeraphTagIcon(tag));
+                }
+            }
+        }
+
+        return builder.toString();
+    }
+
+    private String buildPingColumnValue(NetworkPlayerInfo info) {
+        if (
+            Mellow.config == null ||
+            info == null ||
+            info.getGameProfile() == null ||
+            info.getGameProfile().getId() == null
+        ) {
+            return "";
+        }
+
+        boolean useLuna = PingProviderUtils.shouldUseLuna(Mellow.config);
+        boolean useAurora = PingProviderUtils.shouldUseAurora(Mellow.config);
+
+        int ping = -1;
+        if (useLuna && Mellow.lunaPingService != null) {
+            ping = Mellow.lunaPingService.getCachedPing(
+                info.getGameProfile().getId().toString()
+            );
+        } else if (useAurora && Mellow.auroraPingService != null) {
+            ping = Mellow.auroraPingService.getCachedPing(
+                info.getGameProfile().getId().toString().replace("-", "")
+            );
+        }
+
+        if (ping < 0) {
+            return "";
+        }
+        if (ping < 50) {
+            return "§a" + ping;
+        }
+        if (ping < 100) {
+            return "§e" + ping;
+        }
+        if (ping < 200) {
+            return "§6" + ping;
+        }
+        return "§c" + ping;
+    }
+
+    private String buildClientColumnValue(String playerName) {
+        SeraphClientType clientType = getCachedClientType(playerName);
+        return clientType == null ? "" : clientType.getDisplayName();
+    }
+
+    private String buildBedwarsWinstreakValue(
+        TabStats stats,
+        boolean isNicked,
+        NetworkPlayerInfo info
+    ) {
+        String visible = getExtendedStatValue(
+            stats,
+            stats != null ? stats.getWinstreak() : null,
+            isNicked
+        );
+        if (!shouldUseHiddenWinstreakFallback(visible, info)) {
+            return visible;
+        }
+
+        int auroraWinstreak = Mellow.auroraWinstreakService.getCachedWinstreak(
+            info.getGameProfile().getId().toString().replace("-", "")
+        );
+        if (auroraWinstreak < 0) {
+            return visible;
+        }
+        return FormattingUtils.formatBedwarsWinstreakWithColor(auroraWinstreak);
+    }
+
+    private boolean shouldUseHiddenWinstreakFallback(
+        String visible,
+        NetworkPlayerInfo info
+    ) {
+        return (
+            Mellow.config != null &&
+            Mellow.config.showHiddenWinstreaks &&
+            Mellow.auroraWinstreakService != null &&
+            info != null &&
+            info.getGameProfile() != null &&
+            info.getGameProfile().getId() != null &&
+            isHiddenOrEmptyWinstreak(visible)
+        );
+    }
+
+    private boolean isHiddenOrEmptyWinstreak(String value) {
+        return FormattingUtils.isHiddenOrEmptyWinstreakDisplay(value);
+    }
+
+    private SeraphClientType getCachedClientType(String playerName) {
+        if (
+            Mellow.config == null ||
+            !Mellow.config.showSeraphClientInTab ||
+            playerName == null ||
+            Mellow.seraphClientCacheService == null
+        ) {
+            return null;
+        }
+
+        return Mellow.seraphClientCacheService.getCachedClient(playerName);
+    }
+
+    private SeraphClientType getCachedClientType(NetworkPlayerInfo info) {
+        if (info == null || info.getGameProfile() == null) {
+            return null;
+        }
+
+        return getCachedClientType(info.getGameProfile().getName());
+    }
+
+    private void drawClientIcon(
+        NetworkPlayerInfo info,
+        int columnX,
+        int columnWidth,
+        int baselineY
+    ) {
+        SeraphClientType clientType = getCachedClientType(info);
+        if (clientType == null) {
+            return;
+        }
+
+        int iconX = columnX + (columnWidth - CLIENT_ICON_SIZE) / 2;
+        int iconY =
+            baselineY + (mc.fontRendererObj.FONT_HEIGHT - CLIENT_ICON_SIZE) / 2;
+
+        mc.getTextureManager().bindTexture(clientType.getTexture());
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        GlStateManager.enableAlpha();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        Gui.drawModalRectWithCustomSizedTexture(
+            iconX,
+            iconY,
+            0.0F,
+            0.0F,
+            CLIENT_ICON_SIZE,
+            CLIENT_ICON_SIZE,
+            clientType.getTextureSize(),
+            clientType.getTextureSize()
+        );
+    }
+
+    private boolean shouldKeepTagsInName(StatScope scope) {
+        if (Mellow.config == null) {
+            return true;
+        }
+        return !ExtendedTabStatsColumns
+            .getConfiguredColumns(scope, Mellow.config)
+            .contains(ExtendedTabStatsColumns.TAGS_COLUMN);
+    }
+
+    private boolean isCenterAlignedColumn(int column) {
+        return (
+            column == ExtendedTabStatsColumns.TAGS_COLUMN ||
+            column == ExtendedTabStatsColumns.PING_COLUMN ||
+            column == ExtendedTabStatsColumns.CLIENT_COLUMN
+        );
     }
 
     private String getNickLabel() {

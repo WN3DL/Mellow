@@ -1,5 +1,6 @@
 package com.roxiun.mellow.feature.stats;
 
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
@@ -16,6 +17,7 @@ import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.alerts.AlertSoundGate;
 import com.roxiun.mellow.feature.nicks.NickUtils;
+import com.roxiun.mellow.feature.stats.tab.ExtendedTabStatsColumns;
 import com.roxiun.mellow.feature.tags.TagUtils;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.util.ChatUtils;
@@ -26,6 +28,7 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
+import com.roxiun.mellow.util.ping.PingProviderUtils;
 import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,7 @@ import net.minecraft.scoreboard.ScorePlayerTeam;
 public class StatsChecker {
 
     private static final String MC_COLOR_CODES = "0123456789abcdef";
+    private static final int BEDWARS_WINSTREAK_COLUMN = 4;
     private final PlayerCache playerCache;
     private final NickUtils nickUtils;
     private final MellowOneConfig config;
@@ -132,18 +136,22 @@ public class StatsChecker {
         // The notification for completion can be added back if desired
     }
 
-    public void fetchTabStatsForPlayers(
+    public List<String> fetchTabStatsForPlayers(
         List<String> playerNames,
-        boolean clearBeforeFetch
+        boolean clearBeforeFetch,
+        boolean forceRefresh
     ) {
         if (clearBeforeFetch) {
             tabStats.clear();
         }
         if (playerNames == null || playerNames.isEmpty()) {
-            return;
+            return new ArrayList<>();
         }
 
         final StatScope activeScope = resolveActiveScope();
+        final SupplementalFeatureUsage supplementalUsage =
+            resolveSupplementalFeatureUsage(activeScope);
+        List<String> scheduledPlayers = new ArrayList<>();
         for (String playerName : playerNames) {
             if (playerName == null || playerName.isEmpty()) {
                 continue;
@@ -159,9 +167,14 @@ public class StatsChecker {
             if (!tabFetchInFlight.add(normalizedName)) {
                 continue;
             }
+            scheduledPlayers.add(normalizedName);
 
             AsyncExecutor.getInstance().profileIo(() -> {
                 try {
+                    if (forceRefresh) {
+                        playerCache.clearPlayer(playerName);
+                    }
+
                     ProfileFetchResult result = playerCache.getScopedProfileResult(
                         playerName,
                         activeScope,
@@ -186,6 +199,13 @@ public class StatsChecker {
                             tabStats.put(playerName, newTabStats);
                         }
                     }
+
+                    warmSupplementalCaches(
+                        playerName,
+                        profile,
+                        activeScope,
+                        supplementalUsage
+                    );
 
                     if (shouldDeferRemoteTagLookup()) {
                         PlayerProfile baseProfile = profile;
@@ -216,6 +236,8 @@ public class StatsChecker {
                 }
             });
         }
+
+        return scheduledPlayers;
     }
 
     private boolean shouldDeferRemoteTagLookup() {
@@ -287,6 +309,264 @@ public class StatsChecker {
         return config.printBlacklistTags && (config.urchin || config.seraph);
     }
 
+    private void warmSupplementalCaches(
+        String playerName,
+        PlayerProfile profile,
+        StatScope scope,
+        SupplementalFeatureUsage supplementalUsage
+    ) {
+        if (
+            profile == null ||
+            supplementalUsage == null ||
+            !supplementalUsage.shouldWarmAny()
+        ) {
+            return;
+        }
+
+        warmSeraphClientCache(playerName, profile, supplementalUsage);
+        warmPingCache(profile, supplementalUsage);
+        warmHiddenWinstreakCache(profile, scope, supplementalUsage);
+    }
+
+    private SupplementalFeatureUsage resolveSupplementalFeatureUsage(
+        StatScope scope
+    ) {
+        if (
+            config == null ||
+            !config.tabStats ||
+            !config.extendedTabStatsView
+        ) {
+            return SupplementalFeatureUsage.NONE;
+        }
+
+        List<Integer> configuredColumns = ExtendedTabStatsColumns.getConfiguredColumns(
+            scope,
+            config
+        );
+        if (configuredColumns.isEmpty()) {
+            return SupplementalFeatureUsage.NONE;
+        }
+
+        boolean shouldWarmClient =
+            config.seraph &&
+            config.showSeraphClientInTab &&
+            configuredColumns.contains(ExtendedTabStatsColumns.CLIENT_COLUMN);
+        boolean shouldWarmPing = configuredColumns.contains(
+            ExtendedTabStatsColumns.PING_COLUMN
+        );
+        boolean shouldWarmHiddenWinstreak =
+            scope == StatScope.BEDWARS &&
+            config.showHiddenWinstreaks &&
+            configuredColumns.contains(BEDWARS_WINSTREAK_COLUMN);
+
+        return new SupplementalFeatureUsage(
+            shouldWarmClient,
+            shouldWarmPing,
+            shouldWarmHiddenWinstreak
+        );
+    }
+
+    private void warmSeraphClientCache(
+        String playerName,
+        PlayerProfile profile,
+        SupplementalFeatureUsage supplementalUsage
+    ) {
+        if (
+            supplementalUsage == null ||
+            !supplementalUsage.shouldWarmClient ||
+            Mellow.seraphClientCacheService == null ||
+            profile.getUuid() == null ||
+            profile.getUuid().trim().isEmpty()
+        ) {
+            return;
+        }
+
+        AsyncExecutor.getInstance().supplementalIo(() ->
+            Mellow.seraphClientCacheService.refreshClient(
+                playerName,
+                profile.getUuid()
+            )
+        );
+    }
+
+    private void warmPingCache(
+        PlayerProfile profile,
+        SupplementalFeatureUsage supplementalUsage
+    ) {
+        if (
+            supplementalUsage == null ||
+            !supplementalUsage.shouldWarmPing ||
+            config == null ||
+            profile.getUuid() == null ||
+            profile.getUuid().isEmpty()
+        ) {
+            return;
+        }
+
+        UUID playerUuid = parseUuid(profile.getUuid());
+        if (playerUuid == null) {
+            return;
+        }
+
+        if (
+            PingProviderUtils.shouldUseLuna(config) &&
+            PingProviderUtils.hasLunaApiKey(config) &&
+            Mellow.lunaPingService != null
+        ) {
+            Mellow.lunaPingService.fetchAsync(
+                playerUuid.toString(),
+                config.lunaPingApiKey
+            );
+            return;
+        }
+
+        if (
+            PingProviderUtils.shouldUseAurora(config) &&
+            PingProviderUtils.hasAuroraApiKey(config) &&
+            Mellow.auroraPingService != null
+        ) {
+            Mellow.auroraPingService.fetchAsync(
+                playerUuid.toString().replace("-", ""),
+                config.auroraApiKey
+            );
+        }
+    }
+
+    private void warmHiddenWinstreakCache(
+        PlayerProfile profile,
+        StatScope scope,
+        SupplementalFeatureUsage supplementalUsage
+    ) {
+        if (
+            supplementalUsage == null ||
+            !supplementalUsage.shouldWarmHiddenWinstreak ||
+            config == null ||
+            scope != StatScope.BEDWARS ||
+            !config.showHiddenWinstreaks ||
+            config.auroraApiKey == null ||
+            config.auroraApiKey.trim().isEmpty() ||
+            Mellow.auroraWinstreakService == null
+        ) {
+            return;
+        }
+
+        BedwarsPlayer bedwarsPlayer = profile.getBedwarsPlayer();
+        UUID playerUuid = parseUuid(profile.getUuid());
+        if (bedwarsPlayer == null || playerUuid == null) {
+            return;
+        }
+        if (isVisibleWinstreakUsable(bedwarsPlayer)) {
+            return;
+        }
+
+        int minStars = resolveMinStars(config.winstreakMinStars);
+        double minFkdr = resolveMinFkdr(config.winstreakMinFkdr);
+        int stars = parseStarsInt(bedwarsPlayer.getStars());
+        if (stars < minStars || bedwarsPlayer.getFkdr() < minFkdr) {
+            return;
+        }
+
+        String compactUuid = playerUuid.toString().replace("-", "");
+        if (Mellow.auroraWinstreakService.hasCachedWinstreak(compactUuid)) {
+            return;
+        }
+        if (!Mellow.auroraWinstreakService.tryStartFetch(compactUuid)) {
+            return;
+        }
+
+        AsyncExecutor.getInstance().supplementalIo(() -> {
+            try {
+                int winstreak = Mellow.auroraWinstreakService.fetchWinstreakBlocking(
+                    compactUuid,
+                    config.auroraApiKey
+                );
+                if (winstreak >= 0) {
+                    Mellow.auroraWinstreakService.storeInCache(compactUuid, winstreak);
+                }
+            } catch (Exception e) {
+                if (!Mellow.auroraWinstreakService.hasShownError()) {
+                    Mellow.auroraWinstreakService.markErrorShown();
+                    String detail = e.getMessage() == null ? "unknown" : e.getMessage();
+                    mc.addScheduledTask(() ->
+                        ChatUtils.sendMessage(
+                            "§cAurora Winstreak API error: §6" + detail
+                        )
+                    );
+                }
+            } finally {
+                Mellow.auroraWinstreakService.finishFetch(compactUuid);
+            }
+        });
+    }
+
+    private int resolveMinStars(int index) {
+        if (index <= 0) {
+            return 0;
+        }
+        return index * 100;
+    }
+
+    private double resolveMinFkdr(int index) {
+        int[] values = {
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30,
+            40,
+            50,
+            60,
+            70,
+            80,
+            90,
+            100,
+        };
+        if (index < 0 || index >= values.length) {
+            return 0;
+        }
+        return values[index];
+    }
+
+    private int parseStarsInt(String stars) {
+        if (stars == null || stars.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(
+                stars.replaceAll("§.", "").replaceAll("[^0-9]", "")
+            );
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private boolean isVisibleWinstreakUsable(BedwarsPlayer bedwarsPlayer) {
+        if (bedwarsPlayer == null) {
+            return false;
+        }
+        if (!bedwarsPlayer.hasWinstreakData()) {
+            return false;
+        }
+        return bedwarsPlayer.getWinstreak() > 0;
+    }
+
+    private UUID parseUuid(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return UUIDUtils.fromString(uuid);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private StatScope resolveActiveScope() {
         GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
         return StatScopeResolver.resolveInGameScope(snapshot);
@@ -306,6 +586,34 @@ public class StatsChecker {
             return profile.getTntRunPlayer() != null;
         }
         return profile.getBedwarsPlayer() != null;
+    }
+
+    private static final class SupplementalFeatureUsage {
+
+        private static final SupplementalFeatureUsage NONE =
+            new SupplementalFeatureUsage(false, false, false);
+
+        private final boolean shouldWarmClient;
+        private final boolean shouldWarmPing;
+        private final boolean shouldWarmHiddenWinstreak;
+
+        private SupplementalFeatureUsage(
+            boolean shouldWarmClient,
+            boolean shouldWarmPing,
+            boolean shouldWarmHiddenWinstreak
+        ) {
+            this.shouldWarmClient = shouldWarmClient;
+            this.shouldWarmPing = shouldWarmPing;
+            this.shouldWarmHiddenWinstreak = shouldWarmHiddenWinstreak;
+        }
+
+        private boolean shouldWarmAny() {
+            return (
+                shouldWarmClient ||
+                shouldWarmPing ||
+                shouldWarmHiddenWinstreak
+            );
+        }
     }
 
     private boolean passesScopeFilters(PlayerProfile profile, StatScope scope) {

@@ -36,7 +36,7 @@ public class MellowCommand extends CommandBase {
         sender.addChatMessage(new ChatComponentText(""));
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§dzifro §7for name & upgrades hud, §r§djqsie §7for original emerald counter "
+                "§r§dzifro §7for name & upgrades hud, §r§djqsie §7for original emerald counter, §r§dignmuffin §7for various major new features, §r§derror-PNF §7for profile viewer"
             )
         );
         sender.addChatMessage(new ChatComponentText(""));
@@ -66,8 +66,8 @@ public class MellowCommand extends CommandBase {
         sender.addChatMessage(
             new ChatComponentText(
                 "§r§5" +
-                BlacklistCommandResolver.getCommandPrefix() +
-                " <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist.§r"
+                    BlacklistCommandResolver.getCommandPrefix() +
+                    " <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist.§r"
             )
         );
         sender.addChatMessage(
@@ -83,19 +83,19 @@ public class MellowCommand extends CommandBase {
         sender.addChatMessage(
             new ChatComponentText(
                 "§r§5" +
-                (BlacklistCommandResolver.isSeraphLoaded()
+                    (BlacklistCommandResolver.isSeraphLoaded()
                         ? "/urchin|/murchin <username>"
                         : "/urchin <username>") +
-                ":§d View a player's urchin tags.§r"
+                    ":§d View a player's urchin tags.§r"
             )
         );
         sender.addChatMessage(
             new ChatComponentText(
                 "§r§5" +
-                (BlacklistCommandResolver.isSeraphLoaded()
+                    (BlacklistCommandResolver.isSeraphLoaded()
                         ? "/seraph|/mseraph <username>"
                         : "/seraph <username>") +
-                ":§d View a player's seraph tags.§r"
+                    ":§d View a player's seraph tags.§r"
             )
         );
         sender.addChatMessage(
@@ -110,7 +110,27 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/cleartabcache:§d Clear stats cache of players if you're having issues.§r"
+                "§r§5/refresh:§d Re-fetch tab stats for all visible players in the current live match.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
+                "§r§5/status <username>:§d Show Hypixel online status, last login, and Luna lobby message data.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
+                "§r§5/namehistory|/nameh|/names|/nh <username>:§d View merged name history from Ashcon, Laby.net, and NameMC.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
+                "§r§5/winstreak <username>:§d Show visible BedWars winstreak first, then Aurora fallback if configured.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
+                "§r§5/clearcache:§d Clear profile, tab, ping, and client caches if you're having issues.§r"
             )
         );
         sender.addChatMessage(

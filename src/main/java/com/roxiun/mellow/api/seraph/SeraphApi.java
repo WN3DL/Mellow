@@ -25,6 +25,45 @@ public class SeraphApi {
         this.mojangApi = mojangApi;
     }
 
+    public SeraphClientType fetchClientType(String uuid, String seraphApiKey) {
+        try {
+            if (
+                uuid == null ||
+                uuid.equals("ERROR") ||
+                uuid.isEmpty() ||
+                seraphApiKey == null ||
+                seraphApiKey.isEmpty()
+            ) {
+                return null;
+            }
+
+            String apiUrl =
+                "https://api.seraph.si/private-access/client?key=" +
+                seraphApiKey +
+                "&id=" +
+                uuid;
+            URL url = new URL(apiUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                return null;
+            }
+
+            BufferedReader in = new BufferedReader(
+                new InputStreamReader(conn.getInputStream())
+            );
+            String response = in.lines().collect(Collectors.joining());
+            in.close();
+            return parseClientTag(response);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     public List<SeraphTag> fetchSeraphTags(String uuid, String seraphApiKey)
         throws IOException {
         try {
@@ -123,5 +162,29 @@ public class SeraphApi {
             // If parsing fails, return empty list
         }
         return new ArrayList<>();
+    }
+
+    private SeraphClientType parseClientTag(String response) {
+        if (response == null || response.isEmpty()) {
+            return null;
+        }
+
+        String lower = response.toLowerCase();
+        int statusIndex = lower.indexOf("currently on ");
+        if (statusIndex < 0) {
+            return null;
+        }
+
+        int start = statusIndex + "currently on ".length();
+        int clientIndex = lower.indexOf(" client", start);
+        if (clientIndex < 0) {
+            return null;
+        }
+
+        String clientName = response.substring(start, clientIndex).trim();
+        if (clientName.isEmpty()) {
+            return null;
+        }
+        return SeraphClientType.fromDetectedName(clientName);
     }
 }

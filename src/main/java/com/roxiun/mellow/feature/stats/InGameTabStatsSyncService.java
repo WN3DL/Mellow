@@ -30,6 +30,7 @@ public class InGameTabStatsSyncService {
     private boolean inSupportedMatch;
     private long matchStartMillis;
     private long lastScanMillis;
+    private GameSnapshot currentSnapshot;
 
     public InGameTabStatsSyncService(
         StatsChecker statsChecker,
@@ -44,6 +45,7 @@ public class InGameTabStatsSyncService {
     }
 
     public synchronized void onSnapshotUpdate(GameSnapshot snapshot) {
+        currentSnapshot = snapshot;
         boolean supportedNow = isSupportedMatch(snapshot);
         if (!supportedNow) {
             if (inSupportedMatch) {
@@ -61,7 +63,7 @@ public class InGameTabStatsSyncService {
             fetchedOrScheduledThisMatch.clear();
             statsChecker.resetInGameMatchWarningState();
 
-            runScan(true);
+            runScan(true, false);
             return;
         }
 
@@ -72,14 +74,18 @@ public class InGameTabStatsSyncService {
             return;
         }
 
-        runScan(false);
+        runScan(false, false);
     }
 
-    private boolean isSupportedMatch(GameSnapshot snapshot) {
+    public boolean isSupportedMatch(GameSnapshot snapshot) {
         return StatScopeResolver.isSupportedLiveMatch(snapshot);
     }
 
-    private void runScan(boolean clearBeforeFetch) {
+    public synchronized GameSnapshot getCurrentSnapshot() {
+        return currentSnapshot;
+    }
+
+    private void runScan(boolean clearBeforeFetch, boolean forceRefresh) {
         lastScanMillis = System.currentTimeMillis();
         boolean shouldScanForWarnings =
             config != null && statsChecker.shouldScanForInGameWarnings();
@@ -95,21 +101,26 @@ public class InGameTabStatsSyncService {
             nickUtils.updateNickedPlayers(tabPlayers);
         }
 
-        List<String> newPlayers = new ArrayList<>();
+        List<String> pendingPlayers = new ArrayList<>();
         for (String playerName : tabPlayers) {
             if (playerName == null || playerName.isEmpty()) {
                 continue;
             }
 
             String normalized = playerName.toLowerCase(Locale.ROOT);
-            if (!fetchedOrScheduledThisMatch.add(normalized)) {
+            if (!forceRefresh && fetchedOrScheduledThisMatch.contains(normalized)) {
                 continue;
             }
 
-            newPlayers.add(playerName);
+            pendingPlayers.add(playerName);
         }
 
-        statsChecker.fetchTabStatsForPlayers(newPlayers, clearBeforeFetch);
+        List<String> scheduledPlayers = statsChecker.fetchTabStatsForPlayers(
+            pendingPlayers,
+            clearBeforeFetch,
+            forceRefresh
+        );
+        fetchedOrScheduledThisMatch.addAll(scheduledPlayers);
     }
 
     private List<String> getTabPlayerNames() {
@@ -131,6 +142,13 @@ public class InGameTabStatsSyncService {
         }
 
         return new ArrayList<>(unique);
+    }
+
+    public synchronized void forceRefresh() {
+        fetchedOrScheduledThisMatch.clear();
+        if (currentSnapshot != null && isSupportedMatch(currentSnapshot)) {
+            runScan(true, true);
+        }
     }
 
     private void resetTracking() {
