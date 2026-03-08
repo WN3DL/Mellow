@@ -177,14 +177,13 @@ public class ReplayManager {
         }
     }
 
-    public boolean handlePlaybackControlClick() {
-        return activePlayback != null && activePlayback.handleHeldControlClick();
+    public boolean handlePlaybackControlClick(int mouseButton) {
+        return activePlayback != null &&
+        activePlayback.handleHeldControlClick(mouseButton);
     }
 
-    public void spectatePlayer(String name) {
-        if (activePlayback != null) {
-            activePlayback.spectatePlayer(name);
-        }
+    public boolean teleportToPlayer(String name) {
+        return activePlayback != null && activePlayback.teleportToPlayer(name);
     }
 
     public List<ReplayCatalogEntry> listReplays() {

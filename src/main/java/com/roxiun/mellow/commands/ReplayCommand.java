@@ -111,7 +111,12 @@ public class ReplayCommand extends CommandBase {
                 if (args.length < 2) {
                     return;
                 }
-                replayManager.spectatePlayer(args[1]);
+                if (!replayManager.teleportToPlayer(args[1])) {
+                    ChatUtils.sendCommandMessage(
+                        sender,
+                        "§cReplay player not available: §f" + args[1]
+                    );
+                }
                 return;
             default:
                 ChatUtils.sendCommandMessage(sender, "§cUsage: " + getCommandUsage(sender));

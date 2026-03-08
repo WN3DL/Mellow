@@ -27,7 +27,7 @@ public class ReplayInputRouter {
             return;
         }
 
-        if (replayManager.handlePlaybackControlClick()) {
+        if (replayManager.handlePlaybackControlClick(event.button)) {
             event.setCanceled(true);
         }
     }

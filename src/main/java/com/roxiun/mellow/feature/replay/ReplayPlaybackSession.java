@@ -4,8 +4,11 @@ import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.util.ChatUtils;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
@@ -18,6 +21,7 @@ import net.minecraft.network.play.server.S01PacketJoinGame;
 import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
+import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.world.EnumDifficulty;
@@ -29,6 +33,10 @@ public class ReplayPlaybackSession {
     public static final int REPLAY_VIEWER_ENTITY_ID = -310_001;
     private static final int REPLAY_LOCAL_PLAYER_ENTITY_ID = -310_002;
     private static final double[] SPEEDS = new double[] { 0.25D, 0.5D, 1.0D, 2.0D, 4.0D };
+    private static final int DYE_COLOR_GRAY = 8;
+    private static final int DYE_COLOR_PINK = 9;
+    private static final String UNASSIGNED_TEAM_SORT_KEY = "\uFFFF";
+    private static final String MC_COLOR_CODES = "0123456789abcdef";
 
     private final Minecraft mc = Minecraft.getMinecraft();
     private final ReplayLoadedData replay;
@@ -46,19 +54,56 @@ public class ReplayPlaybackSession {
     private boolean paused;
     private boolean viewerPositionInitialized;
     private int speedIndex = 2;
-    private String spectatingName = "";
+    private String lastTeleportedPlayerName = "";
     private boolean bootstrapPacketOpen;
     private boolean worldBootstrapped;
     private final boolean allowLegacyFallbackPlayers;
 
     enum ControlAction {
         NONE,
+        TELEPORT,
         SLOW_DOWN,
         BACKWARD,
         TOGGLE_PAUSE,
         FORWARD,
         SPEED_UP,
         STOP
+    }
+
+    static final class TeleportTarget {
+
+        private final String name;
+        private final String displayName;
+        private final String teamSortKey;
+        private final String teamLabel;
+
+        TeleportTarget(
+            String name,
+            String displayName,
+            String teamSortKey,
+            String teamLabel
+        ) {
+            this.name = name;
+            this.displayName = displayName;
+            this.teamSortKey = teamSortKey;
+            this.teamLabel = teamLabel;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        String getDisplayName() {
+            return displayName;
+        }
+
+        String getTeamSortKey() {
+            return teamSortKey;
+        }
+
+        String getTeamLabel() {
+            return teamLabel;
+        }
     }
 
     public ReplayPlaybackSession(ReplayLoadedData replay, Runnable stopCallback) {
@@ -72,7 +117,7 @@ public class ReplayPlaybackSession {
         restartFrom(0, false);
         ChatUtils.sendMessage(
             "§dOpened replay §f" + replay.getMetadata().getReplayId() +
-            "§7. Hold a replay control and click, or use §f/mreplay§7."
+            "§7. Left-click the compass to cycle players or right-click it for the player list."
         );
     }
 
@@ -97,7 +142,6 @@ public class ReplayPlaybackSession {
         emitChatsUpTo(currentTimeMs);
         advanceScoreboardTo(currentTimeMs);
         updateLocalReplayPlayer(currentTimeMs);
-        updateSpectateTarget();
 
         if (!paused && currentTimeMs >= replay.getMetadata().getDurationMs()) {
             paused = true;
@@ -110,7 +154,7 @@ public class ReplayPlaybackSession {
     }
 
     public void stop() {
-        spectatingName = "";
+        lastTeleportedPlayerName = "";
         localReplayPlayer = null;
         currentScoreboard = null;
         viewerPositionInitialized = false;
@@ -153,14 +197,44 @@ public class ReplayPlaybackSession {
         ChatUtils.sendMessage("§7Jumped to §f" + formatTime(currentTimeMs) + "§7.");
     }
 
-    public void spectatePlayer(String playerName) {
+    public boolean teleportToPlayer(String playerName) {
         if (playerName == null || playerName.trim().isEmpty()) {
-            spectatingName = "";
-            ChatUtils.sendMessage("§7Stopped spectating replay players.");
-            return;
+            return false;
         }
-        spectatingName = playerName.trim();
-        updateSpectateTarget();
+
+        Entity entity = findPlayerEntity(playerName.trim());
+        if (entity == null) {
+            return false;
+        }
+
+        teleportToEntity(entity);
+        lastTeleportedPlayerName = entity.getName();
+        ChatUtils.sendMessage("§7Teleported to §f" + entity.getName() + "§7.");
+        return true;
+    }
+
+    public List<TeleportTarget> getTeleportTargets() {
+        if (mc.theWorld == null) {
+            return Collections.emptyList();
+        }
+
+        Map<String, TeleportTarget> targetsByName = new LinkedHashMap<>();
+        for (Object playerObj : mc.theWorld.playerEntities) {
+            if (!(playerObj instanceof EntityPlayer)) {
+                continue;
+            }
+            EntityPlayer player = (EntityPlayer) playerObj;
+            if (player == mc.thePlayer) {
+                continue;
+            }
+            addTeleportTarget(targetsByName, player);
+        }
+
+        if (localReplayPlayer != null) {
+            addTeleportTarget(targetsByName, localReplayPlayer);
+        }
+
+        return sortTeleportTargets(new ArrayList<>(targetsByName.values()));
     }
 
     public ReplayPlaybackState getPlaybackState() {
@@ -175,23 +249,25 @@ public class ReplayPlaybackSession {
             replay.getMetadata().getMode(),
             currentTimeMs,
             replay.getMetadata().getDurationMs(),
-            getSpeed(),
-            spectatingName
+            getSpeed()
         );
     }
 
-    public boolean handleHeldControlClick() {
+    public boolean handleHeldControlClick(int mouseButton) {
         if (!isActive() || mc.thePlayer == null) {
             return false;
         }
 
         return triggerControlAction(
-            resolveControlAction(mc.thePlayer.inventory.currentItem)
+            resolveControlAction(mc.thePlayer.inventory.currentItem),
+            mouseButton
         );
     }
 
     static ControlAction resolveControlAction(int slot) {
         switch (slot) {
+            case 0:
+                return ControlAction.TELEPORT;
             case 2:
                 return ControlAction.SLOW_DOWN;
             case 3:
@@ -224,9 +300,6 @@ public class ReplayPlaybackSession {
         );
         lines.add("§7Speed: §f" + speedLabel());
         lines.add("§7State: §f" + (paused ? "Paused" : "Playing"));
-        if (!spectatingName.isEmpty()) {
-            lines.add("§7Spectating: §f" + spectatingName);
-        }
         if (currentScoreboard != null) {
             String title = currentScoreboard.getTitle();
             if (!title.isEmpty()) {
@@ -294,6 +367,7 @@ public class ReplayPlaybackSession {
         localReplayPlayer = null;
         currentScoreboard = null;
         viewerPositionInitialized = false;
+        lastTeleportedPlayerName = "";
         bootstrapPacketOpen = false;
         worldBootstrapped = false;
         bootstrapReplayWorld();
@@ -411,23 +485,6 @@ public class ReplayPlaybackSession {
         }
     }
 
-    private void updateSpectateTarget() {
-        if (spectatingName.isEmpty() || mc.thePlayer == null || mc.theWorld == null) {
-            return;
-        }
-        Entity entity = findPlayerEntity(spectatingName);
-        if (entity == null) {
-            return;
-        }
-        mc.thePlayer.setPositionAndRotation(
-            entity.posX,
-            entity.posY + 2.0D,
-            entity.posZ,
-            entity.rotationYaw,
-            entity.rotationPitch
-        );
-    }
-
     private Entity findPlayerEntity(String name) {
         if (mc.theWorld == null || name == null) {
             return null;
@@ -458,28 +515,35 @@ public class ReplayPlaybackSession {
         if (mc.thePlayer == null) {
             return;
         }
-        mc.thePlayer.inventory.mainInventory[0] = namedItem(Items.book, "§dReplay Info");
-        mc.thePlayer.inventory.mainInventory[1] = namedItem(Items.compass, "§d/mellow replay tp <player>");
+        mc.thePlayer.inventory.mainInventory[0] = namedItem(Items.compass, "§dTeleport Players");
+        mc.thePlayer.inventory.mainInventory[1] = null;
         mc.thePlayer.inventory.mainInventory[2] = namedItem(Items.redstone, "§dSlow Down");
         mc.thePlayer.inventory.mainInventory[3] = namedItem(Items.arrow, "§dBack 5s");
         mc.thePlayer.inventory.mainInventory[4] = namedItem(
-            paused ? Items.slime_ball : Items.nether_star,
+            Items.dye,
+            paused ? DYE_COLOR_GRAY : DYE_COLOR_PINK,
             paused ? "§dPlay" : "§dPause"
         );
         mc.thePlayer.inventory.mainInventory[5] = namedItem(Items.arrow, "§dForward 5s");
         mc.thePlayer.inventory.mainInventory[6] = namedItem(Items.sugar, "§dSpeed Up");
-        mc.thePlayer.inventory.mainInventory[7] = namedItem(Items.name_tag, "§dSpectate Player");
+        mc.thePlayer.inventory.mainInventory[7] = null;
         mc.thePlayer.inventory.mainInventory[8] = namedItem(Items.bed, "§cExit Replay");
     }
 
     private ItemStack namedItem(net.minecraft.item.Item item, String name) {
-        ItemStack stack = new ItemStack(item);
+        return namedItem(item, 0, name);
+    }
+
+    private ItemStack namedItem(net.minecraft.item.Item item, int metadata, String name) {
+        ItemStack stack = new ItemStack(item, 1, metadata);
         stack.setStackDisplayName(name);
         return stack;
     }
 
-    private boolean triggerControlAction(ControlAction action) {
+    private boolean triggerControlAction(ControlAction action, int mouseButton) {
         switch (action) {
+            case TELEPORT:
+                return handleTeleportControl(mouseButton);
             case SLOW_DOWN:
                 changeSpeed(-1);
                 return true;
@@ -501,6 +565,329 @@ public class ReplayPlaybackSession {
             default:
                 return false;
         }
+    }
+
+    private boolean handleTeleportControl(int mouseButton) {
+        if (mouseButton == 0) {
+            return cycleTeleportTarget();
+        }
+        if (mouseButton == 1) {
+            return openTeleportMenu();
+        }
+        return false;
+    }
+
+    private boolean cycleTeleportTarget() {
+        List<TeleportTarget> targets = getTeleportTargets();
+        if (targets.isEmpty()) {
+            ChatUtils.sendMessage("§cNo replay players are currently available to teleport to.");
+            return true;
+        }
+
+        int nextIndex = 0;
+        if (!lastTeleportedPlayerName.isEmpty()) {
+            for (int i = 0; i < targets.size(); i++) {
+                if (targets.get(i).getName().equalsIgnoreCase(lastTeleportedPlayerName)) {
+                    nextIndex = (i + 1) % targets.size();
+                    break;
+                }
+            }
+        }
+
+        TeleportTarget target = targets.get(nextIndex);
+        if (!teleportToPlayer(target.getName())) {
+            ChatUtils.sendMessage(
+                "§cReplay player not available: §f" + target.getName()
+            );
+        }
+        return true;
+    }
+
+    private boolean openTeleportMenu() {
+        List<TeleportTarget> targets = getTeleportTargets();
+        if (targets.isEmpty()) {
+            ChatUtils.sendMessage("§cNo replay players are currently available to teleport to.");
+            return true;
+        }
+
+        mc.displayGuiScreen(new ReplayTeleportPickerGui(this));
+        return true;
+    }
+
+    private void addTeleportTarget(
+        Map<String, TeleportTarget> targetsByName,
+        EntityPlayer player
+    ) {
+        String name = player.getName();
+        if (name == null) {
+            return;
+        }
+
+        String trimmedName = name.trim();
+        if (trimmedName.isEmpty()) {
+            return;
+        }
+
+        String key = trimmedName.toLowerCase(Locale.ROOT);
+        if (targetsByName.containsKey(key)) {
+            return;
+        }
+
+        ScorePlayerTeam team = resolveTeam(trimmedName);
+        targetsByName.put(
+            key,
+            new TeleportTarget(
+                trimmedName,
+                team == null
+                    ? trimmedName
+                    : ScorePlayerTeam.formatPlayerName(team, trimmedName),
+                resolveTeamSortKey(team),
+                resolveTeamLabel(team)
+            )
+        );
+    }
+
+    static List<TeleportTarget> sortTeleportTargets(List<TeleportTarget> targets) {
+        List<TeleportTarget> sorted = new ArrayList<>(targets);
+        Collections.sort(
+            sorted,
+            new Comparator<TeleportTarget>() {
+                @Override
+                public int compare(TeleportTarget first, TeleportTarget second) {
+                    int byTeam = first
+                        .getTeamSortKey()
+                        .compareTo(second.getTeamSortKey());
+                    if (byTeam != 0) {
+                        return byTeam;
+                    }
+
+                    int byName = first
+                        .getName()
+                        .toLowerCase(Locale.ROOT)
+                        .compareTo(second.getName().toLowerCase(Locale.ROOT));
+                    if (byName != 0) {
+                        return byName;
+                    }
+
+                    return first.getName().compareTo(second.getName());
+                }
+            }
+        );
+        return sorted;
+    }
+
+    private ScorePlayerTeam resolveTeam(String playerName) {
+        if (
+            mc.theWorld == null ||
+            mc.theWorld.getScoreboard() == null ||
+            playerName == null ||
+            playerName.trim().isEmpty()
+        ) {
+            return null;
+        }
+        return mc.theWorld.getScoreboard().getPlayersTeam(playerName);
+    }
+
+    private String resolveTeamSortKey(ScorePlayerTeam team) {
+        String normalized = resolveGroupedTeamName(team);
+        return normalized.isEmpty()
+            ? UNASSIGNED_TEAM_SORT_KEY
+            : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveTeamLabel(ScorePlayerTeam team) {
+        String normalized = resolveGroupedTeamName(team);
+        if (normalized.isEmpty()) {
+            normalized = "Unassigned";
+        }
+
+        String colorPrefix = team == null ? "" : team.getColorPrefix();
+        if (colorPrefix == null || colorPrefix.isEmpty()) {
+            colorPrefix = "§7";
+        }
+        return colorPrefix + normalized;
+    }
+
+    private String resolveGroupedTeamName(ScorePlayerTeam team) {
+        if (team == null) {
+            return "";
+        }
+
+        String resolved = normalizeHypixelTeamName(
+            team.getRegisteredName(),
+            team.getColorPrefix()
+        );
+        if (!resolved.isEmpty()) {
+            return resolved;
+        }
+
+        String fallback = normalizeGenericTeamName(team.getRegisteredName());
+        if (!fallback.isEmpty()) {
+            return fallback;
+        }
+
+        return normalizeGenericTeamName(ChatUtils.stripFormatting(team.getColorPrefix()));
+    }
+
+    static String normalizeHypixelTeamName(String rawTeamName, String colorPrefix) {
+        String normalized = normalizeHypixelTeamToken(rawTeamName);
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+
+        normalized = normalizeHypixelTeamToken(ChatUtils.stripFormatting(colorPrefix));
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+
+        return mapColorCodeToTeamName(extractMinecraftColorCode(colorPrefix));
+    }
+
+    private static String normalizeHypixelTeamToken(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = ChatUtils
+            .stripFormatting(value)
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z]", "");
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        if (normalized.equals("r") || normalized.contains("red")) {
+            return "Red";
+        }
+        if (normalized.equals("b") || normalized.contains("blue")) {
+            return "Blue";
+        }
+        if (normalized.equals("g") || normalized.contains("green")) {
+            return "Green";
+        }
+        if (normalized.equals("y") || normalized.contains("yellow")) {
+            return "Yellow";
+        }
+        if (
+            normalized.equals("a") ||
+            normalized.contains("aqua") ||
+            normalized.contains("cyan")
+        ) {
+            return "Aqua";
+        }
+        if (normalized.equals("w") || normalized.contains("white")) {
+            return "White";
+        }
+        if (
+            normalized.equals("p") ||
+            normalized.contains("pink") ||
+            normalized.contains("lightpurple") ||
+            normalized.contains("magenta")
+        ) {
+            return "Pink";
+        }
+        if (
+            normalized.equals("gr") ||
+            normalized.contains("gray") ||
+            normalized.contains("grey") ||
+            normalized.contains("silver")
+        ) {
+            return "Gray";
+        }
+        return "";
+    }
+
+    private String normalizeGenericTeamName(String value) {
+        String stripped = ChatUtils.stripFormatting(value);
+        if (stripped.isEmpty()) {
+            return "";
+        }
+        return toTitleCase(stripped.replace('_', ' ').trim());
+    }
+
+    private static String mapColorCodeToTeamName(char colorCode) {
+        switch (colorCode) {
+            case 'c':
+            case '4':
+                return "Red";
+            case '9':
+            case '1':
+                return "Blue";
+            case 'a':
+            case '2':
+                return "Green";
+            case 'e':
+            case '6':
+                return "Yellow";
+            case 'b':
+            case '3':
+                return "Aqua";
+            case 'f':
+                return "White";
+            case 'd':
+            case '5':
+                return "Pink";
+            case '7':
+            case '8':
+                return "Gray";
+            default:
+                return "";
+        }
+    }
+
+    private static char extractMinecraftColorCode(String input) {
+        if (input == null || input.length() < 2) {
+            return '\0';
+        }
+
+        for (int i = 0; i < input.length() - 1; i++) {
+            if (input.charAt(i) == '\u00A7') {
+                char maybeColor = Character.toLowerCase(input.charAt(i + 1));
+                if (MC_COLOR_CODES.indexOf(maybeColor) >= 0) {
+                    return maybeColor;
+                }
+            }
+        }
+        return '\0';
+    }
+
+    private String toTitleCase(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+
+        String[] parts = trimmed.split("\\s+");
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            if (part.isEmpty()) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(Character.toUpperCase(part.charAt(0)));
+            if (part.length() > 1) {
+                builder.append(part.substring(1).toLowerCase(Locale.ROOT));
+            }
+        }
+        return builder.toString();
+    }
+
+    private void teleportToEntity(Entity entity) {
+        if (mc.thePlayer == null || entity == null) {
+            return;
+        }
+
+        mc.thePlayer.setPositionAndRotation(
+            entity.posX,
+            entity.posY + 2.0D,
+            entity.posZ,
+            entity.rotationYaw,
+            entity.rotationPitch
+        );
+        viewerPositionInitialized = true;
     }
 
     private double getSpeed() {

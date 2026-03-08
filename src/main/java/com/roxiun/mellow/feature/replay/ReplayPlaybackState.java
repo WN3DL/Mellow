@@ -10,7 +10,6 @@ public class ReplayPlaybackState {
     private final int currentTimeMs;
     private final int durationMs;
     private final double speed;
-    private final String spectating;
 
     public ReplayPlaybackState(
         boolean active,
@@ -20,8 +19,7 @@ public class ReplayPlaybackState {
         String mode,
         int currentTimeMs,
         int durationMs,
-        double speed,
-        String spectating
+        double speed
     ) {
         this.active = active;
         this.paused = paused;
@@ -31,11 +29,10 @@ public class ReplayPlaybackState {
         this.currentTimeMs = currentTimeMs;
         this.durationMs = durationMs;
         this.speed = speed;
-        this.spectating = spectating;
     }
 
     public static ReplayPlaybackState inactive() {
-        return new ReplayPlaybackState(false, true, "", "", "", 0, 0, 1.0D, "");
+        return new ReplayPlaybackState(false, true, "", "", "", 0, 0, 1.0D);
     }
 
     public boolean isActive() {
@@ -68,9 +65,5 @@ public class ReplayPlaybackState {
 
     public double getSpeed() {
         return speed;
-    }
-
-    public String getSpectating() {
-        return spectating;
     }
 }
