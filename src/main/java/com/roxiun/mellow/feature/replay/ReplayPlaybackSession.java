@@ -73,6 +73,12 @@ public class ReplayPlaybackSession {
     private final boolean allowLegacyFallbackPlayers;
     private final boolean usesLegacyLocalSnapshots;
 
+    enum SeekMode {
+        NONE,
+        FORWARD,
+        REBUILD
+    }
+
     enum ControlAction {
         NONE,
         TELEPORT,
@@ -117,6 +123,29 @@ public class ReplayPlaybackSession {
 
         String getTeamLabel() {
             return teamLabel;
+        }
+    }
+
+    private static final class ViewerTransform {
+
+        private final double x;
+        private final double y;
+        private final double z;
+        private final float yaw;
+        private final float pitch;
+
+        private ViewerTransform(
+            double x,
+            double y,
+            double z,
+            float yaw,
+            float pitch
+        ) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.yaw = yaw;
+            this.pitch = pitch;
         }
     }
 
@@ -165,6 +194,7 @@ public class ReplayPlaybackSession {
         advanceScoreboardTo(currentTimeMs);
         updateLocalReplayPlayer(currentTimeMs);
         initializeViewerPosition();
+        updateReplayProgressBar();
 
         if (!paused && isAtEnd(currentTimeMs, replay.getMetadata().getDurationMs())) {
             paused = true;
@@ -246,8 +276,30 @@ public class ReplayPlaybackSession {
 
     public void seekTo(int targetMs) {
         int clamped = Math.max(0, Math.min(replay.getMetadata().getDurationMs(), targetMs));
+        SeekMode seekMode = resolveSeekMode(currentTimeMs, clamped);
+        if (seekMode == SeekMode.NONE) {
+            ChatUtils.sendMessage("§7Jumped to §f" + formatTime(currentTimeMs) + "§7.");
+            return;
+        }
+
         boolean wasPaused = paused;
-        restartFrom(clamped, true);
+        ViewerTransform preservedViewer = captureViewerTransform();
+        String preservedTeleportTarget = lastTeleportedPlayerName;
+        int preservedHotbarSlot = captureSelectedHotbarSlot();
+        if (seekMode == SeekMode.REBUILD) {
+            restartFrom(clamped, true, preservedViewer);
+        } else {
+            applyPacketsUpTo(clamped);
+            advanceChatsTo(clamped, false);
+            advanceScoreboardTo(clamped);
+            updateLocalReplayPlayer(clamped);
+            restoreViewerTransform(preservedViewer);
+            currentTimeMs = clamped;
+        }
+
+        lastTeleportedPlayerName = preservedTeleportTarget;
+        restoreSelectedHotbarSlot(preservedHotbarSlot);
+        updateReplayProgressBar();
         paused = wasPaused;
         ChatUtils.sendMessage("§7Jumped to §f" + formatTime(currentTimeMs) + "§7.");
     }
@@ -404,6 +456,14 @@ public class ReplayPlaybackSession {
     }
 
     private void restartFrom(int targetMs, boolean announceRebuild) {
+        restartFrom(targetMs, announceRebuild, null);
+    }
+
+    private void restartFrom(
+        int targetMs,
+        boolean announceRebuild,
+        ViewerTransform preservedViewer
+    ) {
         unloadReplayWorld();
         networkManager = new ReplayNetworkManager();
         netHandler = new ReplayNetHandlerPlayClient(
@@ -427,13 +487,25 @@ public class ReplayPlaybackSession {
         worldBootstrapped = false;
         bootstrapReplayWorld();
         applyPacketsUpTo(targetMs);
+        advanceChatsTo(targetMs, false);
         advanceScoreboardTo(targetMs);
         updateLocalReplayPlayer(targetMs);
-        initializeViewerPosition();
+        if (!restoreViewerTransform(preservedViewer)) {
+            initializeViewerPosition();
+        }
         currentTimeMs = targetMs;
         if (announceRebuild && targetMs > 0) {
             ChatUtils.sendMessage("§7Rebuilt replay state at §f" + formatTime(targetMs) + "§7.");
         }
+    }
+
+    private void updateReplayProgressBar() {
+        if (mc.thePlayer == null) {
+            return;
+        }
+        mc.thePlayer.experience = computeReplayProgress(currentTimeMs, replay.getMetadata().getDurationMs());
+        mc.thePlayer.experienceLevel = 0;
+        mc.thePlayer.experienceTotal = 0;
     }
 
     private void applyPacketsUpTo(int targetMs) {
@@ -451,12 +523,19 @@ public class ReplayPlaybackSession {
     }
 
     private void emitChatsUpTo(int targetMs) {
+        advanceChatsTo(targetMs, true);
+    }
+
+    private void advanceChatsTo(int targetMs, boolean emitMessages) {
         while (chatIndex < replay.getChats().size()) {
             ReplayChatEvent event = replay.getChats().get(chatIndex);
             if (event.getTimestampMs() > targetMs) {
                 break;
             }
             chatIndex++;
+            if (!emitMessages) {
+                continue;
+            }
             IChatComponent component = IChatComponent.Serializer.jsonToComponent(
                 event.getComponentJson()
             );
@@ -571,6 +650,56 @@ public class ReplayPlaybackSession {
             anchor.rotationPitch
         );
         viewerPositionInitialized = true;
+    }
+
+    private ViewerTransform captureViewerTransform() {
+        if (
+            mc.thePlayer == null ||
+            mc.theWorld == null ||
+            !worldBootstrapped
+        ) {
+            return null;
+        }
+        return new ViewerTransform(
+            mc.thePlayer.posX,
+            mc.thePlayer.posY,
+            mc.thePlayer.posZ,
+            mc.thePlayer.rotationYaw,
+            mc.thePlayer.rotationPitch
+        );
+    }
+
+    private boolean restoreViewerTransform(ViewerTransform preservedViewer) {
+        if (
+            preservedViewer == null ||
+            mc.thePlayer == null ||
+            mc.theWorld == null
+        ) {
+            return false;
+        }
+        mc.thePlayer.setPositionAndRotation(
+            preservedViewer.x,
+            preservedViewer.y,
+            preservedViewer.z,
+            preservedViewer.yaw,
+            preservedViewer.pitch
+        );
+        viewerPositionInitialized = true;
+        return true;
+    }
+
+    private int captureSelectedHotbarSlot() {
+        if (mc.thePlayer == null || mc.thePlayer.inventory == null) {
+            return 0;
+        }
+        return normalizeHotbarSlot(mc.thePlayer.inventory.currentItem);
+    }
+
+    private void restoreSelectedHotbarSlot(int preservedHotbarSlot) {
+        if (mc.thePlayer == null || mc.thePlayer.inventory == null) {
+            return;
+        }
+        mc.thePlayer.inventory.currentItem = normalizeHotbarSlot(preservedHotbarSlot);
     }
 
     private Entity findPlayerEntity(String name) {
@@ -1129,5 +1258,38 @@ public class ReplayPlaybackSession {
 
     static boolean isAtEnd(int currentTimeMs, int durationMs) {
         return currentTimeMs >= durationMs;
+    }
+
+    static SeekMode resolveSeekMode(int currentTimeMs, int targetTimeMs) {
+        if (targetTimeMs == currentTimeMs) {
+            return SeekMode.NONE;
+        }
+        return targetTimeMs > currentTimeMs
+            ? SeekMode.FORWARD
+            : SeekMode.REBUILD;
+    }
+
+    static int normalizeHotbarSlot(int slot) {
+        if (slot < 0) {
+            return 0;
+        }
+        if (slot > 8) {
+            return 8;
+        }
+        return slot;
+    }
+
+    static float computeReplayProgress(int currentTimeMs, int durationMs) {
+        if (durationMs <= 0) {
+            return 0.0F;
+        }
+        float progress = (float) currentTimeMs / (float) durationMs;
+        if (progress < 0.0F) {
+            return 0.0F;
+        }
+        if (progress > 1.0F) {
+            return 1.0F;
+        }
+        return progress;
     }
 }

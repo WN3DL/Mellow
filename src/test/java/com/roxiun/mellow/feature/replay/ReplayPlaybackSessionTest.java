@@ -120,6 +120,45 @@ public class ReplayPlaybackSessionTest {
     }
 
     @Test
+    public void resolveSeekModeTreatsForwardSkipsAsIncremental() {
+        Assert.assertEquals(
+            ReplayPlaybackSession.SeekMode.FORWARD,
+            ReplayPlaybackSession.resolveSeekMode(15_000, 20_000)
+        );
+    }
+
+    @Test
+    public void resolveSeekModeTreatsRewindsAsRebuilds() {
+        Assert.assertEquals(
+            ReplayPlaybackSession.SeekMode.REBUILD,
+            ReplayPlaybackSession.resolveSeekMode(20_000, 15_000)
+        );
+    }
+
+    @Test
+    public void resolveSeekModeTreatsSameTargetAsNoOp() {
+        Assert.assertEquals(
+            ReplayPlaybackSession.SeekMode.NONE,
+            ReplayPlaybackSession.resolveSeekMode(20_000, 20_000)
+        );
+    }
+
+    @Test
+    public void normalizeHotbarSlotClampsIntoReplayHotbarRange() {
+        Assert.assertEquals(0, ReplayPlaybackSession.normalizeHotbarSlot(-1));
+        Assert.assertEquals(4, ReplayPlaybackSession.normalizeHotbarSlot(4));
+        Assert.assertEquals(8, ReplayPlaybackSession.normalizeHotbarSlot(9));
+    }
+
+    @Test
+    public void computeReplayProgressClampsBetweenEmptyAndFull() {
+        Assert.assertEquals(0.0F, ReplayPlaybackSession.computeReplayProgress(-1, 100), 0.0F);
+        Assert.assertEquals(0.25F, ReplayPlaybackSession.computeReplayProgress(25, 100), 0.0F);
+        Assert.assertEquals(1.0F, ReplayPlaybackSession.computeReplayProgress(125, 100), 0.0F);
+        Assert.assertEquals(0.0F, ReplayPlaybackSession.computeReplayProgress(10, 0), 0.0F);
+    }
+
+    @Test
     public void buildSkullTextureValueEncodesTheTextureUrl() {
         String value = ReplayPlaybackSession.buildSkullTextureValue(
             "http://textures.minecraft.net/texture/example"
