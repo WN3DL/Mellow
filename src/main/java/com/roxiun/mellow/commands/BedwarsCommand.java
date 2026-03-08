@@ -13,6 +13,7 @@ import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -71,10 +72,10 @@ public class BedwarsCommand extends CommandBase {
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cFailed to fetch stats for: §r" +
-                        username +
-                        "§c (" +
-                        StatsFetchFailureFormatter.describe(result) +
-                        ")"
+                            username +
+                            "§c (" +
+                            StatsFetchFailureFormatter.describe(result) +
+                            ")"
                     )
                 );
                 return;
@@ -96,13 +97,29 @@ public class BedwarsCommand extends CommandBase {
             );
 
             if (config.urchin && profile.isUrchinTagged()) {
-                String tags = FormattingUtils.formatUrchinTags(
-                    profile.getUrchinTags()
-                );
-                String urchinMessage = "§5§lUrchin§r§5: " + tags;
-                MainThreadDispatcher.run(() ->
-                    ChatUtils.sendMultilineCommandMessage(sender, urchinMessage)
-                );
+                List<String> urchinMessages = new ArrayList<>();
+                profile.getUrchinTags().forEach(tag -> {
+                    String formattedTag = FormattingUtils.formatUrchinTag(tag);
+                    if (formattedTag == null || formattedTag.trim().isEmpty()) {
+                        return;
+                    }
+
+                    if (urchinMessages.isEmpty()) {
+                        urchinMessages.add("§5§lUrchin§r§5: " + formattedTag);
+                        return;
+                    }
+
+                    urchinMessages.add(formattedTag);
+                });
+
+                if (!urchinMessages.isEmpty()) {
+                    MainThreadDispatcher.run(() ->
+                        ChatUtils.sendMultilineCommandMessage(
+                            sender,
+                            urchinMessages
+                        )
+                    );
+                }
             }
 
             if (config.seraph && profile.isSeraphTagged()) {

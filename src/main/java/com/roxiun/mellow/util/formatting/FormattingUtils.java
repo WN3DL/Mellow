@@ -68,48 +68,54 @@ public class FormattingUtils {
     public static String formatUrchinTags(List<UrchinTag> tags) {
         return tags
             .stream()
-            .map(tag -> {
-                String type = tag.getType();
-                String formattedType;
-
-                // Use exact string matches to avoid substring replacement issues
-                switch (type.toLowerCase()) {
-                    case "sniper":
-                        formattedType = "§4§lSniper";
-                        break;
-                    case "blatant_cheater":
-                        formattedType = "§4§lBlatant Cheater";
-                        break;
-                    case "closet_cheater":
-                        formattedType = "§e§lCloset Cheater";
-                        break;
-                    case "confirmed_cheater":
-                        formattedType = "§4§lConfirmed Cheater";
-                        break;
-                    case "possible_sniper":
-                        formattedType = "§e§lPossible Sniper";
-                        break;
-                    case "legit_sniper":
-                        formattedType = "§e§lLegit Sniper";
-                        break;
-                    case "caution":
-                        formattedType = "§e§lCaution";
-                        break;
-                    case "account":
-                        formattedType = "§e§lAccount";
-                        break;
-                    case "info":
-                        formattedType = "§f§lInfo";
-                        break;
-                    default:
-                        // For unknown types, use the original type as-is
-                        formattedType = type;
-                        break;
-                }
-
-                return formattedType + " §7(" + tag.getReason() + ")";
-            })
+            .map(FormattingUtils::formatUrchinTag)
             .collect(Collectors.joining(", "));
+    }
+
+    public static String formatUrchinTag(UrchinTag tag) {
+        if (tag == null || tag.getType() == null) {
+            return "";
+        }
+
+        String type = tag.getType();
+        String formattedType;
+
+        // Use exact string matches to avoid substring replacement issues
+        switch (type.toLowerCase()) {
+            case "sniper":
+                formattedType = "§4§lSniper";
+                break;
+            case "blatant_cheater":
+                formattedType = "§4§lBlatant Cheater";
+                break;
+            case "closet_cheater":
+                formattedType = "§e§lCloset Cheater";
+                break;
+            case "confirmed_cheater":
+                formattedType = "§4§lConfirmed Cheater";
+                break;
+            case "possible_sniper":
+                formattedType = "§e§lPossible Sniper";
+                break;
+            case "legit_sniper":
+                formattedType = "§e§lLegit Sniper";
+                break;
+            case "caution":
+                formattedType = "§e§lCaution";
+                break;
+            case "account":
+                formattedType = "§e§lAccount";
+                break;
+            case "info":
+                formattedType = "§f§lInfo";
+                break;
+            default:
+                // For unknown types, use the original type as-is
+                formattedType = type;
+                break;
+        }
+
+        return formattedType + " §7(" + tag.getReason() + ")";
     }
 
     public static String formatUrchinTagIcon(UrchinTag tag) {
