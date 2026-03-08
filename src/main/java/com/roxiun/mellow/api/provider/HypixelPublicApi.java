@@ -5,7 +5,9 @@ import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.api.provider.model.FetchFailureReason;
 import com.roxiun.mellow.api.provider.model.ProviderId;
+import com.roxiun.mellow.api.provider.model.ProviderResult;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
@@ -49,14 +51,25 @@ public class HypixelPublicApi implements StatsProvider {
 
     @Override
     public String fetchPlayerData(String uuid) {
+        ProviderResult<String> result = fetchPlayerDataResult(uuid);
+        return result.isSuccess() ? result.getValue() : "";
+    }
+
+    @Override
+    public ProviderResult<String> fetchPlayerDataResult(String uuid) {
         if (uuid == null || uuid.isEmpty() || !isConfigured()) {
-            return "";
+            return ProviderResult.failure(
+                isConfigured()
+                    ? FetchFailureReason.UUID_UNAVAILABLE
+                    : FetchFailureReason.MISSING_API_KEY,
+                isConfigured() ? "Missing UUID" : "Missing API key"
+            );
         }
 
         Map<String, String> headers = new HashMap<>();
         headers.put("API-Key", config.hypixelApiKey.trim());
 
-        return HypixelApiUtils.fetchPlayerData(
+        return HypixelApiUtils.fetchPlayerDataResult(
             PLAYER_ENDPOINT + uuid,
             "Mellow/6.0.0",
             headers

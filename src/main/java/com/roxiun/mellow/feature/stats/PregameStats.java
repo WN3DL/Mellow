@@ -2,7 +2,10 @@ package com.roxiun.mellow.feature.stats;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
@@ -96,6 +99,7 @@ public class PregameStats {
         }
 
         String raw = event.message.getUnformattedText();
+        String formatted = event.message.getFormattedText();
         String message = raw.replaceAll("§.", "").trim();
 
         ParsedChatMessage parsedMessage = parseChatMessage(message);
@@ -116,6 +120,11 @@ public class PregameStats {
         }
 
         if (isPartyMemberByName(username)) {
+            return;
+        }
+
+        if (hasObfuscatedSender(formatted)) {
+            alreadyLookedUp.add(username.toLowerCase(Locale.ROOT));
             return;
         }
 
@@ -169,15 +178,26 @@ public class PregameStats {
     }
 
     private void handlePlayer(String username, boolean sendStats) {
-        PlayerProfile profile = playerCache.getProfile(username);
+        ProfileFetchResult result = playerCache.getScopedProfileResult(
+            username,
+            StatScope.BEDWARS,
+            ProfileFetchContext.PREGAME,
+            true
+        );
+        PlayerProfile profile = result.getProfile();
 
         if (profile == null || profile.getBedwarsPlayer() == null) {
+            if (shouldSuppressFailureMessage(result)) {
+                return;
+            }
             if (sendStats) {
                 MainThreadDispatcher.run(() ->
                     ChatUtils.sendMessage(
                         "§cFailed to fetch stats for: §r" +
                             username +
-                            " (possibly nicked)"
+                            "§c (" +
+                            StatsFetchFailureFormatter.describe(result) +
+                            ")"
                     )
                 );
             }
@@ -282,6 +302,29 @@ public class PregameStats {
                 pregameAlertSoundGate.tryPlayPling(mc, 1.0F, 1.0F)
             );
         }
+    }
+
+    private boolean hasObfuscatedSender(String formattedMessage) {
+        if (formattedMessage == null || formattedMessage.isEmpty()) {
+            return false;
+        }
+
+        int delimiterIndex = formattedMessage.indexOf(": ");
+        if (delimiterIndex < 0) {
+            delimiterIndex = formattedMessage.indexOf(" » ");
+        }
+        if (delimiterIndex < 0) {
+            return false;
+        }
+
+        String senderSection = formattedMessage.substring(0, delimiterIndex);
+        return senderSection.toLowerCase(Locale.ROOT).contains("§k");
+    }
+
+    private boolean shouldSuppressFailureMessage(ProfileFetchResult result) {
+        return result != null &&
+        result.getFailureReason() ==
+        com.roxiun.mellow.api.provider.model.FetchFailureReason.UUID_UNAVAILABLE;
     }
 
     private boolean isPartyMemberByName(String username) {

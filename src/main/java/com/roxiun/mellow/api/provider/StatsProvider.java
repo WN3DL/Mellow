@@ -53,6 +53,14 @@ public interface StatsProvider {
 
     String fetchPlayerData(String uuid);
 
+    default ProviderResult<String> fetchPlayerDataResult(String uuid) {
+        String raw = fetchPlayerData(uuid);
+        if (raw == null || raw.isEmpty()) {
+            return ProviderResult.failure("No data returned");
+        }
+        return ProviderResult.success(raw);
+    }
+
     default ProviderResult<?> fetchStats(
         PlayerIdentity identity,
         StatScope scope

@@ -7,13 +7,17 @@ import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
+import com.roxiun.mellow.api.provider.model.FetchFailureReason;
 import com.roxiun.mellow.api.provider.model.ProviderId;
+import com.roxiun.mellow.api.provider.model.ProviderResult;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Collections;
@@ -26,10 +30,35 @@ public class HypixelApiUtils {
     private static final String DEFAULT_SKYWARS_EMBLEM = "✯";
 
     public static String fetchPlayerData(String urlString, String userAgent) {
-        return fetchPlayerData(urlString, userAgent, Collections.emptyMap());
+        ProviderResult<String> result = fetchPlayerDataResult(urlString, userAgent);
+        return result.isSuccess() ? result.getValue() : "";
     }
 
     public static String fetchPlayerData(
+        String urlString,
+        String userAgent,
+        Map<String, String> headers
+    ) {
+        ProviderResult<String> result = fetchPlayerDataResult(
+            urlString,
+            userAgent,
+            headers
+        );
+        return result.isSuccess() ? result.getValue() : "";
+    }
+
+    public static ProviderResult<String> fetchPlayerDataResult(
+        String urlString,
+        String userAgent
+    ) {
+        return fetchPlayerDataResult(
+            urlString,
+            userAgent,
+            Collections.emptyMap()
+        );
+    }
+
+    public static ProviderResult<String> fetchPlayerDataResult(
         String urlString,
         String userAgent,
         Map<String, String> headers
@@ -53,7 +82,16 @@ public class HypixelApiUtils {
 
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                return "";
+                if (responseCode == 429) {
+                    return ProviderResult.failure(
+                        FetchFailureReason.RATE_LIMITED,
+                        "HTTP 429"
+                    );
+                }
+                return ProviderResult.failure(
+                    FetchFailureReason.PROVIDER_ERROR,
+                    "HTTP " + responseCode
+                );
             }
 
             BufferedReader in = new BufferedReader(
@@ -75,13 +113,28 @@ public class HypixelApiUtils {
 
                 if (matcher.find()) {
                     String playerDataEncoded = matcher.group(1);
-                    return URLDecoder.decode(playerDataEncoded, "UTF-8");
+                    return ProviderResult.success(
+                        URLDecoder.decode(playerDataEncoded, "UTF-8")
+                    );
                 }
             }
 
-            return response.toString();
+            return ProviderResult.success(response.toString());
+        } catch (SocketTimeoutException e) {
+            return ProviderResult.failure(
+                FetchFailureReason.NETWORK_ERROR,
+                "timeout"
+            );
+        } catch (IOException e) {
+            return ProviderResult.failure(
+                FetchFailureReason.NETWORK_ERROR,
+                e.getMessage()
+            );
         } catch (Exception e) {
-            return "";
+            return ProviderResult.failure(
+                FetchFailureReason.UNKNOWN,
+                e.getMessage()
+            );
         } finally {
             if (connection != null) {
                 connection.disconnect();
@@ -98,15 +151,25 @@ public class HypixelApiUtils {
         } else {
             providerId = ProviderId.HYPIXEL_PUBLIC;
         }
-        return parsePlayerData(json, providerId);
+        return parsePlayerDataResult(json, providerId).getValue();
     }
 
     public static BedwarsPlayer parsePlayerData(String json, ProviderId providerId) {
+        return parsePlayerDataResult(json, providerId).getValue();
+    }
+
+    public static ProviderResult<BedwarsPlayer> parsePlayerDataResult(
+        String json,
+        ProviderId providerId
+    ) {
         try {
             JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
             JsonObject playerObject = getPlayerObject(rootObject, providerId);
-            if (playerObject == null) {
-                return null;
+            if (isMissingPlayerObject(playerObject)) {
+                return ProviderResult.failure(
+                    FetchFailureReason.NO_PLAYER_DATA,
+                    "Provider returned no player data"
+                );
             }
 
             String name = getString(
@@ -151,23 +214,28 @@ public class HypixelApiUtils {
             int bedsLost = getInt(bedwarsStats, "beds_lost_bedwars", 0);
             int finals = finalKills;
 
-            return new BedwarsPlayer(
-                name,
-                formattedName,
-                FormattingUtils.formatStars(String.valueOf(stars)),
-                fkdr,
-                winstreak,
-                hasWinstreakData,
-                finalKills,
-                finalDeaths,
-                wins,
-                losses,
-                bedsBroken,
-                bedsLost,
-                finals
+            return ProviderResult.success(
+                new BedwarsPlayer(
+                    name,
+                    formattedName,
+                    FormattingUtils.formatStars(String.valueOf(stars)),
+                    fkdr,
+                    winstreak,
+                    hasWinstreakData,
+                    finalKills,
+                    finalDeaths,
+                    wins,
+                    losses,
+                    bedsBroken,
+                    bedsLost,
+                    finals
+                )
             );
         } catch (Exception e) {
-            return null;
+            return ProviderResult.failure(
+                FetchFailureReason.PARSE_ERROR,
+                e.getMessage()
+            );
         }
     }
 
@@ -175,11 +243,21 @@ public class HypixelApiUtils {
         String json,
         ProviderId providerId
     ) {
+        return parseSkywarsPlayerDataResult(json, providerId).getValue();
+    }
+
+    public static ProviderResult<SkywarsPlayer> parseSkywarsPlayerDataResult(
+        String json,
+        ProviderId providerId
+    ) {
         try {
             JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
             JsonObject playerObject = getPlayerObject(rootObject, providerId);
-            if (playerObject == null) {
-                return null;
+            if (isMissingPlayerObject(playerObject)) {
+                return ProviderResult.failure(
+                    FetchFailureReason.NO_PLAYER_DATA,
+                    "Provider returned no player data"
+                );
             }
 
             String name = getString(
@@ -224,19 +302,24 @@ public class HypixelApiUtils {
                     skywarsStats
                 );
 
-            return new SkywarsPlayer(
-                name,
-                formattedName,
-                levelFormatted,
-                levelFormattedWithBrackets,
-                kdr,
-                wins,
-                losses,
-                kills,
-                deaths
+            return ProviderResult.success(
+                new SkywarsPlayer(
+                    name,
+                    formattedName,
+                    levelFormatted,
+                    levelFormattedWithBrackets,
+                    kdr,
+                    wins,
+                    losses,
+                    kills,
+                    deaths
+                )
             );
         } catch (Exception e) {
-            return null;
+            return ProviderResult.failure(
+                FetchFailureReason.PARSE_ERROR,
+                e.getMessage()
+            );
         }
     }
 
@@ -245,11 +328,22 @@ public class HypixelApiUtils {
         ProviderId providerId,
         DuelsMode requestedMode
     ) {
+        return parseDuelsPlayerDataResult(json, providerId, requestedMode).getValue();
+    }
+
+    public static ProviderResult<DuelsPlayer> parseDuelsPlayerDataResult(
+        String json,
+        ProviderId providerId,
+        DuelsMode requestedMode
+    ) {
         try {
             JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
             JsonObject playerObject = getPlayerObject(rootObject, providerId);
-            if (playerObject == null) {
-                return null;
+            if (isMissingPlayerObject(playerObject)) {
+                return ProviderResult.failure(
+                    FetchFailureReason.NO_PLAYER_DATA,
+                    "Provider returned no player data"
+                );
             }
 
             String name = getString(
@@ -293,19 +387,24 @@ public class HypixelApiUtils {
             int winstreak = getDuelsWinstreak(duelsStats, mode);
             String division = resolveDuelsDivision(duelsStats, achievements, mode);
 
-            return new DuelsPlayer(
-                name,
-                formattedName,
-                mode,
-                division,
-                kills,
-                deaths,
-                wins,
-                losses,
-                winstreak
+            return ProviderResult.success(
+                new DuelsPlayer(
+                    name,
+                    formattedName,
+                    mode,
+                    division,
+                    kills,
+                    deaths,
+                    wins,
+                    losses,
+                    winstreak
+                )
             );
         } catch (Exception e) {
-            return null;
+            return ProviderResult.failure(
+                FetchFailureReason.PARSE_ERROR,
+                e.getMessage()
+            );
         }
     }
 
@@ -313,11 +412,21 @@ public class HypixelApiUtils {
         String json,
         ProviderId providerId
     ) {
+        return parseBuildBattlePlayerDataResult(json, providerId).getValue();
+    }
+
+    public static ProviderResult<BuildBattlePlayer> parseBuildBattlePlayerDataResult(
+        String json,
+        ProviderId providerId
+    ) {
         try {
             JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
             JsonObject playerObject = getPlayerObject(rootObject, providerId);
-            if (playerObject == null) {
-                return null;
+            if (isMissingPlayerObject(playerObject)) {
+                return ProviderResult.failure(
+                    FetchFailureReason.NO_PLAYER_DATA,
+                    "Provider returned no player data"
+                );
             }
 
             String name = getString(
@@ -405,15 +514,20 @@ public class HypixelApiUtils {
                 gamesPlayed = 0;
             }
 
-            return new BuildBattlePlayer(
-                name,
-                formattedName,
-                score,
-                wins,
-                gamesPlayed
+            return ProviderResult.success(
+                new BuildBattlePlayer(
+                    name,
+                    formattedName,
+                    score,
+                    wins,
+                    gamesPlayed
+                )
             );
         } catch (Exception e) {
-            return null;
+            return ProviderResult.failure(
+                FetchFailureReason.PARSE_ERROR,
+                e.getMessage()
+            );
         }
     }
 
@@ -421,11 +535,21 @@ public class HypixelApiUtils {
         String json,
         ProviderId providerId
     ) {
+        return parseTntRunPlayerDataResult(json, providerId).getValue();
+    }
+
+    public static ProviderResult<TntRunPlayer> parseTntRunPlayerDataResult(
+        String json,
+        ProviderId providerId
+    ) {
         try {
             JsonObject rootObject = new JsonParser().parse(json).getAsJsonObject();
             JsonObject playerObject = getPlayerObject(rootObject, providerId);
-            if (playerObject == null) {
-                return null;
+            if (isMissingPlayerObject(playerObject)) {
+                return ProviderResult.failure(
+                    FetchFailureReason.NO_PLAYER_DATA,
+                    "Provider returned no player data"
+                );
             }
 
             String name = getString(
@@ -481,15 +605,20 @@ public class HypixelApiUtils {
                 bestRecord = 0;
             }
 
-            return new TntRunPlayer(
-                name,
-                formattedName,
-                wins,
-                deaths,
-                bestRecord
+            return ProviderResult.success(
+                new TntRunPlayer(
+                    name,
+                    formattedName,
+                    wins,
+                    deaths,
+                    bestRecord
+                )
             );
         } catch (Exception e) {
-            return null;
+            return ProviderResult.failure(
+                FetchFailureReason.PARSE_ERROR,
+                e.getMessage()
+            );
         }
     }
 
@@ -661,6 +790,10 @@ public class HypixelApiUtils {
         }
 
         return root;
+    }
+
+    private static boolean isMissingPlayerObject(JsonObject playerObject) {
+        return playerObject == null || playerObject.entrySet().isEmpty();
     }
 
     private static String resolveSkywarsLevelFormatted(

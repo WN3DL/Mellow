@@ -1,12 +1,16 @@
 package com.roxiun.mellow.commands;
 
 import com.mojang.authlib.GameProfile;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.Arrays;
@@ -54,13 +58,23 @@ public class SkywarsCommand extends CommandBase {
             "§r§7Fetching SkyWars stats for " + username + "..."
         );
         AsyncExecutor.getInstance().command(() -> {
-            PlayerProfile profile = playerCache.getProfile(username);
+            ProfileFetchResult result = playerCache.getScopedProfileResult(
+                username,
+                StatScope.SKYWARS,
+                ProfileFetchContext.GENERAL,
+                true
+            );
+            PlayerProfile profile = result.getProfile();
 
             if (profile == null || profile.getSkywarsPlayer() == null) {
                 MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
-                        "§cFailed to fetch SkyWars stats for: §r" + username
+                        "§cFailed to fetch SkyWars stats for: §r" +
+                        username +
+                        "§c (" +
+                        StatsFetchFailureFormatter.describe(result) +
+                        ")"
                     )
                 );
                 return;

@@ -137,6 +137,23 @@ public class PlayerProfile {
         return lastUpdated;
     }
 
+    public PlayerProfile withTags(
+        List<UrchinTag> updatedUrchinTags,
+        List<SeraphTag> updatedSeraphTags
+    ) {
+        return new PlayerProfile(
+            uuid,
+            name,
+            bedwarsPlayer,
+            skywarsPlayer,
+            duelsPlayer,
+            buildBattlePlayer,
+            tntRunPlayer,
+            updatedUrchinTags,
+            updatedSeraphTags
+        );
+    }
+
     public boolean isUrchinTagged() {
         return urchinTags != null && !urchinTags.isEmpty();
     }

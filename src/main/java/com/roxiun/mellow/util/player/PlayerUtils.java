@@ -1,6 +1,7 @@
 package com.roxiun.mellow.util.player;
 
 import java.util.Collection;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.scoreboard.ScorePlayerTeam;
@@ -8,6 +9,14 @@ import net.minecraft.scoreboard.ScorePlayerTeam;
 public class PlayerUtils {
 
     public static String getUUIDFromPlayerName(String playerName) {
+        UUID uuid = getTabUuid(playerName);
+        if (uuid == null) {
+            return null;
+        }
+        return uuid.toString().replace("-", "");
+    }
+
+    public static UUID getTabUuid(String playerName) {
         if (
             Minecraft.getMinecraft().getNetHandler() == null ||
             Minecraft.getMinecraft().getNetHandler().getPlayerInfoMap() == null
@@ -24,14 +33,25 @@ public class PlayerUtils {
                     .getName()
                     .equalsIgnoreCase(playerName)
             ) {
-                return networkPlayerInfo
-                    .getGameProfile()
-                    .getId()
-                    .toString()
-                    .replace("-", "");
+                return networkPlayerInfo.getGameProfile().getId();
             }
         }
         return null; // Player not found in tab list
+    }
+
+    public static boolean hasTrustedTabUuid(String playerName) {
+        UUID uuid = getTabUuid(playerName);
+        return uuid != null && uuid.version() == 4;
+    }
+
+    public static boolean isNickedOrNpc(String playerName) {
+        UUID uuid = getTabUuid(playerName);
+        if (uuid == null) {
+            return false;
+        }
+
+        int version = uuid.version();
+        return version == 1 || version == 3;
     }
 
     public static String getTabDisplayName(String playerName) {

@@ -1,10 +1,14 @@
 package com.roxiun.mellow.commands;
 
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.skins.SkinUtils;
@@ -74,7 +78,13 @@ public class SkinDenickCommand extends CommandBase {
             );
 
             AsyncExecutor.getInstance().command(() -> {
-                PlayerProfile profile = playerCache.getProfile(realName);
+                ProfileFetchResult result = playerCache.getScopedProfileResult(
+                    realName,
+                    StatScope.BEDWARS,
+                    ProfileFetchContext.GENERAL,
+                    false
+                );
+                PlayerProfile profile = result.getProfile();
                 String resolvedDisplay = "§a" + realName;
                 String starsPrefix = "";
 
@@ -82,6 +92,11 @@ public class SkinDenickCommand extends CommandBase {
                     BedwarsPlayer bwPlayer = profile.getBedwarsPlayer();
                     resolvedDisplay = bwPlayer.getFormattedNameWithRank();
                     starsPrefix = bwPlayer.getStars() + " §r";
+                } else {
+                    resolvedDisplay =
+                        "§cFailed to fetch stats (" +
+                        StatsFetchFailureFormatter.describe(result) +
+                        ")";
                 }
 
                 final String finalResolvedDisplay = resolvedDisplay;

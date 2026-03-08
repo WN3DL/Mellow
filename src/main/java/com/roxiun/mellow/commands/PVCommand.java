@@ -1,12 +1,16 @@
 package com.roxiun.mellow.commands;
 
 import com.mojang.authlib.GameProfile;
+import com.roxiun.mellow.api.provider.StatsProvider;
+import com.roxiun.mellow.api.provider.model.ProviderId;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.feature.profileviewer.PVGui;
+import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import java.util.Arrays;
 import java.util.List;
@@ -15,8 +19,6 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
-import com.roxiun.mellow.api.provider.StatsProvider;
-import com.roxiun.mellow.api.provider.model.ProviderId;
 
 public class PVCommand extends CommandBase {
 
@@ -64,7 +66,8 @@ public class PVCommand extends CommandBase {
         );
 
         AsyncExecutor.getInstance().command(() -> {
-            PlayerProfile profile = playerCache.getProfile(username);
+            ProfileFetchResult result = playerCache.getProfileResult(username);
+            PlayerProfile profile = result.getProfile();
             String rawProviderData = playerCache.fetchRawPlayerData(username);
             StatsProvider selectedProvider = playerCache.getSelectedProvider();
             ProviderId providerId = selectedProvider == null
@@ -75,7 +78,11 @@ public class PVCommand extends CommandBase {
                 MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
-                        "§cFailed to fetch profile for: §r" + username
+                        "§cFailed to fetch profile for: §r" +
+                        username +
+                        "§c (" +
+                        StatsFetchFailureFormatter.describe(result) +
+                        ")"
                     )
                 );
                 return;

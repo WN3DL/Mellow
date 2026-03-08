@@ -8,6 +8,8 @@ import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.data.PlayerProfile;
@@ -23,6 +25,7 @@ import com.roxiun.mellow.util.annoylist.AnnoylistedPlayer;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.player.PlayerUtils;
 import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +52,8 @@ public class StatsChecker {
     private final TagIgnoreManager tagIgnoreManager;
     private final Minecraft mc = Minecraft.getMinecraft();
     private final Set<String> tabFetchInFlight = ConcurrentHashMap.newKeySet();
+    private final Set<String> reportedTabFetchFailuresThisMatch =
+        ConcurrentHashMap.newKeySet();
     private final Set<UUID> outboundWarnedOpponentsThisMatch =
         ConcurrentHashMap.newKeySet();
     private final AlertSoundGate inGameAlertSoundGate = new AlertSoundGate();
@@ -85,7 +90,10 @@ public class StatsChecker {
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
         for (String playerName : onlinePlayers) {
-            if (nickUtils.isNicked(playerName)) continue;
+            if (
+                nickUtils.isNicked(playerName) ||
+                PlayerUtils.isNickedOrNpc(playerName)
+            ) continue;
 
             executor.submit(() -> {
                 // Force a refresh by clearing the player from the cache first
@@ -143,6 +151,9 @@ public class StatsChecker {
             if (nickUtils.isNicked(playerName)) {
                 continue;
             }
+            if (PlayerUtils.isNickedOrNpc(playerName)) {
+                continue;
+            }
 
             String normalizedName = playerName.toLowerCase(Locale.ROOT);
             if (!tabFetchInFlight.add(normalizedName)) {
@@ -151,30 +162,101 @@ public class StatsChecker {
 
             AsyncExecutor.getInstance().profileIo(() -> {
                 try {
-                    playerCache.clearPlayer(playerName);
-                    PlayerProfile profile = playerCache.getProfile(playerName);
+                    ProfileFetchResult result = playerCache.getScopedProfileResult(
+                        playerName,
+                        activeScope,
+                        ProfileFetchContext.LIVE_MATCH,
+                        false
+                    );
+                    PlayerProfile profile = result.getProfile();
 
                     if (profile == null || !hasStatsForScope(profile, activeScope)) {
+                        maybeReportLiveFetchFailure(playerName, result);
                         return;
                     }
                     boolean passesFilters = passesScopeFilters(
                         profile,
                         activeScope
                     );
+                    boolean shouldPopulateTabStats = config.tabStats && passesFilters;
 
-                    if (config.tabStats && passesFilters) {
+                    if (shouldPopulateTabStats) {
                         TabStats newTabStats = profile.getTabStats(activeScope);
                         if (newTabStats != null) {
                             tabStats.put(playerName, newTabStats);
                         }
                     }
 
-                    sendBlacklistAndTagAlerts(profile, playerName);
+                    if (shouldDeferRemoteTagLookup()) {
+                        PlayerProfile baseProfile = profile;
+                        AsyncExecutor.getInstance().profileIo(() -> {
+                            PlayerProfile enrichedProfile =
+                                playerCache.enrichProfileWithTags(baseProfile);
+
+                            if (shouldPopulateTabStats) {
+                                TabStats enrichedTabStats =
+                                    enrichedProfile.getTabStats(activeScope);
+                                if (enrichedTabStats != null) {
+                                    tabStats.put(playerName, enrichedTabStats);
+                                }
+                            }
+
+                            if (shouldScanForInGameWarnings()) {
+                                sendBlacklistAndTagAlerts(
+                                    enrichedProfile,
+                                    playerName
+                                );
+                            }
+                        });
+                    } else if (shouldScanForInGameWarnings()) {
+                        sendBlacklistAndTagAlerts(profile, playerName);
+                    }
                 } finally {
                     tabFetchInFlight.remove(normalizedName);
                 }
             });
         }
+    }
+
+    private boolean shouldDeferRemoteTagLookup() {
+        if (config == null) {
+            return false;
+        }
+
+        boolean tabNeedsUrchinTags = config.showUrchinTagsInTab && config.urchin;
+        boolean tabNeedsSeraphTags = config.showSeraphTagsInTab && config.seraph;
+        boolean warningNeedsTags =
+            config.printBlacklistTags && (config.urchin || config.seraph);
+        return tabNeedsUrchinTags || tabNeedsSeraphTags || warningNeedsTags;
+    }
+
+    private void maybeReportLiveFetchFailure(
+        String playerName,
+        ProfileFetchResult result
+    ) {
+        if (playerName == null || playerName.trim().isEmpty()) {
+            return;
+        }
+
+        String reasonKey = result == null || result.getFailureReason() == null
+            ? "UNKNOWN"
+            : result.getFailureReason().name();
+        String failureKey =
+            playerName.toLowerCase(Locale.ROOT) + ":" + reasonKey;
+        if (!reportedTabFetchFailuresThisMatch.add(failureKey)) {
+            return;
+        }
+
+        String reason = StatsFetchFailureFormatter.describe(result);
+        mc.addScheduledTask(() ->
+            ChatUtils.sendMessage(
+                "§cFailed to fetch stats for: §r" +
+                playerName +
+                "§c (" +
+                reason +
+                ")"
+            )
+        );
     }
 
     public void resetInGameAlertSoundGate() {
@@ -183,6 +265,7 @@ public class StatsChecker {
 
     public void resetInGameMatchWarningState() {
         inGameAlertSoundGate.reset();
+        reportedTabFetchFailuresThisMatch.clear();
         outboundWarnedOpponentsThisMatch.clear();
     }
 

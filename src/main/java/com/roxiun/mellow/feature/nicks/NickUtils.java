@@ -3,11 +3,14 @@ package com.roxiun.mellow.feature.nicks;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
 import com.roxiun.mellow.data.TabStats;
+import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.skins.SkinUtils;
@@ -75,14 +78,25 @@ public class NickUtils {
 
                                 final String finalRealName = realName;
                                 AsyncExecutor.getInstance().profileIo(() -> {
-                                    PlayerProfile profile =
-                                        playerCache.getProfile(finalRealName);
+                                    ProfileFetchResult result =
+                                        playerCache.getScopedProfileResult(
+                                            finalRealName,
+                                            StatScope.BEDWARS,
+                                            ProfileFetchContext.GENERAL,
+                                            true
+                                        );
+                                    PlayerProfile profile = result.getProfile();
 
                                     if (profile == null) {
                                         MainThreadDispatcher.run(() ->
                                             ChatUtils.sendMessage(
                                                 "§cFailed to fetch stats for: §r" +
-                                                    finalRealName
+                                                    finalRealName +
+                                                    "§c (" +
+                                                    StatsFetchFailureFormatter.describe(
+                                                        result
+                                                    ) +
+                                                    ")"
                                             )
                                         );
                                         return;

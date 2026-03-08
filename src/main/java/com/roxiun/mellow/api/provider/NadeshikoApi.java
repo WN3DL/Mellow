@@ -5,7 +5,9 @@ import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.api.provider.model.FetchFailureReason;
 import com.roxiun.mellow.api.provider.model.ProviderId;
+import com.roxiun.mellow.api.provider.model.ProviderResult;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
@@ -32,7 +34,20 @@ public class NadeshikoApi implements StatsProvider {
 
     @Override
     public String fetchPlayerData(String uuid) {
-        return HypixelApiUtils.fetchPlayerData(
+        ProviderResult<String> result = fetchPlayerDataResult(uuid);
+        return result.isSuccess() ? result.getValue() : "";
+    }
+
+    @Override
+    public ProviderResult<String> fetchPlayerDataResult(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            return ProviderResult.failure(
+                FetchFailureReason.UUID_UNAVAILABLE,
+                "Missing UUID"
+            );
+        }
+
+        return HypixelApiUtils.fetchPlayerDataResult(
             "https://nadeshiko.io/player/" + uuid + "/network",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         );
