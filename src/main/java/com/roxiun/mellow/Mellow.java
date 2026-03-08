@@ -15,6 +15,7 @@ import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.event.ChatEventRouter;
 import com.roxiun.mellow.core.event.ClientTickRouter;
 import com.roxiun.mellow.core.event.NametagColorRouter;
@@ -128,6 +129,18 @@ public class Mellow {
             requestPopupManager
         );
         ReplayManager replayManager = ReplayManager.getInstance();
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        replayManager.onShutdown();
+                        AsyncExecutor.getInstance().shutdownReplayIoAndAwait();
+                    }
+                },
+                "Mellow-Shutdown"
+            )
+        );
 
         KeyBinding requestAcceptKeybind = new KeyBinding(
             "Accept Request",

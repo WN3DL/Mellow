@@ -1,6 +1,8 @@
 package com.roxiun.mellow.feature.replay;
 
 import com.roxiun.mellow.Mellow;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.module.bedwars.BedwarsChatSignalParser;
 import com.roxiun.mellow.util.ChatUtils;
@@ -182,6 +184,9 @@ public class ReplayManager {
             replayBrowserOpenRequested = false;
             mc.displayGuiScreen(new ReplayBrowserGui(this));
         }
+        if (activePlayback != null && activePlayback.hasLostPlaybackWorld()) {
+            activePlayback.stopFromClientDetach();
+        }
         if (activeRecording != null) {
             activeRecording.captureTick(snapshot);
             abortRecordingIfFailed();
@@ -199,6 +204,12 @@ public class ReplayManager {
             if (activeRecording != null) {
                 stopRecording();
             }
+        }
+    }
+
+    public synchronized void onShutdown() {
+        if (activeRecording != null) {
+            stopRecording(false);
         }
     }
 
@@ -235,31 +246,49 @@ public class ReplayManager {
         return io.listReplays(mc.mcDataDir);
     }
 
-    public synchronized boolean openReplay(String token) {
+    public boolean openReplay(String token) {
         ReplayCatalogEntry entry = resolveReplayEntry(token);
         if (entry == null) {
             return false;
         }
         try {
             ReplayLoadedData replay = io.loadReplay(entry.getDirectory());
-            if (activeRecording != null) {
-                stopRecording();
+            ReplayPlaybackSession previousPlayback;
+            synchronized (this) {
+                if (activeRecording != null) {
+                    stopRecording();
+                }
+                pendingFrames.clear();
+                pendingLocalPlayerRecorder.reset();
+                previousPlayback = activePlayback;
+                activePlayback = null;
             }
-            pendingFrames.clear();
-            pendingLocalPlayerRecorder.reset();
-            if (activePlayback != null) {
-                activePlayback.stop();
+
+            if (previousPlayback != null) {
+                previousPlayback.stop();
             }
-            activePlayback = new ReplayPlaybackSession(
+
+            final ReplayPlaybackSession[] playbackRef =
+                new ReplayPlaybackSession[1];
+            playbackRef[0] = new ReplayPlaybackSession(
                 replay,
                 new Runnable() {
                     @Override
                     public void run() {
-                        activePlayback = null;
+                        synchronized (ReplayManager.this) {
+                            if (activePlayback == playbackRef[0]) {
+                                activePlayback = null;
+                            }
+                        }
                     }
                 }
             );
-            activePlayback.open();
+            ReplayPlaybackSession playback = playbackRef[0];
+
+            synchronized (this) {
+                activePlayback = playback;
+            }
+            playback.open();
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -338,28 +367,61 @@ public class ReplayManager {
     }
 
     private void stopRecording() {
+        stopRecording(true);
+    }
+
+    private void stopRecording(boolean notifyPlayer) {
         RecordingSession session = activeRecording;
         activeRecording = null;
         if (session == null) {
             return;
         }
-        try {
-            if (!session.hasPackets()) {
-                return;
-            }
-            File directory = io.createReplayDirectory(mc.mcDataDir, session.getMetadata());
-            io.saveReplay(directory, session.getMetadata(), session.getSpool());
-            io.pruneOldest(mc.mcDataDir, maxStoredReplays());
-            ChatUtils.sendMessage(
-                "§7Saved replay §f" + directory.getName() + "§7 (" +
-                session.getMetadata().getDurationMs() / 1000 + "s)."
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-            ChatUtils.sendMessage("§cFailed to save replay: §f" + describeException(e));
-        } finally {
+        if (!session.hasPackets()) {
             session.discard();
+            return;
         }
+
+        final ReplayMetadata metadata = session.getMetadata();
+        final ReplayRecordingSpool spool = session.getSpool();
+        final File mcDataDir = mc.mcDataDir;
+        final int maxStoredReplays = maxStoredReplays();
+        AsyncExecutor.getInstance().replayIo(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File directory = io.createReplayDirectory(mcDataDir, metadata);
+                    io.saveReplay(directory, metadata, spool);
+                    io.pruneOldest(mcDataDir, maxStoredReplays);
+                    if (notifyPlayer) {
+                        final String replayId = directory.getName();
+                        final int durationSeconds = metadata.getDurationMs() / 1000;
+                        MainThreadDispatcher.run(new Runnable() {
+                            @Override
+                            public void run() {
+                                ChatUtils.sendMessage(
+                                    "§7Saved replay §f" + replayId + "§7 (" +
+                                    durationSeconds + "s)."
+                                );
+                            }
+                        });
+                    }
+                } catch (final Exception e) {
+                    e.printStackTrace();
+                    if (notifyPlayer) {
+                        MainThreadDispatcher.run(new Runnable() {
+                            @Override
+                            public void run() {
+                                ChatUtils.sendMessage(
+                                    "§cFailed to save replay: §f" + describeException(e)
+                                );
+                            }
+                        });
+                    }
+                } finally {
+                    session.discard();
+                }
+            }
+        });
     }
 
     private void abortRecordingIfFailed() {

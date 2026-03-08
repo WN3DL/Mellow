@@ -187,12 +187,36 @@ public class ReplayPlaybackSession {
         scoreboardIndex = 0;
         localSnapshotIndex = 0;
         currentTimeMs = 0;
+        worldBootstrapped = false;
         netHandler = null;
         networkManager = null;
         unloadReplayWorld();
         if (stopCallback != null) {
             stopCallback.run();
         }
+    }
+
+    public void stopFromClientDetach() {
+        lastTeleportedPlayerName = "";
+        stopRequested = false;
+        localReplayPlayer = null;
+        currentScoreboard = null;
+        viewerPositionInitialized = false;
+        packetIndex = 0;
+        chatIndex = 0;
+        scoreboardIndex = 0;
+        localSnapshotIndex = 0;
+        currentTimeMs = 0;
+        worldBootstrapped = false;
+        netHandler = null;
+        networkManager = null;
+        if (stopCallback != null) {
+            stopCallback.run();
+        }
+    }
+
+    public boolean hasLostPlaybackWorld() {
+        return isActive() && worldBootstrapped && mc.theWorld == null;
     }
 
     public void togglePause() {
@@ -1086,6 +1110,9 @@ public class ReplayPlaybackSession {
 
     private void unloadReplayWorld() {
         if (mc.theWorld != null || mc.getNetHandler() != null) {
+            if (mc.theWorld != null) {
+                mc.theWorld.sendQuittingDisconnectingPacket();
+            }
             mc.loadWorld(null);
         }
         mc.displayGuiScreen(null);

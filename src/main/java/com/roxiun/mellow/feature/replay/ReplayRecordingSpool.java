@@ -16,8 +16,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 final class ReplayRecordingSpool implements Closeable {
 
@@ -232,17 +230,13 @@ final class ReplayRecordingSpool implements Closeable {
 
     private static DataOutputStream openOutput(File file) throws IOException {
         return new DataOutputStream(
-            new GZIPOutputStream(
-                new BufferedOutputStream(new FileOutputStream(file))
-            )
+            new BufferedOutputStream(new FileOutputStream(file))
         );
     }
 
     private static DataInputStream openInput(File file) throws IOException {
         return new DataInputStream(
-            new GZIPInputStream(
-                new BufferedInputStream(new FileInputStream(file))
-            )
+            new BufferedInputStream(new FileInputStream(file))
         );
     }
 
