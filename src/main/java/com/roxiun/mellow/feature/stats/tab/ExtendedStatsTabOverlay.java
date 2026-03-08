@@ -228,37 +228,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     }
 
     private boolean isObfuscatedTabEntry(NetworkPlayerInfo info) {
-        return hasObfuscatedFormatting(getRawDisplayName(info));
-    }
-
-    private String getRawDisplayName(NetworkPlayerInfo info) {
-        if (info == null || info.getGameProfile() == null) {
-            return "";
-        }
-
-        if (info.getDisplayName() != null) {
-            return info.getDisplayName().getFormattedText();
-        }
-        return ScorePlayerTeam.formatPlayerName(
-            info.getPlayerTeam(),
-            info.getGameProfile().getName()
-        );
-    }
-
-    private boolean hasObfuscatedFormatting(String value) {
-        if (value == null || value.isEmpty()) {
-            return false;
-        }
-
-        for (int i = 0; i < value.length() - 1; i++) {
-            if (value.charAt(i) == '\u00A7') {
-                char code = value.charAt(i + 1);
-                if (code == 'k' || code == 'K') {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return PlayerUtils.isObfuscatedTabEntry(info);
     }
 
     private void resetTeamModeState() {

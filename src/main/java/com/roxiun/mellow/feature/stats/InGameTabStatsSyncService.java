@@ -4,6 +4,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.nicks.NickUtils;
 import com.roxiun.mellow.gamestate.GameSnapshot;
+import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -131,6 +132,9 @@ public class InGameTabStatsSyncService {
         Set<String> unique = new LinkedHashSet<>();
         for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
             if (info == null || info.getGameProfile() == null) {
+                continue;
+            }
+            if (PlayerUtils.isObfuscatedTabEntry(info)) {
                 continue;
             }
 

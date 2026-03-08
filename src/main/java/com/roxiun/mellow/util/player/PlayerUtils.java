@@ -82,6 +82,44 @@ public class PlayerUtils {
         return version == 1 || version == 3;
     }
 
+    public static String getRawTabListName(NetworkPlayerInfo info) {
+        if (info == null || info.getGameProfile() == null) {
+            return "";
+        }
+
+        if (info.getDisplayName() != null) {
+            return info.getDisplayName().getFormattedText();
+        }
+
+        return ScorePlayerTeam.formatPlayerName(
+            info.getPlayerTeam(),
+            info.getGameProfile().getName()
+        );
+    }
+
+    public static boolean hasObfuscatedFormatting(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < value.length() - 1; i++) {
+            if (value.charAt(i) != '\u00A7') {
+                continue;
+            }
+
+            char code = value.charAt(i + 1);
+            if (code == 'k' || code == 'K') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean isObfuscatedTabEntry(NetworkPlayerInfo info) {
+        return hasObfuscatedFormatting(getRawTabListName(info));
+    }
+
     public static String getTabDisplayName(String playerName) {
         ScorePlayerTeam playerTeam = Minecraft.getMinecraft()
             .theWorld.getScoreboard()
