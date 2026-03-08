@@ -42,7 +42,7 @@ public class MellowOneConfig extends Config {
         subcategory = "Recording",
         description = "Automatically records Hypixel Bedwars sessions into offline replay files."
     )
-    public boolean enableReplayRecording = true;
+    public boolean enableReplayRecording = false;
 
     @Switch(
         name = "Store Chat In Replays",
