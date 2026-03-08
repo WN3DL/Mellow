@@ -2,6 +2,7 @@ package com.roxiun.mellow.feature.replay;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.gamestate.GameSnapshot;
+import com.roxiun.mellow.module.bedwars.BedwarsChatSignalParser;
 import com.roxiun.mellow.util.ChatUtils;
 import java.io.File;
 import java.util.ArrayList;
@@ -66,14 +67,17 @@ public class ReplayManager {
             lastSnapshot = snapshot;
             return;
         }
-        boolean wasInSession = lastSnapshot != null && lastSnapshot.isInBedwars();
-        boolean nowInSession = snapshot.isInBedwars();
+        boolean nowInSession = ReplayRecordingPolicy.isBedwarsSession(snapshot);
 
         if (!isRecordingEnabled() && activeRecording != null) {
             stopRecording();
-        } else if (!wasInSession && nowInSession) {
+        } else if (
+            activeRecording == null &&
+            nowInSession &&
+            ReplayRecordingPolicy.hasLiveMatchEvidence(snapshot)
+        ) {
             startRecording(snapshot);
-        } else if (wasInSession && !nowInSession && activeRecording != null) {
+        } else if (activeRecording != null && !nowInSession) {
             stopRecording();
         }
 
@@ -119,7 +123,21 @@ public class ReplayManager {
     }
 
     public void onChatReceived(IChatComponent component, byte type) {
-        if (component == null || activeRecording == null || !recordChatEnabled()) {
+        if (component == null) {
+            return;
+        }
+
+        String message = component.getUnformattedText();
+        if (
+            activeRecording == null &&
+            isRecordingEnabled() &&
+            ReplayRecordingPolicy.isBedwarsSession(lastSnapshot) &&
+            ReplayRecordingPolicy.isChatConfirmedMatchStart(message)
+        ) {
+            startRecording(lastSnapshot);
+        }
+
+        if (activeRecording == null || !recordChatEnabled()) {
             return;
         }
         activeRecording.addChat(component, type);
