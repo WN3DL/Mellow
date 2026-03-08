@@ -2,7 +2,7 @@ package com.roxiun.mellow.feature.requestpopup;
 
 public enum RequestType {
     FRIEND("Friend request from ", "/friend accept ", "/friend deny "),
-    PARTY("Party request from ", "/party accept ", "/party deny ");
+    PARTY("Party request from ", "/party accept ", null);
 
     private final String displayPrefix;
     private final String acceptCommandPrefix;
@@ -23,6 +23,10 @@ public enum RequestType {
     }
 
     public String buildCommand(boolean accept, String fromPlayer) {
-        return (accept ? acceptCommandPrefix : denyCommandPrefix) + fromPlayer;
+        String commandPrefix = accept ? acceptCommandPrefix : denyCommandPrefix;
+        if (commandPrefix == null || commandPrefix.isEmpty()) {
+            return null;
+        }
+        return commandPrefix + fromPlayer;
     }
 }

@@ -155,7 +155,7 @@ public class RequestPopupManager {
         String command = activeRequest
             .getRequestType()
             .buildCommand(accept, activeRequest.getFromPlayer());
-        if (mc != null && mc.thePlayer != null) {
+        if (command != null && !command.isEmpty() && mc != null && mc.thePlayer != null) {
             mc.thePlayer.sendChatMessage(command);
         }
 
