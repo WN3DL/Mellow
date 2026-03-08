@@ -356,7 +356,6 @@ public class StatsChecker {
 
         boolean shouldWarmClient =
             config.seraph &&
-            config.showSeraphClientInTab &&
             configuredColumns.contains(
                 ExtendedTabStatsColumns.getClientColumnIndex(scope)
             );

@@ -79,8 +79,7 @@ public class SeraphClientCacheService {
             playerName.trim().isEmpty() ||
             config == null ||
             seraphApi == null ||
-            !config.seraph ||
-            !config.showSeraphClientInTab
+            !config.seraph
         ) {
             clearPlayer(playerName);
             return;

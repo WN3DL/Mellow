@@ -575,9 +575,84 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return value == null ? "" : value;
         }
         if (value == null || value.isEmpty()) {
-            return team;
+            return trimVisibleTrailingWhitespace(team);
         }
-        return team + " " + value;
+        return joinCombinedTeamValue(team, value);
+    }
+
+    private String joinCombinedTeamValue(String team, String value) {
+        String trimmedTeam = trimVisibleTrailingWhitespace(team);
+        String trimmedValue = trimVisibleLeadingWhitespace(value);
+
+        if (trimmedTeam.isEmpty()) {
+            return trimmedValue;
+        }
+        if (trimmedValue.isEmpty()) {
+            return trimmedTeam;
+        }
+        return trimmedTeam + " " + trimmedValue;
+    }
+
+    private String trimVisibleLeadingWhitespace(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder formattingPrefix = new StringBuilder();
+        int index = 0;
+        while (index < value.length()) {
+            char current = value.charAt(index);
+            if (current == '\u00A7' && index + 1 < value.length()) {
+                formattingPrefix.append(current).append(value.charAt(index + 1));
+                index += 2;
+                continue;
+            }
+            if (Character.isWhitespace(current)) {
+                index++;
+                continue;
+            }
+            break;
+        }
+
+        return formattingPrefix.append(value.substring(index)).toString();
+    }
+
+    private String trimVisibleTrailingWhitespace(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+
+        int lastVisibleEnd = -1;
+        int index = 0;
+        while (index < value.length()) {
+            char current = value.charAt(index);
+            if (current == '\u00A7' && index + 1 < value.length()) {
+                index += 2;
+                continue;
+            }
+            if (!Character.isWhitespace(current)) {
+                lastVisibleEnd = index + 1;
+            }
+            index++;
+        }
+
+        if (lastVisibleEnd < 0) {
+            return "";
+        }
+
+        StringBuilder suffixFormatting = new StringBuilder();
+        index = lastVisibleEnd;
+        while (index < value.length()) {
+            char current = value.charAt(index);
+            if (current == '\u00A7' && index + 1 < value.length()) {
+                suffixFormatting.append(current).append(value.charAt(index + 1));
+                index += 2;
+                continue;
+            }
+            index++;
+        }
+
+        return value.substring(0, lastVisibleEnd) + suffixFormatting;
     }
 
     private String getHeaderLabel(StatScope scope, int column) {
@@ -691,11 +766,18 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         if (config == null) {
             return TEAM_MODE_OWN_COLUMN;
         }
-        int mode = config.extendedTabStatsTeamColumnMode;
-        if (mode < TEAM_MODE_OWN_COLUMN || mode > TEAM_MODE_COMBINE_STARS) {
-            return TEAM_MODE_OWN_COLUMN;
+        switch (config.extendedTabStatsTeamColumnMode) {
+            case 0:
+                return TEAM_MODE_COMBINE_STARS;
+            case 1:
+                return TEAM_MODE_OWN_COLUMN;
+            case 2:
+                return TEAM_MODE_HIDE_HEADER;
+            case 3:
+                return TEAM_MODE_COMBINE_NAME;
+            default:
+                return TEAM_MODE_OWN_COLUMN;
         }
-        return mode;
     }
 
     private int getGapAfterColumn(List<Integer> columns, int index) {
@@ -1324,7 +1406,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private SeraphClientType getCachedClientType(String playerName) {
         if (
             Mellow.config == null ||
-            !Mellow.config.showSeraphClientInTab ||
+            !Mellow.config.seraph ||
             playerName == null ||
             Mellow.seraphClientCacheService == null
         ) {
@@ -1350,7 +1432,6 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             playerUuid != null &&
             Mellow.config != null &&
             Mellow.config.seraph &&
-            Mellow.config.showSeraphClientInTab &&
             Mellow.seraphClientCacheService != null
         ) {
             Mellow.seraphClientCacheService.refreshClientAsync(

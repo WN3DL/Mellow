@@ -637,8 +637,7 @@ public class PlayerCache {
             profile.getUuid() == null ||
             profile.getUuid().trim().isEmpty() ||
             Mellow.seraphClientCacheService == null ||
-            !config.seraph ||
-            !config.showSeraphClientInTab
+            !config.seraph
         ) {
             return;
         }

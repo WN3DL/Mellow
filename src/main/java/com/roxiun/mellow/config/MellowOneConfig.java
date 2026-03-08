@@ -22,7 +22,7 @@ import com.roxiun.mellow.hud.EmeraldCounterHUD;
 public class MellowOneConfig extends Config {
 
     @Switch(name = "Auto /who", subcategory = "General")
-    public boolean autoWho = true;
+    public boolean autoWho = false;
 
     @Switch(name = "Show Tab Stats", subcategory = "General")
     public boolean tabStats = true;
@@ -121,6 +121,7 @@ public class MellowOneConfig extends Config {
     @Switch(
         name = "Extended View In Lobbies",
         category = "Tab Stats",
+        subcategory = "Extended View",
         description = "Allows Extended Tab Stats View while in game lobbies."
     )
     public boolean extendedTabStatsInLobbies = false;
@@ -128,6 +129,7 @@ public class MellowOneConfig extends Config {
     @Switch(
         name = "Extended View Player Heads",
         category = "Tab Stats",
+        subcategory = "Extended View",
         description = "Shows player heads in the Name column when using Extended Tab Stats View."
     )
     public boolean extendedTabStatsShowHeads = true;
@@ -140,9 +142,10 @@ public class MellowOneConfig extends Config {
             "Hide Team Header",
             "Combine With Name",
         },
-        category = "Tab Stats"
+        category = "Tab Stats",
+        subcategory = "Extended View"
     )
-    public int extendedTabStatsTeamColumnMode = 0;
+    public int extendedTabStatsTeamColumnMode = 3;
 
     @Switch(
         name = "Show Ranks In-Game",
@@ -1021,7 +1024,7 @@ public class MellowOneConfig extends Config {
     )
     public String seraphKey = "";
 
-    @Switch(name = "Print Blacklist Tags in /who", subcategory = "General")
+    @Switch(name = "Print Blacklist Tags", subcategory = "General")
     public boolean printBlacklistTags = true;
 
     @Dropdown(
@@ -1118,9 +1121,6 @@ public class MellowOneConfig extends Config {
 
     @Switch(name = "Show Seraph Tags in Tab", category = "Seraph")
     public boolean showSeraphTagsInTab = true;
-
-    @Switch(name = "Show Client in Tab", category = "Seraph")
-    public boolean showSeraphClientInTab = false;
 
     @Info(
         text = "Enabling Seraph will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Seraph API Key, Game Info). Configure the key in API Keys > Seraph.",
