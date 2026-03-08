@@ -1,7 +1,10 @@
 package com.roxiun.mellow.feature.replay;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
+import net.minecraft.nbt.NBTTagCompound;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -107,5 +110,47 @@ public class ReplayPlaybackSessionTest {
             "Pink",
             ReplayPlaybackSession.normalizeHypixelTeamName("", "§d")
         );
+    }
+
+    @Test
+    public void isAtEndTreatsDurationAndBeyondAsEnded() {
+        Assert.assertFalse(ReplayPlaybackSession.isAtEnd(184999, 185000));
+        Assert.assertTrue(ReplayPlaybackSession.isAtEnd(185000, 185000));
+        Assert.assertTrue(ReplayPlaybackSession.isAtEnd(185001, 185000));
+    }
+
+    @Test
+    public void buildSkullTextureValueEncodesTheTextureUrl() {
+        String value = ReplayPlaybackSession.buildSkullTextureValue(
+            "http://textures.minecraft.net/texture/example"
+        );
+        String decoded = new String(
+            Base64.getDecoder().decode(value),
+            StandardCharsets.UTF_8
+        );
+
+        Assert.assertEquals(
+            "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/example\"}}}",
+            decoded
+        );
+    }
+
+    @Test
+    public void withSkullOwnerTagPreservesExistingDisplayData() {
+        NBTTagCompound existingTag = new NBTTagCompound();
+        NBTTagCompound display = new NBTTagCompound();
+        display.setString("Name", "Replay Control");
+        existingTag.setTag("display", display);
+
+        NBTTagCompound mergedTag = ReplayPlaybackSession.withSkullOwnerTag(
+            existingTag,
+            "http://textures.minecraft.net/texture/example"
+        );
+
+        Assert.assertEquals(
+            "Replay Control",
+            mergedTag.getCompoundTag("display").getString("Name")
+        );
+        Assert.assertTrue(mergedTag.hasKey("SkullOwner"));
     }
 }

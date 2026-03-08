@@ -2,7 +2,9 @@ package com.roxiun.mellow.feature.replay;
 
 import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.util.ChatUtils;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -21,6 +23,8 @@ import net.minecraft.network.play.server.S01PacketJoinGame;
 import net.minecraft.network.play.server.S07PacketRespawn;
 import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.network.play.server.S0CPacketSpawnPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.IChatComponent;
@@ -37,6 +41,14 @@ public class ReplayPlaybackSession {
     private static final int DYE_COLOR_PINK = 9;
     private static final String UNASSIGNED_TEAM_SORT_KEY = "\uFFFF";
     private static final String MC_COLOR_CODES = "0123456789abcdef";
+    private static final String SLOW_HEAD_TEXTURE_URL =
+        "http://textures.minecraft.net/texture/c3e4b533e4ba2dff7c0fa90f67e8bef36428b6cb06c45262631b0b25db85b";
+    private static final String BACK_HEAD_TEXTURE_URL =
+        "http://textures.minecraft.net/texture/c4e490e1658bfde4d4ef1ea7cd646c5353377905a1369b86ee966746ae25ca7";
+    private static final String FORWARD_HEAD_TEXTURE_URL =
+        "http://textures.minecraft.net/texture/98f293f294980d732f523321c34a4cdcc3e6f9e36c9320e150f1cce31aa5";
+    private static final String FAST_HEAD_TEXTURE_URL =
+        "http://textures.minecraft.net/texture/60b55f74681c68283a1c1ce51f1c83b52e2971c91ee34efcb598df3990a7e7";
 
     private final Minecraft mc = Minecraft.getMinecraft();
     private final ReplayLoadedData replay;
@@ -55,6 +67,7 @@ public class ReplayPlaybackSession {
     private boolean viewerPositionInitialized;
     private int speedIndex = 2;
     private String lastTeleportedPlayerName = "";
+    private boolean stopRequested;
     private boolean bootstrapPacketOpen;
     private boolean worldBootstrapped;
     private final boolean allowLegacyFallbackPlayers;
@@ -126,6 +139,11 @@ public class ReplayPlaybackSession {
             return;
         }
 
+        if (stopRequested) {
+            stop();
+            return;
+        }
+
         if (mc.thePlayer != null) {
             prepareViewer(mc.thePlayer);
             populateHotbar();
@@ -143,7 +161,7 @@ public class ReplayPlaybackSession {
         advanceScoreboardTo(currentTimeMs);
         updateLocalReplayPlayer(currentTimeMs);
 
-        if (!paused && currentTimeMs >= replay.getMetadata().getDurationMs()) {
+        if (!paused && isAtEnd(currentTimeMs, replay.getMetadata().getDurationMs())) {
             paused = true;
             ChatUtils.sendMessage("§7Replay reached the end.");
         }
@@ -155,6 +173,7 @@ public class ReplayPlaybackSession {
 
     public void stop() {
         lastTeleportedPlayerName = "";
+        stopRequested = false;
         localReplayPlayer = null;
         currentScoreboard = null;
         viewerPositionInitialized = false;
@@ -172,6 +191,13 @@ public class ReplayPlaybackSession {
     }
 
     public void togglePause() {
+        if (paused && isAtEnd(currentTimeMs, replay.getMetadata().getDurationMs())) {
+            restartFrom(0, false);
+            paused = false;
+            ChatUtils.sendMessage("§7Replay restarted.");
+            return;
+        }
+
         paused = !paused;
         ChatUtils.sendMessage(paused ? "§7Replay paused." : "§7Replay resumed.");
     }
@@ -368,6 +394,7 @@ public class ReplayPlaybackSession {
         currentScoreboard = null;
         viewerPositionInitialized = false;
         lastTeleportedPlayerName = "";
+        stopRequested = false;
         bootstrapPacketOpen = false;
         worldBootstrapped = false;
         bootstrapReplayWorld();
@@ -517,15 +544,27 @@ public class ReplayPlaybackSession {
         }
         mc.thePlayer.inventory.mainInventory[0] = namedItem(Items.compass, "§dTeleport Players");
         mc.thePlayer.inventory.mainInventory[1] = null;
-        mc.thePlayer.inventory.mainInventory[2] = namedItem(Items.redstone, "§dSlow Down");
-        mc.thePlayer.inventory.mainInventory[3] = namedItem(Items.arrow, "§dBack 5s");
+        mc.thePlayer.inventory.mainInventory[2] = texturedHead(
+            SLOW_HEAD_TEXTURE_URL,
+            "§dSlow Down"
+        );
+        mc.thePlayer.inventory.mainInventory[3] = texturedHead(
+            BACK_HEAD_TEXTURE_URL,
+            "§dBack 5s"
+        );
         mc.thePlayer.inventory.mainInventory[4] = namedItem(
             Items.dye,
             paused ? DYE_COLOR_GRAY : DYE_COLOR_PINK,
             paused ? "§dPlay" : "§dPause"
         );
-        mc.thePlayer.inventory.mainInventory[5] = namedItem(Items.arrow, "§dForward 5s");
-        mc.thePlayer.inventory.mainInventory[6] = namedItem(Items.sugar, "§dSpeed Up");
+        mc.thePlayer.inventory.mainInventory[5] = texturedHead(
+            FORWARD_HEAD_TEXTURE_URL,
+            "§dForward 5s"
+        );
+        mc.thePlayer.inventory.mainInventory[6] = texturedHead(
+            FAST_HEAD_TEXTURE_URL,
+            "§dSpeed Up"
+        );
         mc.thePlayer.inventory.mainInventory[7] = null;
         mc.thePlayer.inventory.mainInventory[8] = namedItem(Items.bed, "§cExit Replay");
     }
@@ -538,6 +577,41 @@ public class ReplayPlaybackSession {
         ItemStack stack = new ItemStack(item, 1, metadata);
         stack.setStackDisplayName(name);
         return stack;
+    }
+
+    private ItemStack texturedHead(String textureUrl, String name) {
+        ItemStack stack = namedItem(Items.skull, 3, name);
+        stack.setTagCompound(withSkullOwnerTag(stack.getTagCompound(), textureUrl));
+        return stack;
+    }
+
+    static String buildSkullTextureValue(String textureUrl) {
+        String payload = "{\"textures\":{\"SKIN\":{\"url\":\"" + textureUrl + "\"}}}";
+        return Base64
+            .getEncoder()
+            .encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+    }
+
+    static NBTTagCompound withSkullOwnerTag(NBTTagCompound tag, String textureUrl) {
+        NBTTagCompound mergedTag = tag == null ? new NBTTagCompound() : tag;
+        String textureValue = buildSkullTextureValue(textureUrl);
+        NBTTagCompound skullOwner = new NBTTagCompound();
+        skullOwner.setString(
+            "Id",
+            UUID.nameUUIDFromBytes(textureUrl.getBytes(StandardCharsets.UTF_8)).toString()
+        );
+        skullOwner.setString("Name", "MellowReplay");
+
+        NBTTagCompound properties = new NBTTagCompound();
+        NBTTagList textures = new NBTTagList();
+        NBTTagCompound texture = new NBTTagCompound();
+        texture.setString("Value", textureValue);
+        textures.appendTag(texture);
+        properties.setTag("textures", textures);
+        skullOwner.setTag("Properties", properties);
+
+        mergedTag.setTag("SkullOwner", skullOwner);
+        return mergedTag;
     }
 
     private boolean triggerControlAction(ControlAction action, int mouseButton) {
@@ -560,11 +634,15 @@ public class ReplayPlaybackSession {
                 changeSpeed(1);
                 return true;
             case STOP:
-                stop();
+                requestStop();
                 return true;
             default:
                 return false;
         }
+    }
+
+    private void requestStop() {
+        stopRequested = true;
     }
 
     private boolean handleTeleportControl(int mouseButton) {
@@ -977,5 +1055,9 @@ public class ReplayPlaybackSession {
             }
         }
         return false;
+    }
+
+    static boolean isAtEnd(int currentTimeMs, int durationMs) {
+        return currentTimeMs >= durationMs;
     }
 }
