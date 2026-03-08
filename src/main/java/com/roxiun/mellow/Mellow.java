@@ -103,7 +103,12 @@ public class Mellow {
             config
         );
         PartyBlacklistWarningService partyBlacklistWarningService =
-            new PartyBlacklistWarningService(blacklistManager, config, playerCache);
+            new PartyBlacklistWarningService(
+                blacklistManager,
+                config,
+                playerCache,
+                tagIgnoreManager
+            );
         HypixelFeatures
             .getInstance()
             .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);

@@ -13,6 +13,7 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
+import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -74,6 +75,7 @@ public class PartyBlacklistWarningService {
     private final BlacklistManager blacklistManager;
     private final MellowOneConfig config;
     private final PlayerCache playerCache;
+    private final TagIgnoreManager tagIgnoreManager;
     private final Map<UUID, EnumSet<FlagSource>> warnedSourcesByMember =
         new HashMap<>();
     private final AlertSoundGate partyWarningSoundGate = new AlertSoundGate();
@@ -82,11 +84,13 @@ public class PartyBlacklistWarningService {
     public PartyBlacklistWarningService(
         BlacklistManager blacklistManager,
         MellowOneConfig config,
-        PlayerCache playerCache
+        PlayerCache playerCache,
+        TagIgnoreManager tagIgnoreManager
     ) {
         this.blacklistManager = blacklistManager;
         this.config = config;
         this.playerCache = playerCache;
+        this.tagIgnoreManager = tagIgnoreManager;
     }
 
     public synchronized void onSnapshotUpdate(GameSnapshot snapshot) {
@@ -160,6 +164,13 @@ public class PartyBlacklistWarningService {
             );
 
             for (UUID memberUuid : partyMemberUuids) {
+                boolean tagsIgnored =
+                    tagIgnoreManager != null &&
+                    tagIgnoreManager.isTagIgnored(memberUuid);
+                if (tagsIgnored) {
+                    continue;
+                }
+
                 String tabName = tabNamesByUuid.get(memberUuid);
                 if (tabName == null || tabName.isEmpty()) {
                     continue;
