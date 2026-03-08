@@ -3,6 +3,7 @@ package com.roxiun.mellow.feature.stats;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
+import com.roxiun.mellow.api.provider.model.FetchFailureReason;
 import com.roxiun.mellow.api.duels.DuelsPlayer;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
@@ -257,6 +258,12 @@ public class StatsChecker {
         ProfileFetchResult result
     ) {
         if (playerName == null || playerName.trim().isEmpty()) {
+            return;
+        }
+        if (
+            result != null &&
+            result.getFailureReason() == FetchFailureReason.UUID_UNAVAILABLE
+        ) {
             return;
         }
 
