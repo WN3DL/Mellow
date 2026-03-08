@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,20 +13,32 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class SeraphApi {
 
+    private static final long CLIENT_CACHE_TTL_MS = 300_000L;
+    private static final long TAG_CACHE_TTL_MS = 120_000L;
+
     private final MojangApi mojangApi;
+    private final TimedValueCache<String, SeraphClientType> clientTypeCache =
+        new TimedValueCache<>(CLIENT_CACHE_TTL_MS);
+    private final TimedValueCache<String, List<SeraphTag>> tagCache =
+        new TimedValueCache<>(TAG_CACHE_TTL_MS);
 
     public SeraphApi(MojangApi mojangApi) {
         this.mojangApi = mojangApi;
     }
 
     public SeraphClientType fetchClientType(String uuid, String seraphApiKey) {
+        String cacheKey = buildCacheKey(uuid, seraphApiKey);
+        if (!cacheKey.isEmpty() && clientTypeCache.containsFresh(cacheKey)) {
+            return clientTypeCache.get(cacheKey);
+        }
+
+        SeraphClientType clientType = null;
+        boolean shouldCache = false;
         try {
             if (
                 uuid == null ||
@@ -50,22 +63,35 @@ public class SeraphApi {
             conn.setReadTimeout(5000);
 
             if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                return null;
+                clientType = null;
+            } else {
+                BufferedReader in = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+                );
+                String response = in.lines().collect(Collectors.joining());
+                in.close();
+                clientType = parseClientTag(response);
+                shouldCache = true;
             }
-
-            BufferedReader in = new BufferedReader(
-                new InputStreamReader(conn.getInputStream())
-            );
-            String response = in.lines().collect(Collectors.joining());
-            in.close();
-            return parseClientTag(response);
         } catch (Exception ignored) {
-            return null;
+            clientType = null;
         }
+
+        if (shouldCache && !cacheKey.isEmpty()) {
+            clientTypeCache.put(cacheKey, clientType);
+        }
+        return clientType;
     }
 
     public List<SeraphTag> fetchSeraphTags(String uuid, String seraphApiKey)
         throws IOException {
+        String cacheKey = buildCacheKey(uuid, seraphApiKey);
+        if (!cacheKey.isEmpty() && tagCache.containsFresh(cacheKey)) {
+            return copyTags(tagCache.get(cacheKey));
+        }
+
+        List<SeraphTag> tags = new ArrayList<>();
+        boolean shouldCache = false;
         try {
             // If the UUID is invalid for any reason, throw an exception
             if (uuid == null || uuid.equals("ERROR") || uuid.isEmpty()) {
@@ -91,18 +117,24 @@ public class SeraphApi {
                 );
                 String response = in.lines().collect(Collectors.joining());
                 in.close();
-                return parseTags(response);
+                tags = parseTags(response);
+                shouldCache = true;
             } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                return new ArrayList<>(); // Player has no tags
+                tags = new ArrayList<>(); // Player has no tags
+                shouldCache = true;
             } else {
                 throw new IOException(
                     "Seraph API request failed with code: " + responseCode
                 );
             }
         } catch (IOException e) {
-            // If request fails, return empty list
-            return new ArrayList<>();
+            tags = new ArrayList<>();
         }
+
+        if (shouldCache && !cacheKey.isEmpty()) {
+            tagCache.put(cacheKey, copyTags(tags));
+        }
+        return copyTags(tags);
     }
 
     private List<SeraphTag> parseTags(String response) {
@@ -228,5 +260,53 @@ public class SeraphApi {
         } catch (Exception ignored) {}
 
         return null;
+    }
+
+    private String buildCacheKey(String uuid, String seraphApiKey) {
+        if (uuid == null || uuid.trim().isEmpty() || "ERROR".equals(uuid)) {
+            return "";
+        }
+
+        return (
+            uuid.trim().toLowerCase(Locale.ROOT) +
+            "|" +
+            normalizeApiKey(seraphApiKey)
+        );
+    }
+
+    private String normalizeApiKey(String apiKey) {
+        return apiKey == null ? "" : apiKey.trim();
+    }
+
+    public void clearCache() {
+        clientTypeCache.clear();
+        tagCache.clear();
+    }
+
+    public void clearPlayer(String uuid) {
+        String normalizedUuid = normalizeUuid(uuid);
+        if (normalizedUuid.isEmpty()) {
+            return;
+        }
+
+        clientTypeCache.removeMatching(key ->
+            key != null && key.startsWith(normalizedUuid + "|")
+        );
+        tagCache.removeMatching(key ->
+            key != null && key.startsWith(normalizedUuid + "|")
+        );
+    }
+
+    private String normalizeUuid(String uuid) {
+        if (uuid == null) {
+            return "";
+        }
+
+        String normalized = uuid.trim().toLowerCase(Locale.ROOT);
+        return "error".equals(normalized) ? "" : normalized;
+    }
+
+    private List<SeraphTag> copyTags(List<SeraphTag> tags) {
+        return tags == null ? new ArrayList<>() : new ArrayList<>(tags);
     }
 }

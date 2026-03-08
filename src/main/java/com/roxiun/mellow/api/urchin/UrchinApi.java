@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -13,6 +14,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -20,12 +22,15 @@ import org.apache.commons.lang3.tuple.Pair;
 
 public class UrchinApi {
 
+    private static final long TAG_CACHE_TTL_MS = 120_000L;
     private final Map<String, Pair<Integer, Long>> pingCache =
         new ConcurrentHashMap<>();
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private static final long CACHE_DURATION_MS = 7_200_000; // 2 hours
 
     private final MojangApi mojangApi;
+    private final TimedValueCache<String, List<UrchinTag>> tagCache =
+        new TimedValueCache<>(TAG_CACHE_TTL_MS);
 
     public UrchinApi(MojangApi mojangApi) {
         this.mojangApi = mojangApi;
@@ -36,6 +41,12 @@ public class UrchinApi {
         String playerName,
         String urchinKey
     ) throws IOException {
+        String cacheKey = buildTagCacheKey(uuid, playerName, urchinKey);
+        if (!cacheKey.isEmpty() && tagCache.containsFresh(cacheKey)) {
+            return copyTags(tagCache.get(cacheKey));
+        }
+
+        List<UrchinTag> tags;
         try {
             // If the UUID is invalid for any reason, throw an exception to trigger the fallback.
             if (uuid == null || uuid.equals("ERROR") || uuid.isEmpty()) {
@@ -62,9 +73,9 @@ public class UrchinApi {
                 );
                 String response = in.lines().collect(Collectors.joining());
                 in.close();
-                return parseTags(response);
+                tags = parseTags(response);
             } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                return new ArrayList<>(); // Player has no tags, this is a success, so don't fallback.
+                tags = new ArrayList<>(); // Player has no tags, this is a success, so don't fallback.
             } else {
                 // For any other error code (e.g., 500), throw to trigger the fallback.
                 throw new IOException(
@@ -89,9 +100,9 @@ public class UrchinApi {
                     );
                     String response = in.lines().collect(Collectors.joining());
                     in.close();
-                    return parseTags(response);
+                    tags = parseTags(response);
                 } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                    return new ArrayList<>(); // No tags on fallback either.
+                    tags = new ArrayList<>(); // No tags on fallback either.
                 } else {
                     throw new IOException(
                         "Urchin fallback API request failed with response code: " +
@@ -103,6 +114,11 @@ public class UrchinApi {
                 throw fallbackException;
             }
         }
+
+        if (!cacheKey.isEmpty()) {
+            tagCache.put(cacheKey, copyTags(tags));
+        }
+        return copyTags(tags);
     }
 
     private List<UrchinTag> parseTags(String response) {
@@ -144,6 +160,25 @@ public class UrchinApi {
 
     private String normalizeApiKey(String apiKey) {
         return apiKey == null ? "" : apiKey.trim();
+    }
+
+    public void clearCache() {
+        tagCache.clear();
+        pingCache.clear();
+        fetchInProgress.clear();
+    }
+
+    public void clearPlayer(String uuid, String playerName) {
+        String normalizedUuid = normalizeIdentifier(uuid);
+        String normalizedName = normalizeIdentifier(playerName);
+
+        removePingState(uuid);
+        removePingState(normalizedUuid);
+
+        tagCache.removeMatching(key ->
+            matchesCachePrefix(key, normalizedUuid) ||
+            matchesCachePrefix(key, normalizedName)
+        );
     }
 
     // Other methods like ping cache remain unchanged
@@ -205,5 +240,51 @@ public class UrchinApi {
             }
         } catch (Exception ignored) {}
         return -1;
+    }
+
+    private String buildTagCacheKey(
+        String uuid,
+        String playerName,
+        String urchinKey
+    ) {
+        String identifier = uuid;
+        if (identifier == null || identifier.trim().isEmpty() || "ERROR".equals(identifier)) {
+            identifier = playerName;
+        }
+        if (identifier == null || identifier.trim().isEmpty()) {
+            return "";
+        }
+
+        return (
+            identifier.trim().toLowerCase(Locale.ROOT) +
+            "|" +
+            normalizeApiKey(urchinKey)
+        );
+    }
+
+    private void removePingState(String uuid) {
+        if (uuid == null || uuid.isEmpty()) {
+            return;
+        }
+
+        pingCache.remove(uuid);
+        fetchInProgress.remove(uuid);
+    }
+
+    private String normalizeIdentifier(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean matchesCachePrefix(String key, String prefix) {
+        return (
+            key != null &&
+            prefix != null &&
+            !prefix.isEmpty() &&
+            key.startsWith(prefix + "|")
+        );
+    }
+
+    private List<UrchinTag> copyTags(List<UrchinTag> tags) {
+        return tags == null ? new ArrayList<>() : new ArrayList<>(tags);
     }
 }

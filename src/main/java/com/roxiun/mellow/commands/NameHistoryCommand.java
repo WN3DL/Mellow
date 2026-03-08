@@ -8,6 +8,7 @@ import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.net.URLDecoder;
@@ -33,6 +34,7 @@ import okhttp3.ResponseBody;
 
 public class NameHistoryCommand extends CommandBase {
 
+    private static final long HISTORY_CACHE_TTL_MS = 1_800_000L;
     private static final Pattern NAMEMC_NAME_PATTERN = Pattern.compile(
         "<a[^>]+href=[\"']/search\\?q=([^\"']+)[\"'][^>]*>([^<]+)</a>"
     );
@@ -41,10 +43,17 @@ public class NameHistoryCommand extends CommandBase {
     );
 
     private final MojangApi mojangApi;
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
+    private final TimedValueCache<String, List<NameEntry>> historyCache =
+        new TimedValueCache<>(HISTORY_CACHE_TTL_MS);
 
     public NameHistoryCommand(MojangApi mojangApi) {
+        this(mojangApi, new OkHttpClient());
+    }
+
+    NameHistoryCommand(MojangApi mojangApi, OkHttpClient client) {
         this.mojangApi = mojangApi;
+        this.client = client == null ? new OkHttpClient() : client;
     }
 
     @Override
@@ -90,18 +99,15 @@ public class NameHistoryCommand extends CommandBase {
                 return;
             }
 
-            Map<String, NameEntry> merged = new LinkedHashMap<>();
-            addEntries(merged, fetchAshconHistory(uuid.toString()));
-            addEntries(merged, fetchLabyHistory(uuid.toString().replace("-", "")));
-            addEntries(merged, fetchNameMCHistory(uuid.toString()));
+            List<NameEntry> entries = getMergedHistory(uuid);
 
             List<String> lines = new ArrayList<>();
             lines.add("§f" + username + " §7- Name History");
 
-            if (merged.isEmpty()) {
+            if (entries.isEmpty()) {
                 lines.add("§7No name history found.");
             } else {
-                for (NameEntry entry : merged.values()) {
+                for (NameEntry entry : entries) {
                     if (entry.date != null && !entry.date.isEmpty()) {
                         lines.add(
                             "§f" + entry.name + " §7(since " + formatDate(entry.date) + ")"
@@ -116,6 +122,26 @@ public class NameHistoryCommand extends CommandBase {
                 ChatUtils.sendMultilineCommandMessage(sender, lines)
             );
         });
+    }
+
+    List<NameEntry> getMergedHistory(UUID uuid) {
+        if (uuid == null) {
+            return new ArrayList<>();
+        }
+
+        String cacheKey = uuid.toString();
+        if (historyCache.containsFresh(cacheKey)) {
+            return copyEntries(historyCache.get(cacheKey));
+        }
+
+        Map<String, NameEntry> merged = new LinkedHashMap<>();
+        addEntries(merged, fetchAshconHistory(cacheKey));
+        addEntries(merged, fetchLabyHistory(cacheKey.replace("-", "")));
+        addEntries(merged, fetchNameMCHistory(cacheKey));
+
+        List<NameEntry> entries = new ArrayList<>(merged.values());
+        historyCache.put(cacheKey, copyEntries(entries));
+        return entries;
     }
 
     private void addEntries(Map<String, NameEntry> map, List<NameEntry> entries) {
@@ -333,6 +359,10 @@ public class NameHistoryCommand extends CommandBase {
         SimpleDateFormat format = new SimpleDateFormat(pattern, Locale.ROOT);
         format.setTimeZone(TimeZone.getTimeZone("UTC"));
         return format;
+    }
+
+    private List<NameEntry> copyEntries(List<NameEntry> entries) {
+        return entries == null ? new ArrayList<>() : new ArrayList<>(entries);
     }
 
     @Override

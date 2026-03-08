@@ -3,6 +3,8 @@ package com.roxiun.mellow.feature.tags;
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.provider.NadeshikoApi;
 import com.roxiun.mellow.api.provider.StatsProvider;
+import com.roxiun.mellow.api.provider.model.ProviderResult;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -19,8 +21,27 @@ import net.minecraft.util.EnumChatFormatting;
 
 public class TagUtils {
 
+    private static final long SKIN_CACHE_TTL_MS = 300_000L;
+    private static final long NEW_LOGIN_CACHE_TTL_MS = 120_000L;
+    private static final String[] DEFAULT_SKIN_IDS = {
+        "a3bd16079f764cd541e072e888fe43885e711f98658323db0f9a6045da91ee7a ",
+        "b66bc80f002b10371e2fa23de6f230dd5e2f3affc2e15786f65bc9be4c6eb71a",
+        "e5cdc3243b2153ab28a159861be643a4fc1e3c17d291cdd3e57a7f370ad676f3",
+        "f5dddb41dcafef616e959c2817808e0be741c89ffbfed39134a13e75b811863d",
+        "4c05ab9e07b3505dc3ec11370c3bdce5570ad2fb2b562e9b9dd9cf271f81aa44",
+        "31f477eb1a7beee631c2ca64d06f8f68fa93a3386d04452ab27f43acdf1b60cb",
+        "6ac6ca262d67bcfb3dbc924ba8215a18195497c780058a5749de674217721892",
+        "1abc803022d8300ab7578b189294cce39622d9a404cdc00d3feacfdf45be6981",
+        "daf3d88ccb38f11f74814e92053d92f7728ddb1a7955652a60e30cb27ae6659f",
+        "fece7017b1bb13926d1158864b283b8b930271f80a90482f174cca6a17e88236",
+    };
+
     private final Mellow mellow;
     private final BlacklistManager blacklistManager;
+    private final TimedValueCache<String, Boolean> defaultSkinCache =
+        new TimedValueCache<>(SKIN_CACHE_TTL_MS);
+    private final TimedValueCache<String, Boolean> newLoginCache =
+        new TimedValueCache<>(NEW_LOGIN_CACHE_TTL_MS);
 
     public TagUtils(Mellow mellow, BlacklistManager blacklistManager) {
         this.mellow = mellow;
@@ -96,18 +117,33 @@ public class TagUtils {
         if (stars <= 6 && fkdr >= 4) totaltags =
             totaltags + EnumChatFormatting.DARK_RED + "F §r";
 
-        String[] defaultSkinIDS = {
-            "a3bd16079f764cd541e072e888fe43885e711f98658323db0f9a6045da91ee7a ",
-            "b66bc80f002b10371e2fa23de6f230dd5e2f3affc2e15786f65bc9be4c6eb71a",
-            "e5cdc3243b2153ab28a159861be643a4fc1e3c17d291cdd3e57a7f370ad676f3",
-            "f5dddb41dcafef616e959c2817808e0be741c89ffbfed39134a13e75b811863d",
-            "4c05ab9e07b3505dc3ec11370c3bdce5570ad2fb2b562e9b9dd9cf271f81aa44",
-            "31f477eb1a7beee631c2ca64d06f8f68fa93a3386d04452ab27f43acdf1b60cb",
-            "6ac6ca262d67bcfb3dbc924ba8215a18195497c780058a5749de674217721892",
-            "1abc803022d8300ab7578b189294cce39622d9a404cdc00d3feacfdf45be6981",
-            "daf3d88ccb38f11f74814e92053d92f7728ddb1a7955652a60e30cb27ae6659f",
-            "fece7017b1bb13926d1158864b283b8b930271f80a90482f174cca6a17e88236",
-        };
+        if (isDefaultSkin(uuid)) {
+            totaltags = totaltags + EnumChatFormatting.DARK_AQUA + "SK §r";
+        }
+
+        StatsProvider statsProvider = mellow.getStatsProvider();
+        if (isRecentFirstLogin(statsProvider, uuid)) {
+            totaltags = totaltags + EnumChatFormatting.RED + "NL §r";
+        }
+
+        if (finals == 0 && fdeaths == 0) totaltags =
+            totaltags + EnumChatFormatting.RED + "0F §r";
+
+        return totaltags;
+    }
+
+    private boolean isDefaultSkin(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) {
+            return false;
+        }
+
+        String cacheKey = uuid.trim().toLowerCase();
+        if (defaultSkinCache.containsFresh(cacheKey)) {
+            return Boolean.TRUE.equals(defaultSkinCache.get(cacheKey));
+        }
+
+        boolean isDefaultSkin = false;
+        boolean shouldCache = false;
         try {
             String urlString =
                 "https://sessionserver.mojang.com/session/minecraft/profile/" +
@@ -134,72 +170,89 @@ public class TagUtils {
 
                 String responseString = response.toString();
                 String[] parts = responseString.split("\"value\" : \"");
-                String value = parts[1].split("\"")[0];
-                byte[] decodedBytes = Base64.getDecoder().decode(value);
-                String valueJson = new String(decodedBytes);
-                boolean skincheck = Arrays.stream(defaultSkinIDS).anyMatch(id ->
-                    valueJson.toLowerCase().contains(id.toLowerCase())
-                );
-                if (skincheck) totaltags =
-                    totaltags + EnumChatFormatting.DARK_AQUA + "SK §r";
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        StatsProvider statsProvider = mellow.getStatsProvider();
-        if (statsProvider != null) {
-            String playerData = statsProvider.fetchPlayerData(uuid);
-            if (playerData == null) {
-                playerData = "";
-            }
-
-            Pattern timestampPattern;
-            if (statsProvider instanceof NadeshikoApi) {
-                timestampPattern = Pattern.compile(
-                    "\"first_login\":(\\d+),",
-                    Pattern.CASE_INSENSITIVE
-                );
-            } else {
-                timestampPattern = Pattern.compile(
-                    "\"firstLogin\":(\\d+),",
-                    Pattern.CASE_INSENSITIVE
-                );
-            }
-            Matcher timestampMatcher = timestampPattern.matcher(playerData);
-            if (timestampMatcher.find()) {
-                long timestamp = Long.parseLong(timestampMatcher.group(1));
-                Date loginDate = new Date(timestamp);
-
-                Calendar currentCalendar = Calendar.getInstance();
-                Calendar loginCalendar = Calendar.getInstance();
-
-                currentCalendar.setTimeInMillis(System.currentTimeMillis());
-                currentCalendar.set(Calendar.HOUR_OF_DAY, 0);
-                currentCalendar.set(Calendar.MINUTE, 0);
-                currentCalendar.set(Calendar.SECOND, 0);
-                currentCalendar.set(Calendar.MILLISECOND, 0);
-
-                loginCalendar.setTime(loginDate);
-                loginCalendar.set(Calendar.HOUR_OF_DAY, 0);
-                loginCalendar.set(Calendar.MINUTE, 0);
-                loginCalendar.set(Calendar.SECOND, 0);
-                loginCalendar.set(Calendar.MILLISECOND, 0);
-
-                long diff =
-                    currentCalendar.getTimeInMillis() -
-                    loginCalendar.getTimeInMillis();
-                long oneDayMillis = 24 * 60 * 60 * 1000;
-
-                if (Math.abs(diff) <= oneDayMillis) {
-                    totaltags = totaltags + EnumChatFormatting.RED + "NL §r";
+                if (parts.length > 1) {
+                    String value = parts[1].split("\"")[0];
+                    byte[] decodedBytes = Base64.getDecoder().decode(value);
+                    String valueJson = new String(decodedBytes);
+                    isDefaultSkin = Arrays.stream(DEFAULT_SKIN_IDS).anyMatch(id ->
+                        valueJson.toLowerCase().contains(id.toLowerCase())
+                    );
                 }
+                shouldCache = true;
             }
+        } catch (Exception ignored) {}
+
+        if (shouldCache) {
+            defaultSkinCache.put(cacheKey, isDefaultSkin);
+        }
+        return isDefaultSkin;
+    }
+
+    private boolean isRecentFirstLogin(StatsProvider statsProvider, String uuid) {
+        if (
+            statsProvider == null ||
+            uuid == null ||
+            uuid.trim().isEmpty()
+        ) {
+            return false;
         }
 
-        if (finals == 0 && fdeaths == 0) totaltags =
-            totaltags + EnumChatFormatting.RED + "0F §r";
+        String cacheKey =
+            statsProvider.getClass().getName() + ":" + uuid.trim().toLowerCase();
+        if (newLoginCache.containsFresh(cacheKey)) {
+            return Boolean.TRUE.equals(newLoginCache.get(cacheKey));
+        }
 
-        return totaltags;
+        ProviderResult<String> playerDataResult = statsProvider.fetchPlayerDataResult(
+            uuid
+        );
+        if (playerDataResult == null || !playerDataResult.isSuccess()) {
+            return false;
+        }
+        String playerData = playerDataResult.getValue();
+
+        Pattern timestampPattern;
+        if (statsProvider instanceof NadeshikoApi) {
+            timestampPattern = Pattern.compile(
+                "\"first_login\":(\\d+),",
+                Pattern.CASE_INSENSITIVE
+            );
+        } else {
+            timestampPattern = Pattern.compile(
+                "\"firstLogin\":(\\d+),",
+                Pattern.CASE_INSENSITIVE
+            );
+        }
+
+        boolean recentFirstLogin = false;
+        Matcher timestampMatcher = timestampPattern.matcher(playerData);
+        if (timestampMatcher.find()) {
+            long timestamp = Long.parseLong(timestampMatcher.group(1));
+            Date loginDate = new Date(timestamp);
+
+            Calendar currentCalendar = Calendar.getInstance();
+            Calendar loginCalendar = Calendar.getInstance();
+
+            currentCalendar.setTimeInMillis(System.currentTimeMillis());
+            currentCalendar.set(Calendar.HOUR_OF_DAY, 0);
+            currentCalendar.set(Calendar.MINUTE, 0);
+            currentCalendar.set(Calendar.SECOND, 0);
+            currentCalendar.set(Calendar.MILLISECOND, 0);
+
+            loginCalendar.setTime(loginDate);
+            loginCalendar.set(Calendar.HOUR_OF_DAY, 0);
+            loginCalendar.set(Calendar.MINUTE, 0);
+            loginCalendar.set(Calendar.SECOND, 0);
+            loginCalendar.set(Calendar.MILLISECOND, 0);
+
+            long diff =
+                currentCalendar.getTimeInMillis() -
+                loginCalendar.getTimeInMillis();
+            long oneDayMillis = 24 * 60 * 60 * 1000;
+            recentFirstLogin = Math.abs(diff) <= oneDayMillis;
+        }
+
+        newLoginCache.put(cacheKey, recentFirstLogin);
+        return recentFirstLogin;
     }
 }

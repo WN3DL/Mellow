@@ -36,6 +36,8 @@ public class PlayerCache {
     private static final long CACHE_TTL_MS = 120_000L;
 
     private final Map<String, CachedProfile> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedRawData> rawDataCache =
+        new ConcurrentHashMap<>();
     private final MojangApi mojangApi;
     private final ProviderManager providerManager;
     private final UrchinApi urchinApi;
@@ -123,6 +125,7 @@ public class PlayerCache {
         if (!rawResult.isSuccess()) {
             return toProfileFailure(rawResult, provider.getDisplayName());
         }
+        storeRawData(provider, uuidResult.uuid, rawResult.getValue());
 
         ProfileFetchResult result = buildFullProfileResult(
             playerName,
@@ -198,6 +201,7 @@ public class PlayerCache {
         if (!rawResult.isSuccess()) {
             return toProfileFailure(rawResult, provider.getDisplayName());
         }
+        storeRawData(provider, uuidResult.uuid, rawResult.getValue());
 
         ProfileFetchResult result = buildScopedProfileResult(
             playerName,
@@ -269,8 +273,20 @@ public class PlayerCache {
             return "";
         }
 
+        CachedRawData cachedRawData = rawDataCache.get(
+            buildRawDataCacheKey(provider, uuid.uuid)
+        );
+        if (cachedRawData != null && !cachedRawData.isExpired()) {
+            return cachedRawData.rawData;
+        }
+
         ProviderResult<String> rawResult = provider.fetchPlayerDataResult(uuid.uuid);
-        return rawResult.isSuccess() ? rawResult.getValue() : "";
+        if (!rawResult.isSuccess()) {
+            return "";
+        }
+
+        storeRawData(provider, uuid.uuid, rawResult.getValue());
+        return rawResult.getValue();
     }
 
     private ProfileFetchResult buildFullProfileResult(
@@ -650,6 +666,19 @@ public class PlayerCache {
 
     public void clearCache() {
         cache.clear();
+        rawDataCache.clear();
+        if (mojangApi != null) {
+            mojangApi.clearCache();
+        }
+        if (Mellow.urchinApi != null) {
+            Mellow.urchinApi.clearCache();
+        }
+        if (Mellow.seraphApi != null) {
+            Mellow.seraphApi.clearCache();
+        }
+        if (Mellow.auroraApi != null) {
+            Mellow.auroraApi.clearCache();
+        }
         if (Mellow.seraphClientCacheService != null) {
             Mellow.seraphClientCacheService.clearCache();
         }
@@ -674,6 +703,12 @@ public class PlayerCache {
 
         String lower = playerName.toLowerCase(Locale.ROOT);
         cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+        if (mojangApi != null) {
+            mojangApi.clearPlayer(playerName);
+        }
+        if (Mellow.urchinApi != null) {
+            Mellow.urchinApi.clearPlayer(null, playerName);
+        }
         if (Mellow.seraphClientCacheService != null) {
             Mellow.seraphClientCacheService.clearPlayer(playerName);
         }
@@ -685,6 +720,7 @@ public class PlayerCache {
 
         String fullUuid = trustedTabUuid.toString();
         String compactUuid = fullUuid.replace("-", "");
+        rawDataCache.keySet().removeIf(key -> key.endsWith(":" + compactUuid));
         if (Mellow.auroraPingService != null) {
             Mellow.auroraPingService.clearPlayer(compactUuid);
         }
@@ -696,6 +732,12 @@ public class PlayerCache {
         }
         if (Mellow.seraphPingService != null) {
             Mellow.seraphPingService.clearPlayer(fullUuid);
+        }
+        if (Mellow.urchinApi != null) {
+            Mellow.urchinApi.clearPlayer(fullUuid, playerName);
+        }
+        if (Mellow.seraphApi != null) {
+            Mellow.seraphApi.clearPlayer(fullUuid);
         }
     }
 
@@ -777,6 +819,30 @@ public class PlayerCache {
         playerName.toLowerCase(Locale.ROOT);
     }
 
+    private String buildRawDataCacheKey(StatsProvider provider, String uuid) {
+        return provider.getProviderId().name() +
+        ":" +
+        normalizeUuidKey(uuid);
+    }
+
+    private String normalizeUuidKey(String uuid) {
+        if (uuid == null) {
+            return "";
+        }
+        return uuid.replace("-", "").toLowerCase(Locale.ROOT).trim();
+    }
+
+    private void storeRawData(StatsProvider provider, String uuid, String rawData) {
+        if (provider == null || rawData == null || rawData.isEmpty()) {
+            return;
+        }
+
+        rawDataCache.put(
+            buildRawDataCacheKey(provider, uuid),
+            new CachedRawData(rawData)
+        );
+    }
+
     private String normalizeApiKey(String apiKey) {
         return apiKey == null ? "" : apiKey.trim();
     }
@@ -798,6 +864,21 @@ public class PlayerCache {
 
         private CachedProfile(PlayerProfile profile) {
             this.profile = profile;
+            this.cachedAt = System.currentTimeMillis();
+        }
+
+        private boolean isExpired() {
+            return System.currentTimeMillis() - cachedAt > CACHE_TTL_MS;
+        }
+    }
+
+    private static class CachedRawData {
+
+        private final String rawData;
+        private final long cachedAt;
+
+        private CachedRawData(String rawData) {
+            this.rawData = rawData;
             this.cachedAt = System.currentTimeMillis();
         }
 

@@ -10,9 +10,11 @@ import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
@@ -71,8 +73,8 @@ public class SeraphCommand extends CommandBase {
         );
         AsyncExecutor.getInstance().command(() -> {
             try {
-                String uuid = mojangApi.fetchUUID(username);
-                if (uuid == null || uuid.isEmpty()) {
+                UUID uuid = PlayerUtils.resolveLookupUuid(username, mojangApi);
+                if (uuid == null) {
                     MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
@@ -83,7 +85,7 @@ public class SeraphCommand extends CommandBase {
                 }
 
                 List<SeraphTag> tags = seraphApi.fetchSeraphTags(
-                    uuid,
+                    uuid.toString(),
                     config.seraphKey
                 );
 

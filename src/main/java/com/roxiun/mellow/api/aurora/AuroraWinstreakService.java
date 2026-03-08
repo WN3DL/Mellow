@@ -3,8 +3,8 @@ package com.roxiun.mellow.api.aurora;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.Mellow;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,11 +15,13 @@ import okhttp3.ResponseBody;
 
 public class AuroraWinstreakService {
 
+    private static final long WINSTREAK_CACHE_TTL_MS = 120_000L;
     private static final String WINSTREAK_URL =
         "https://bordic.xyz/api/v2/resources/winstreak";
 
     private final OkHttpClient client = new OkHttpClient();
-    private final Map<String, Integer> winstreakCache = new ConcurrentHashMap<>();
+    private final TimedValueCache<String, Integer> winstreakCache =
+        new TimedValueCache<>(WINSTREAK_CACHE_TTL_MS);
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean errorShownThisSession = new AtomicBoolean(false);
 
@@ -29,7 +31,7 @@ public class AuroraWinstreakService {
     }
 
     public boolean hasCachedWinstreak(String compactUuid) {
-        return winstreakCache.containsKey(compactUuid);
+        return winstreakCache.containsFresh(compactUuid);
     }
 
     public boolean tryStartFetch(String compactUuid) {
@@ -108,10 +110,7 @@ public class AuroraWinstreakService {
                 throw new IOException("HTTP " + response.code());
             }
 
-            String preview = bodyString.length() > 300
-                ? bodyString.substring(0, 300) + "..."
-                : bodyString;
-            throw new IOException("No winstreak field found. Response: " + preview);
+            return -1;
         }
     }
 

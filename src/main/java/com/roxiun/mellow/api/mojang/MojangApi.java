@@ -1,15 +1,31 @@
 package com.roxiun.mellow.api.mojang;
 
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 
 public class MojangApi {
 
+    private static final long UUID_CACHE_TTL_MS = 300_000L;
+
+    private final TimedValueCache<String, String> uuidCache =
+        new TimedValueCache<>(UUID_CACHE_TTL_MS);
+
     public String fetchUUID(String username) {
+        String cacheKey = normalizeUsername(username);
+        if (cacheKey.isEmpty()) {
+            return "ERROR";
+        }
+        if (uuidCache.containsFresh(cacheKey)) {
+            String cached = uuidCache.get(cacheKey);
+            return cached == null ? "ERROR" : cached;
+        }
+
         HttpURLConnection connection = null;
         try {
             String urlString =
@@ -30,10 +46,15 @@ public class MojangApi {
                 while ((line = in.readLine()) != null) response.append(line);
                 in.close();
                 String uuid = extractUUID(response.toString());
-                return uuid != null ? uuid : "ERROR";
+                if (uuid != null && !"ERROR".equals(uuid)) {
+                    return cacheUuid(cacheKey, uuid);
+                }
+                return "ERROR";
             }
 
-            if (responseCode == 404) return "ERROR";
+            if (responseCode == 404) {
+                return cacheUuid(cacheKey, "ERROR");
+            }
 
             if (responseCode == 429) {
                 // Rate limited, fallback to minetools
@@ -59,10 +80,12 @@ public class MojangApi {
 
                     if (
                         response.toString().contains("\"id\": null")
-                    ) return "ERROR";
+                    ) {
+                        return cacheUuid(cacheKey, "ERROR");
+                    }
                     String[] parts = response.toString().split("\"id\":\"");
                     if (parts.length > 1) {
-                        return parts[1].split("\"")[0];
+                        return cacheUuid(cacheKey, parts[1].split("\"")[0]);
                     } else {
                         return "ERROR";
                     }
@@ -103,5 +126,27 @@ public class MojangApi {
             }
         }
         return null; // Player not found (probably not in tab list)
+    }
+
+    public void clearCache() {
+        uuidCache.clear();
+    }
+
+    public void clearPlayer(String username) {
+        String cacheKey = normalizeUsername(username);
+        if (cacheKey.isEmpty()) {
+            return;
+        }
+        uuidCache.remove(cacheKey);
+    }
+
+    private String cacheUuid(String cacheKey, String uuid) {
+        String resolved = uuid == null || uuid.isEmpty() ? "ERROR" : uuid;
+        uuidCache.put(cacheKey, resolved);
+        return resolved;
+    }
+
+    private String normalizeUsername(String username) {
+        return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
     }
 }

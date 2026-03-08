@@ -68,6 +68,7 @@ public class Mellow {
 
     public static AuroraPingService auroraPingService;
     public static AuroraWinstreakService auroraWinstreakService;
+    public static AuroraApi auroraApi;
     public static LunaPingService lunaPingService;
     public static SeraphClientCacheService seraphClientCacheService;
     public static SeraphPingService seraphPingService;
@@ -108,7 +109,7 @@ public class Mellow {
         urchinApi = new UrchinApi(mojangApi);
         seraphApi = new SeraphApi(mojangApi);
         seraphClientCacheService = new SeraphClientCacheService(seraphApi, config);
-        AuroraApi auroraApi = new AuroraApi();
+        auroraApi = new AuroraApi();
 
         playerCache = new PlayerCache(
             mojangApi,

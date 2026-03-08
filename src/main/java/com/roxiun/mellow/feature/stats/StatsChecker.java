@@ -439,9 +439,7 @@ public class StatsChecker {
                     compactUuid,
                     config.auroraApiKey
                 );
-                if (winstreak >= 0) {
-                    Mellow.auroraWinstreakService.storeInCache(compactUuid, winstreak);
-                }
+                Mellow.auroraWinstreakService.storeInCache(compactUuid, winstreak);
             } catch (Exception e) {
                 if (!Mellow.auroraWinstreakService.hasShownError()) {
                     Mellow.auroraWinstreakService.markErrorShown();

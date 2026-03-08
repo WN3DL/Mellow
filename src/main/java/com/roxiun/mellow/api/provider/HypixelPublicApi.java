@@ -12,6 +12,7 @@ import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,10 +20,13 @@ import java.util.Map;
 
 public class HypixelPublicApi implements StatsProvider {
 
+    private static final long RAW_DATA_CACHE_TTL_MS = 120_000L;
     private static final String PLAYER_ENDPOINT = "https://api.hypixel.net/v2/player?uuid=";
 
     private final MojangApi mojangApi;
     private final MellowOneConfig config;
+    private final TimedValueCache<String, ProviderResult<String>> rawDataCache =
+        new TimedValueCache<>(RAW_DATA_CACHE_TTL_MS);
 
     public HypixelPublicApi(MojangApi mojangApi, MellowOneConfig config) {
         this.mojangApi = mojangApi;
@@ -66,14 +70,30 @@ public class HypixelPublicApi implements StatsProvider {
             );
         }
 
+        String cacheKey = normalizeApiKey(config.hypixelApiKey) + ":" + uuid.trim();
+        if (rawDataCache.containsFresh(cacheKey)) {
+            ProviderResult<String> cached = rawDataCache.get(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
         Map<String, String> headers = new HashMap<>();
         headers.put("API-Key", config.hypixelApiKey.trim());
 
-        return HypixelApiUtils.fetchPlayerDataResult(
+        ProviderResult<String> result = HypixelApiUtils.fetchPlayerDataResult(
             PLAYER_ENDPOINT + uuid,
             "Mellow/6.0.0",
             headers
         );
+        if (result.isSuccess()) {
+            rawDataCache.put(cacheKey, result);
+        }
+        return result;
+    }
+
+    private String normalizeApiKey(String apiKey) {
+        return apiKey == null ? "" : apiKey.trim();
     }
 
     @Override

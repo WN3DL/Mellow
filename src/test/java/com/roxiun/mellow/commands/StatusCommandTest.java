@@ -1,0 +1,86 @@
+package com.roxiun.mellow.commands;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class StatusCommandTest {
+
+    @Test
+    public void getStatusLinesCachesOutboundResponsesButKeepsRequestedUsername() {
+        AtomicInteger requestCount = new AtomicInteger();
+        OkHttpClient client = new OkHttpClient.Builder()
+            .addInterceptor(chain -> {
+                Request request = chain.request();
+                requestCount.incrementAndGet();
+
+                String host = request.url().host();
+                String path = request.url().encodedPath();
+                if ("api.hypixel.net".equals(host) && "/status".equals(path)) {
+                    return response(
+                        request,
+                        200,
+                        "{\"success\":true,\"session\":{\"online\":true,\"gameType\":\"BEDWARS\",\"mode\":\"EIGHT_ONE\"}}"
+                    );
+                }
+                if ("api.hypixel.net".equals(host) && "/player".equals(path)) {
+                    return response(
+                        request,
+                        200,
+                        "{\"success\":true,\"player\":{\"lastLogin\":1700000000000}}"
+                    );
+                }
+                if ("lunaaaa.net".equals(host)) {
+                    return response(
+                        request,
+                        200,
+                        "{\"history\":[{\"message\":\"Queued lobby\",\"timestamp\":1700000000}]}"
+                    );
+                }
+                return response(request, 404, "{}");
+            })
+            .build();
+
+        StatusCommand command = new StatusCommand(
+            null,
+            "hypixel-key",
+            "luna-key",
+            client
+        );
+        UUID uuid = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        List<String> first = command.getStatusLines("Alpha", uuid, true, true);
+        List<String> second = command.getStatusLines("Beta", uuid, true, true);
+
+        Assert.assertEquals("§fAlpha", first.get(0));
+        Assert.assertEquals("§fBeta", second.get(0));
+        Assert.assertTrue(first.stream().anyMatch(line -> line.contains("§rStatus:")));
+        Assert.assertTrue(
+            first.stream().anyMatch(line -> line.startsWith("§7Last login: §f"))
+        );
+        Assert.assertTrue(
+            first
+                .stream()
+                .anyMatch(line -> line.startsWith("§7Last lobby msg: §f\"Queued lobby\""))
+        );
+        Assert.assertEquals(3, requestCount.get());
+    }
+
+    private static Response response(Request request, int code, String body) {
+        return new Response.Builder()
+            .request(request)
+            .protocol(Protocol.HTTP_1_1)
+            .code(code)
+            .message(code == 200 ? "OK" : "Error")
+            .body(ResponseBody.create(MediaType.parse("application/json"), body))
+            .build();
+    }
+}
