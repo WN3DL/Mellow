@@ -29,6 +29,7 @@ import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupManager;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
 import com.roxiun.mellow.feature.replay.ReplayHudRouter;
+import com.roxiun.mellow.feature.replay.ReplayInputRouter;
 import com.roxiun.mellow.feature.replay.ReplayManager;
 import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
@@ -181,6 +182,7 @@ public class Mellow {
             new ClientTickRouter(HypixelFeatures.getInstance())
         );
         MinecraftForge.EVENT_BUS.register(new ReplayHudRouter(replayManager));
+        MinecraftForge.EVENT_BUS.register(new ReplayInputRouter(replayManager));
         MinecraftForge.EVENT_BUS.register(new NametagColorRouter(config));
         TabOverlayRouter tabOverlayRouter = new TabOverlayRouter(config);
         MinecraftForge.EVENT_BUS.register(tabOverlayRouter);

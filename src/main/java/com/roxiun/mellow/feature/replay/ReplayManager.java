@@ -177,6 +177,10 @@ public class ReplayManager {
         }
     }
 
+    public boolean handlePlaybackControlClick() {
+        return activePlayback != null && activePlayback.handleHeldControlClick();
+    }
+
     public void spectatePlayer(String name) {
         if (activePlayback != null) {
             activePlayback.spectatePlayer(name);

@@ -46,11 +46,20 @@ public class ReplayPlaybackSession {
     private boolean paused;
     private boolean viewerPositionInitialized;
     private int speedIndex = 2;
-    private int lastControlSlot = 4;
     private String spectatingName = "";
     private boolean bootstrapPacketOpen;
     private boolean worldBootstrapped;
     private final boolean allowLegacyFallbackPlayers;
+
+    enum ControlAction {
+        NONE,
+        SLOW_DOWN,
+        BACKWARD,
+        TOGGLE_PAUSE,
+        FORWARD,
+        SPEED_UP,
+        STOP
+    }
 
     public ReplayPlaybackSession(ReplayLoadedData replay, Runnable stopCallback) {
         this.replay = replay;
@@ -62,7 +71,8 @@ public class ReplayPlaybackSession {
         paused = false;
         restartFrom(0, false);
         ChatUtils.sendMessage(
-            "§dOpened replay §f" + replay.getMetadata().getReplayId() + "§7. Use the hotbar controls or §f/mreplay§7."
+            "§dOpened replay §f" + replay.getMetadata().getReplayId() +
+            "§7. Hold a replay control and click, or use §f/mreplay§7."
         );
     }
 
@@ -74,7 +84,6 @@ public class ReplayPlaybackSession {
         if (mc.thePlayer != null) {
             prepareViewer(mc.thePlayer);
             populateHotbar();
-            handleControlSelection();
         }
 
         if (!paused) {
@@ -171,6 +180,35 @@ public class ReplayPlaybackSession {
         );
     }
 
+    public boolean handleHeldControlClick() {
+        if (!isActive() || mc.thePlayer == null) {
+            return false;
+        }
+
+        return triggerControlAction(
+            resolveControlAction(mc.thePlayer.inventory.currentItem)
+        );
+    }
+
+    static ControlAction resolveControlAction(int slot) {
+        switch (slot) {
+            case 2:
+                return ControlAction.SLOW_DOWN;
+            case 3:
+                return ControlAction.BACKWARD;
+            case 4:
+                return ControlAction.TOGGLE_PAUSE;
+            case 5:
+                return ControlAction.FORWARD;
+            case 6:
+                return ControlAction.SPEED_UP;
+            case 8:
+                return ControlAction.STOP;
+            default:
+                return ControlAction.NONE;
+        }
+    }
+
     public List<String> buildHudLines() {
         if (!isActive()) {
             return Collections.emptyList();
@@ -256,7 +294,6 @@ public class ReplayPlaybackSession {
         localReplayPlayer = null;
         currentScoreboard = null;
         viewerPositionInitialized = false;
-        lastControlSlot = 4;
         bootstrapPacketOpen = false;
         worldBootstrapped = false;
         bootstrapReplayWorld();
@@ -417,43 +454,6 @@ public class ReplayPlaybackSession {
         return null;
     }
 
-    private void handleControlSelection() {
-        if (mc.thePlayer == null) {
-            return;
-        }
-        int slot = mc.thePlayer.inventory.currentItem;
-        if (slot == lastControlSlot) {
-            return;
-        }
-        lastControlSlot = slot;
-        switch (slot) {
-            case 2:
-                changeSpeed(-1);
-                break;
-            case 3:
-                skipBySeconds(-5);
-                break;
-            case 4:
-                togglePause();
-                break;
-            case 5:
-                skipBySeconds(5);
-                break;
-            case 6:
-                changeSpeed(1);
-                break;
-            case 8:
-                stop();
-                return;
-            default:
-                return;
-        }
-        if (mc.thePlayer != null) {
-            mc.thePlayer.inventory.currentItem = 4;
-            lastControlSlot = 4;
-        }
-    }
-
     private void populateHotbar() {
         if (mc.thePlayer == null) {
             return;
@@ -476,6 +476,31 @@ public class ReplayPlaybackSession {
         ItemStack stack = new ItemStack(item);
         stack.setStackDisplayName(name);
         return stack;
+    }
+
+    private boolean triggerControlAction(ControlAction action) {
+        switch (action) {
+            case SLOW_DOWN:
+                changeSpeed(-1);
+                return true;
+            case BACKWARD:
+                skipBySeconds(-5);
+                return true;
+            case TOGGLE_PAUSE:
+                togglePause();
+                return true;
+            case FORWARD:
+                skipBySeconds(5);
+                return true;
+            case SPEED_UP:
+                changeSpeed(1);
+                return true;
+            case STOP:
+                stop();
+                return true;
+            default:
+                return false;
+        }
     }
 
     private double getSpeed() {
