@@ -30,7 +30,7 @@ public class ReplayCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/mreplay <list|open|info|delete|pause|play|stop|back|forward|slower|faster|tp>";
+        return "/mreplay <list|open|info|delete|tp>";
     }
 
     @Override
@@ -83,27 +83,6 @@ public class ReplayCommand extends CommandBase {
                 } else {
                     ChatUtils.sendCommandMessage(sender, "§cReplay not found: §f" + args[1]);
                 }
-                return;
-            case "pause":
-            case "play":
-            case "toggle":
-                replayManager.togglePause();
-                return;
-            case "stop":
-            case "exit":
-                replayManager.stopPlayback();
-                return;
-            case "back":
-                replayManager.seekBySeconds(-parseSeconds(args, 1, 5));
-                return;
-            case "forward":
-                replayManager.seekBySeconds(parseSeconds(args, 1, 5));
-                return;
-            case "slower":
-                replayManager.changeSpeed(-1);
-                return;
-            case "faster":
-                replayManager.changeSpeed(1);
                 return;
             case "tp":
             case "spectate":
@@ -158,17 +137,6 @@ public class ReplayCommand extends CommandBase {
         }
     }
 
-    private int parseSeconds(String[] args, int index, int fallback) {
-        if (args.length <= index) {
-            return fallback;
-        }
-        try {
-            return Integer.parseInt(args[index]);
-        } catch (NumberFormatException ignored) {
-            return fallback;
-        }
-    }
-
     private String safe(String value) {
         return value == null || value.trim().isEmpty() ? "Unknown" : value;
     }
@@ -186,13 +154,6 @@ public class ReplayCommand extends CommandBase {
                 "open",
                 "info",
                 "delete",
-                "pause",
-                "play",
-                "stop",
-                "back",
-                "forward",
-                "slower",
-                "faster",
                 "tp"
             );
         }

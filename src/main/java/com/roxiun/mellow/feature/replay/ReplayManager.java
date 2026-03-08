@@ -152,31 +152,6 @@ public class ReplayManager {
             : activePlayback.buildHudLines();
     }
 
-    public void stopPlayback() {
-        if (activePlayback != null) {
-            activePlayback.stop();
-            activePlayback = null;
-        }
-    }
-
-    public void togglePause() {
-        if (activePlayback != null) {
-            activePlayback.togglePause();
-        }
-    }
-
-    public void changeSpeed(int delta) {
-        if (activePlayback != null) {
-            activePlayback.changeSpeed(delta);
-        }
-    }
-
-    public void seekBySeconds(int seconds) {
-        if (activePlayback != null) {
-            activePlayback.skipBySeconds(seconds);
-        }
-    }
-
     public boolean handlePlaybackControlClick(int mouseButton) {
         return activePlayback != null &&
         activePlayback.handleHeldControlClick(mouseButton);

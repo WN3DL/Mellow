@@ -38,21 +38,24 @@ public class MellowOneConfig extends Config {
 
     @Switch(
         name = "Record Bedwars Replays",
-        subcategory = "General",
+        category = "Replays",
+        subcategory = "Recording",
         description = "Automatically records Hypixel Bedwars sessions into offline replay files."
     )
     public boolean enableReplayRecording = true;
 
     @Switch(
         name = "Store Chat In Replays",
-        subcategory = "General",
+        category = "Replays",
+        subcategory = "Recording",
         description = "Persists received chat messages alongside replay packets."
     )
     public boolean recordChatInReplays = true;
 
     @Number(
         name = "Max Stored Replays",
-        subcategory = "General",
+        category = "Replays",
+        subcategory = "Recording",
         description = "Oldest replays are deleted once this limit is exceeded. Set to 0 for unlimited.",
         min = 0,
         max = 500,
