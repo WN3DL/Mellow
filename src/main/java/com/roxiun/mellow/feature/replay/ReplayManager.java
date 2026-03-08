@@ -60,7 +60,7 @@ public class ReplayManager {
 
     private ReplayManager() {}
 
-    public void onGameSnapshot(GameSnapshot snapshot) {
+    public synchronized void onGameSnapshot(GameSnapshot snapshot) {
         if (snapshot == null) {
             return;
         }
@@ -89,7 +89,7 @@ public class ReplayManager {
         lastSnapshot = snapshot;
     }
 
-    public void onInboundPacket(Packet<?> packet) {
+    public synchronized void onInboundPacket(Packet<?> packet) {
         if (
             packet == null ||
             isPlaybackActive() ||
@@ -124,7 +124,7 @@ public class ReplayManager {
         } catch (Exception ignored) {}
     }
 
-    public void onChatReceived(IChatComponent component, byte type) {
+    public synchronized void onChatReceived(IChatComponent component, byte type) {
         if (component == null) {
             return;
         }
@@ -146,7 +146,7 @@ public class ReplayManager {
         abortRecordingIfFailed();
     }
 
-    public void onOutboundPacket(Packet<?> packet) {
+    public synchronized void onOutboundPacket(Packet<?> packet) {
         if (packet == null || isPlaybackActive() || !isRecordingEnabled()) {
             return;
         }
@@ -177,7 +177,7 @@ public class ReplayManager {
         } catch (Exception ignored) {}
     }
 
-    public void onClientTick(GameSnapshot snapshot) {
+    public synchronized void onClientTick(GameSnapshot snapshot) {
         if (replayBrowserOpenRequested && !(mc.currentScreen instanceof GuiChat)) {
             replayBrowserOpenRequested = false;
             mc.displayGuiScreen(new ReplayBrowserGui(this));
@@ -193,7 +193,7 @@ public class ReplayManager {
         }
     }
 
-    public void onWorldChange() {
+    public synchronized void onWorldChange() {
         if (!isPlaybackActive()) {
             pendingLocalPlayerRecorder.reset();
             if (activeRecording != null) {
@@ -202,28 +202,28 @@ public class ReplayManager {
         }
     }
 
-    public boolean isPlaybackActive() {
+    public synchronized boolean isPlaybackActive() {
         return activePlayback != null && activePlayback.isActive();
     }
 
-    public ReplayPlaybackState getPlaybackState() {
+    public synchronized ReplayPlaybackState getPlaybackState() {
         return activePlayback == null
             ? ReplayPlaybackState.inactive()
             : activePlayback.getPlaybackState();
     }
 
-    public List<String> getHudLines() {
+    public synchronized List<String> getHudLines() {
         return activePlayback == null
             ? Collections.<String>emptyList()
             : activePlayback.buildHudLines();
     }
 
-    public boolean handlePlaybackControlClick(int mouseButton) {
+    public synchronized boolean handlePlaybackControlClick(int mouseButton) {
         return activePlayback != null &&
         activePlayback.handleHeldControlClick(mouseButton);
     }
 
-    public boolean teleportToPlayer(String name) {
+    public synchronized boolean teleportToPlayer(String name) {
         return activePlayback != null && activePlayback.teleportToPlayer(name);
     }
 
@@ -235,7 +235,7 @@ public class ReplayManager {
         return io.listReplays(mc.mcDataDir);
     }
 
-    public boolean openReplay(String token) {
+    public synchronized boolean openReplay(String token) {
         ReplayCatalogEntry entry = resolveReplayEntry(token);
         if (entry == null) {
             return false;
@@ -262,7 +262,8 @@ public class ReplayManager {
             activePlayback.open();
             return true;
         } catch (Exception e) {
-            ChatUtils.sendMessage("§cFailed to open replay: §f" + e.getMessage());
+            e.printStackTrace();
+            ChatUtils.sendMessage("§cFailed to open replay: §f" + describeException(e));
             return false;
         }
     }
@@ -328,8 +329,11 @@ public class ReplayManager {
             ChatUtils.sendMessage(
                 "§7Started recording replay for §f" + safe(snapshot.getMap()) + "§7."
             );
-        } catch (IOException e) {
-            ChatUtils.sendMessage("§cFailed to start replay recording: §f" + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            ChatUtils.sendMessage(
+                "§cFailed to start replay recording: §f" + describeException(e)
+            );
         }
     }
 
@@ -351,7 +355,8 @@ public class ReplayManager {
                 session.getMetadata().getDurationMs() / 1000 + "s)."
             );
         } catch (Exception e) {
-            ChatUtils.sendMessage("§cFailed to save replay: §f" + e.getMessage());
+            e.printStackTrace();
+            ChatUtils.sendMessage("§cFailed to save replay: §f" + describeException(e));
         } finally {
             session.discard();
         }
@@ -367,6 +372,17 @@ public class ReplayManager {
         ChatUtils.sendMessage(
             "§cStopped replay recording: §f" + safe(session.getFailureMessage())
         );
+    }
+
+    private String describeException(Exception e) {
+        if (e == null) {
+            return "Unknown error";
+        }
+        String message = e.getMessage();
+        if (message != null && !message.trim().isEmpty()) {
+            return e.getClass().getSimpleName() + ": " + message;
+        }
+        return e.getClass().getSimpleName();
     }
 
     private void trimPendingFrames(long now) {

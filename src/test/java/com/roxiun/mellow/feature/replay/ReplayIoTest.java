@@ -27,6 +27,10 @@ public class ReplayIoTest {
         'Z',
         0x00,
     };
+    private static final byte[] GZIP_HEADER = new byte[] {
+        0x1F,
+        (byte) 0x8B,
+    };
     private static final int PACKETS_MAGIC = 0x4D52504B;
     private static final int EVENTS_MAGIC = 0x4D524556;
 
@@ -167,6 +171,34 @@ public class ReplayIoTest {
                 Files.readAllBytes(new File(listDirectory, "index.bin").toPath()),
                 Files.readAllBytes(new File(spoolDirectory, "index.bin").toPath())
             );
+        } finally {
+            if (spool != null) {
+                spool.discard();
+            }
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    public void recordingSpoolUsesCompressedTempFiles() throws Exception {
+        File tempDir = Files.createTempDirectory("replay-io-spool-temp").toFile();
+        ReplayRecordingSpool spool = null;
+        try {
+            ReplayIo io = new ReplayIo();
+            spool = io.createRecordingSpool(tempDir);
+            spool.appendPacket(
+                new ReplayPacketFrame(
+                    0,
+                    "net.minecraft.network.play.server.S21PacketChunkData",
+                    repeatedPayload(64, 0x55)
+                )
+            );
+            spool.finish();
+
+            byte[] header = Files.readAllBytes(spool.getPacketsFile().toPath());
+            Assert.assertTrue(header.length >= GZIP_HEADER.length);
+            Assert.assertEquals(GZIP_HEADER[0], header[0]);
+            Assert.assertEquals(GZIP_HEADER[1], header[1]);
         } finally {
             if (spool != null) {
                 spool.discard();
