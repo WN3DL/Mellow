@@ -2,6 +2,7 @@ package com.roxiun.mellow.mixin;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.gamestate.GameSnapshot;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import com.roxiun.mellow.util.ping.PingProviderUtils;
 import net.minecraft.client.network.NetworkPlayerInfo;
@@ -38,9 +39,10 @@ public class PingMixin {
             return;
         }
 
+        GameSnapshot snapshot = HypixelFeatures.getInstance().getGameSnapshot();
         if (
             Mellow.config == null ||
-            !HypixelFeatures.getInstance().getGameSnapshot().isOnHypixel()
+            !PingProviderUtils.canUseExternalPing(snapshot)
         ) {
             cir.setReturnValue(original);
             return;
@@ -75,7 +77,7 @@ public class PingMixin {
             }
 
             cir.setReturnValue(original);
-            if (cached < 0) {
+            if (cached < 0 && !hasValidVanillaPing) {
                 Mellow.auroraPingService.fetchAsync(
                     compactUuid,
                     Mellow.config.auroraApiKey
@@ -100,7 +102,7 @@ public class PingMixin {
             }
 
             cir.setReturnValue(original);
-            if (cached < 0) {
+            if (cached < 0 && !hasValidVanillaPing) {
                 Mellow.seraphPingService.fetchAsync(uuid, Mellow.config.seraphKey);
             }
             return;
@@ -121,7 +123,7 @@ public class PingMixin {
         }
 
         cir.setReturnValue(original);
-        if (cached < 0) {
+        if (cached < 0 && !hasValidVanillaPing) {
             Mellow.lunaPingService.fetchAsync(uuid, Mellow.config.lunaPingApiKey);
         }
     }

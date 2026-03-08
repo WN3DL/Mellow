@@ -12,7 +12,6 @@ import com.roxiun.mellow.api.urchin.UrchinTag;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
-import com.roxiun.mellow.util.ping.PingProviderUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -1321,37 +1320,8 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return "";
         }
 
-        UUID playerUuid = getTrustedPlayerUuid(info);
-        if (playerUuid == null) {
-            return "";
-        }
-
-        boolean useLuna = PingProviderUtils.shouldUseLuna(Mellow.config);
-        boolean useAurora = PingProviderUtils.shouldUseAurora(Mellow.config);
-        boolean useSeraph = PingProviderUtils.shouldUseSeraph(Mellow.config);
-
-        int ping = -1;
-        if (useLuna && Mellow.lunaPingService != null) {
-            String fullUuid = playerUuid.toString();
-            ping = Mellow.lunaPingService.getCachedPing(fullUuid);
-            if (ping < 0 && PingProviderUtils.hasLunaApiKey(Mellow.config)) {
-                Mellow.lunaPingService.fetchAsync(fullUuid, Mellow.config.lunaPingApiKey);
-            }
-        } else if (useAurora && Mellow.auroraPingService != null) {
-            String compactUuid = playerUuid.toString().replace("-", "");
-            ping = Mellow.auroraPingService.getCachedPing(compactUuid);
-            if (ping < 0 && PingProviderUtils.hasAuroraApiKey(Mellow.config)) {
-                Mellow.auroraPingService.fetchAsync(compactUuid, Mellow.config.auroraApiKey);
-            }
-        } else if (useSeraph && Mellow.seraphPingService != null) {
-            String fullUuid = playerUuid.toString();
-            ping = Mellow.seraphPingService.getCachedPing(fullUuid);
-            if (ping < 0 && PingProviderUtils.hasSeraphApiKey(Mellow.config)) {
-                Mellow.seraphPingService.fetchAsync(fullUuid, Mellow.config.seraphKey);
-            }
-        }
-
-        if (ping < 0) {
+        int ping = info.getResponseTime();
+        if (ping <= 1 || ping >= 999) {
             return "§70";
         }
         if (ping < 50) {

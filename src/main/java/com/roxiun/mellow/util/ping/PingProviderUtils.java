@@ -1,6 +1,7 @@
 package com.roxiun.mellow.util.ping;
 
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.gamestate.GameSnapshot;
 
 public final class PingProviderUtils {
 
@@ -49,6 +50,10 @@ public final class PingProviderUtils {
 
     public static boolean hasSeraphApiKey(MellowOneConfig config) {
         return hasValue(config == null ? null : config.seraphKey);
+    }
+
+    public static boolean canUseExternalPing(GameSnapshot snapshot) {
+        return snapshot != null && snapshot.isOnHypixel() && !snapshot.isLobby();
     }
 
     private static boolean hasValue(String value) {

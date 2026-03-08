@@ -8,6 +8,7 @@ import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.ping.SessionPingFetchGate;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +29,8 @@ public class SeraphPingService {
 
     private final OkHttpClient client = new OkHttpClient();
     private final Map<String, Integer> pingCache = new ConcurrentHashMap<>();
+    private final SessionPingFetchGate sessionFetchGate =
+        new SessionPingFetchGate();
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean errorShownThisSession = new AtomicBoolean(false);
 
@@ -53,16 +56,21 @@ public class SeraphPingService {
         }
 
         pingCache.remove(uuid);
+        sessionFetchGate.clearPlayer(uuid);
         fetchInProgress.remove(uuid);
     }
 
     public void clearCache() {
         pingCache.clear();
+        sessionFetchGate.clear();
         fetchInProgress.clear();
     }
 
     public void fetchAsync(String uuid, String apiKey) {
         if (uuid == null || uuid.isEmpty() || apiKey == null || apiKey.trim().isEmpty()) {
+            return;
+        }
+        if (!sessionFetchGate.tryMarkRequested(uuid)) {
             return;
         }
         if (!tryStartFetch(uuid)) {

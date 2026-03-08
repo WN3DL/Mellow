@@ -29,7 +29,6 @@ import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
-import com.roxiun.mellow.util.ping.PingProviderUtils;
 import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -331,7 +330,6 @@ public class StatsChecker {
         }
 
         warmSeraphClientCache(playerName, profile, supplementalUsage);
-        warmPingCache(profile, supplementalUsage);
         warmHiddenWinstreakCache(profile, scope, supplementalUsage);
     }
 
@@ -359,9 +357,7 @@ public class StatsChecker {
             configuredColumns.contains(
                 ExtendedTabStatsColumns.getClientColumnIndex(scope)
             );
-        boolean shouldWarmPing = configuredColumns.contains(
-            ExtendedTabStatsColumns.getPingColumnIndex(scope)
-        );
+        boolean shouldWarmPing = false;
         boolean shouldWarmHiddenWinstreak =
             scope == StatScope.BEDWARS &&
             config.showHiddenWinstreaks &&
@@ -393,61 +389,6 @@ public class StatsChecker {
             playerName,
             profile.getUuid()
         );
-    }
-
-    private void warmPingCache(
-        PlayerProfile profile,
-        SupplementalFeatureUsage supplementalUsage
-    ) {
-        if (
-            supplementalUsage == null ||
-            !supplementalUsage.shouldWarmPing ||
-            config == null ||
-            profile.getUuid() == null ||
-            profile.getUuid().isEmpty()
-        ) {
-            return;
-        }
-
-        UUID playerUuid = parseUuid(profile.getUuid());
-        if (playerUuid == null) {
-            return;
-        }
-
-        if (
-            PingProviderUtils.shouldUseLuna(config) &&
-            PingProviderUtils.hasLunaApiKey(config) &&
-            Mellow.lunaPingService != null
-        ) {
-            Mellow.lunaPingService.fetchAsync(
-                playerUuid.toString(),
-                config.lunaPingApiKey
-            );
-            return;
-        }
-
-        if (
-            PingProviderUtils.shouldUseAurora(config) &&
-            PingProviderUtils.hasAuroraApiKey(config) &&
-            Mellow.auroraPingService != null
-        ) {
-            Mellow.auroraPingService.fetchAsync(
-                playerUuid.toString().replace("-", ""),
-                config.auroraApiKey
-            );
-            return;
-        }
-
-        if (
-            PingProviderUtils.shouldUseSeraph(config) &&
-            PingProviderUtils.hasSeraphApiKey(config) &&
-            Mellow.seraphPingService != null
-        ) {
-            Mellow.seraphPingService.fetchAsync(
-                playerUuid.toString(),
-                config.seraphKey
-            );
-        }
     }
 
     private void warmHiddenWinstreakCache(

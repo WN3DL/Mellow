@@ -8,6 +8,7 @@ import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.ping.SessionPingFetchGate;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,8 @@ public class AuroraPingService {
 
     private final OkHttpClient client = new OkHttpClient();
     private final Map<String, Integer> pingCache = new ConcurrentHashMap<>();
+    private final SessionPingFetchGate sessionFetchGate =
+        new SessionPingFetchGate();
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean errorShownThisSession = new AtomicBoolean(false);
 
@@ -50,11 +53,13 @@ public class AuroraPingService {
         }
 
         pingCache.remove(compactUuid);
+        sessionFetchGate.clearPlayer(compactUuid);
         fetchInProgress.remove(compactUuid);
     }
 
     public void clearCache() {
         pingCache.clear();
+        sessionFetchGate.clear();
         fetchInProgress.clear();
     }
 
@@ -73,6 +78,9 @@ public class AuroraPingService {
             apiKey == null ||
             apiKey.trim().isEmpty()
         ) {
+            return;
+        }
+        if (!sessionFetchGate.tryMarkRequested(compactUuid)) {
             return;
         }
         if (!tryStartFetch(compactUuid)) {
