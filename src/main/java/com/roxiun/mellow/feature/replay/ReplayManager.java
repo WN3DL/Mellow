@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
@@ -47,6 +48,7 @@ public class ReplayManager {
     private RecordingSession activeRecording;
     private ReplayPlaybackSession activePlayback;
     private GameSnapshot lastSnapshot = GameSnapshot.empty();
+    private boolean replayBrowserOpenRequested;
 
     public static ReplayManager getInstance() {
         return INSTANCE;
@@ -120,6 +122,10 @@ public class ReplayManager {
     }
 
     public void onClientTick(GameSnapshot snapshot) {
+        if (replayBrowserOpenRequested && !(mc.currentScreen instanceof GuiChat)) {
+            replayBrowserOpenRequested = false;
+            mc.displayGuiScreen(new ReplayBrowserGui(this));
+        }
         if (activeRecording != null) {
             activeRecording.captureTick(snapshot);
         }
@@ -159,6 +165,10 @@ public class ReplayManager {
 
     public boolean teleportToPlayer(String name) {
         return activePlayback != null && activePlayback.teleportToPlayer(name);
+    }
+
+    public void openReplayBrowser() {
+        replayBrowserOpenRequested = true;
     }
 
     public List<ReplayCatalogEntry> listReplays() {

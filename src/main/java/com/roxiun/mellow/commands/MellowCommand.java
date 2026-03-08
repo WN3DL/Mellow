@@ -120,7 +120,7 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/mreplay <list|open|info|delete|tp>:§d Browse saved Bedwars replays and teleport to replay players.§r"
+                "§r§5/mreplay [list|open|info|delete|tp]:§d Open the replay browser and manage saved Bedwars replays.§r"
             )
         );
         sender.addChatMessage(

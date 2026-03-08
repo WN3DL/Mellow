@@ -30,12 +30,17 @@ public class ReplayCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/mreplay <list|open|info|delete|tp>";
+        return "/mreplay [list|open|info|delete|tp]";
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
-        if (args.length == 0 || "list".equalsIgnoreCase(args[0])) {
+        if (args.length == 0 || (args.length == 1 && args[0].trim().isEmpty())) {
+            replayManager.openReplayBrowser();
+            return;
+        }
+
+        if ("list".equalsIgnoreCase(args[0])) {
             replayManager.sendReplayList(sender);
             return;
         }
