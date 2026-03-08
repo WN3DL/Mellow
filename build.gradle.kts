@@ -94,6 +94,8 @@ configurations { shade }
 dependencies {
     shade("com.squareup.okhttp3:okhttp:4.9.3") { exclude(group = "org.jetbrains.kotlin") }
     shade("net.hypixel:mod-api:1.0")
+    shade("org.tukaani:xz:1.9")
+    testImplementation("junit:junit:4.13.2")
     // Adds the OneConfig library, so we can develop with it.
     modCompileOnly("cc.polyfrost:oneconfig-$platform:0.2.2-alpha+")
 
@@ -111,6 +113,10 @@ dependencies {
 }
 
 tasks {
+    test {
+        useJUnit()
+    }
+
     // Processes the `src/resources/mcmod.info`, `fabric.mod.json`, or `mixins.${mod_id}.json` and
     // replaces
     // the mod id, name and version with the ones in `gradle.properties`

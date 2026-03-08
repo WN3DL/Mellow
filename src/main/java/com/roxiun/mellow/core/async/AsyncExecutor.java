@@ -3,6 +3,7 @@ package com.roxiun.mellow.core.async;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class AsyncExecutor {
@@ -21,6 +22,9 @@ public final class AsyncExecutor {
         4,
         namedFactory("Mellow-Command")
     );
+    private final ExecutorService replayIoExecutor = Executors.newSingleThreadExecutor(
+        namedFactory("Mellow-ReplayIO")
+    );
 
     private AsyncExecutor() {}
 
@@ -38,6 +42,24 @@ public final class AsyncExecutor {
 
     public void command(Runnable task) {
         commandExecutor.submit(task);
+    }
+
+    public void replayIo(Runnable task) {
+        replayIoExecutor.submit(task);
+    }
+
+    public void shutdownReplayIoAndAwait() {
+        replayIoExecutor.shutdown();
+        boolean interrupted = false;
+        try {
+            while (!replayIoExecutor.awaitTermination(2, TimeUnit.SECONDS)) {}
+        } catch (InterruptedException e) {
+            interrupted = true;
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private static ThreadFactory namedFactory(String prefix) {

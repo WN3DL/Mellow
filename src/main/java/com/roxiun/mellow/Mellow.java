@@ -15,6 +15,7 @@ import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.event.ChatEventRouter;
 import com.roxiun.mellow.core.event.ClientTickRouter;
 import com.roxiun.mellow.core.event.NametagColorRouter;
@@ -28,6 +29,9 @@ import com.roxiun.mellow.feature.nicks.NumberDenicker;
 import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupManager;
 import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
+import com.roxiun.mellow.feature.replay.ReplayHudRouter;
+import com.roxiun.mellow.feature.replay.ReplayInputRouter;
+import com.roxiun.mellow.feature.replay.ReplayManager;
 import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
 import com.roxiun.mellow.feature.stats.PregameStats;
 import com.roxiun.mellow.feature.stats.ProviderHealthWarningService;
@@ -124,6 +128,19 @@ public class Mellow {
             config,
             requestPopupManager
         );
+        ReplayManager replayManager = ReplayManager.getInstance();
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        replayManager.onShutdown();
+                        AsyncExecutor.getInstance().shutdownReplayIoAndAwait();
+                    }
+                },
+                "Mellow-Shutdown"
+            )
+        );
 
         KeyBinding requestAcceptKeybind = new KeyBinding(
             "Accept Request",
@@ -161,6 +178,7 @@ public class Mellow {
         HypixelFeatures
             .getInstance()
             .addGameStateListener(inGameTabStatsSyncService::onSnapshotUpdate);
+        HypixelFeatures.getInstance().addGameStateListener(replayManager::onGameSnapshot);
 
         MinecraftForge.EVENT_BUS.register(
             new ChatEventRouter(
@@ -176,6 +194,8 @@ public class Mellow {
         MinecraftForge.EVENT_BUS.register(
             new ClientTickRouter(HypixelFeatures.getInstance())
         );
+        MinecraftForge.EVENT_BUS.register(new ReplayHudRouter(replayManager));
+        MinecraftForge.EVENT_BUS.register(new ReplayInputRouter(replayManager));
         MinecraftForge.EVENT_BUS.register(new NametagColorRouter(config));
         TabOverlayRouter tabOverlayRouter = new TabOverlayRouter(config);
         MinecraftForge.EVENT_BUS.register(tabOverlayRouter);
@@ -218,6 +238,7 @@ public class Mellow {
         ClientCommandHandler.instance.registerCommand(
             new SeraphCommand(seraphApi, mojangApi, config)
         );
+        ClientCommandHandler.instance.registerCommand(new ReplayCommand(replayManager));
     }
 
     public StatsProvider getStatsProvider() {

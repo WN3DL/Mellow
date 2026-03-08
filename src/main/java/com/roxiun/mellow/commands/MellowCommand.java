@@ -120,6 +120,11 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
+                "§r§5/mreplay [list|open|info|delete|tp]:§d Open the replay browser and manage saved Bedwars replays.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
                 "§r§5/who:§d Hypixel command (optional auto-send); tab stats now fetch dynamically in-game.§r"
             )
         );
