@@ -663,6 +663,9 @@ public class PlayerCache {
         if (Mellow.lunaPingService != null) {
             Mellow.lunaPingService.clearCache();
         }
+        if (Mellow.seraphPingService != null) {
+            Mellow.seraphPingService.clearCache();
+        }
     }
 
     public void clearPlayer(String playerName) {
@@ -691,6 +694,9 @@ public class PlayerCache {
         }
         if (Mellow.lunaPingService != null) {
             Mellow.lunaPingService.clearPlayer(fullUuid);
+        }
+        if (Mellow.seraphPingService != null) {
+            Mellow.seraphPingService.clearPlayer(fullUuid);
         }
     }
 

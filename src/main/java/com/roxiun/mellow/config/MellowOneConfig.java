@@ -1262,7 +1262,7 @@ public class MellowOneConfig extends Config {
     @Dropdown(
         name = "Ping Provider",
         category = "Ping",
-        options = { "None", "Aurora API", "Luna's API" }
+        options = { "None", "Aurora API", "Luna's API", "Seraph API" }
     )
     public int pingProvider = 0;
 
@@ -1281,6 +1281,14 @@ public class MellowOneConfig extends Config {
         category = "Ping"
     )
     public static boolean ignoredLunaPingInfo;
+
+    @Info(
+        text = "Seraph API provides the latest recorded ping per player UUID. Configure the key in API Keys > Seraph.",
+        type = InfoType.INFO,
+        size = OptionSize.DUAL,
+        category = "Ping"
+    )
+    public static boolean ignoredSeraphPingInfo;
 
     // Number denicker
     @Info(
@@ -1540,7 +1548,7 @@ public class MellowOneConfig extends Config {
             inGameBlacklistWarningDestination,
             3
         );
-        pingProvider = clampIndex(pingProvider, 3);
+        pingProvider = clampIndex(pingProvider, 4);
         winstreakMinStars = clampIndex(winstreakMinStars, 51);
         winstreakMinFkdr = clampIndex(winstreakMinFkdr, 18);
         finalsRange = clampIndex(finalsRange, 5);

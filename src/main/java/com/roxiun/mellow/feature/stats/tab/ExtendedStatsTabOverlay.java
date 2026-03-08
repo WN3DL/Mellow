@@ -49,7 +49,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
     private static final int HEAD_ICON_SIZE = 8;
     private static final int HEAD_TEXT_GAP = 2;
     private static final int TEAM_COLLAPSED_GAP = 1;
-    private static final int CLIENT_ICON_SIZE = 8;
+    private static final int CLIENT_ICON_SIZE = ENTRY_HEIGHT - 1;
 
     private final Minecraft mc;
     private final MellowOneConfig config;
@@ -361,9 +361,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             if (!header.isEmpty()) {
                 int headerWidth = mc.fontRendererObj.getStringWidth(header);
                 int drawX;
-                if (isCenterAlignedColumn(column)) {
+                if (isCenterAlignedColumn(scope, column)) {
                     drawX = x + (width - headerWidth) / 2;
-                } else if (isRightAlignedColumn(column, i)) {
+                } else if (isRightAlignedColumn(scope, column, i)) {
                     drawX = x + width - CELL_PADDING_X - headerWidth;
                 } else {
                     drawX =
@@ -407,7 +407,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
             int maxTextWidth = Math.max(1, width - reservedLeft);
 
-            if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+            if (ExtendedTabStatsColumns.isClientColumn(scope, column)) {
                 drawClientIcon(info, x, width, baselineY);
                 x += width;
                 if (i < columns.size() - 1) {
@@ -422,9 +422,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             );
             if (value != null && !value.isEmpty()) {
                 int drawX;
-                if (isCenterAlignedColumn(column)) {
+                if (isCenterAlignedColumn(scope, column)) {
                     drawX = x + (width - mc.fontRendererObj.getStringWidth(value)) / 2;
-                } else if (isRightAlignedColumn(column, i)) {
+                } else if (isRightAlignedColumn(scope, column, i)) {
                     drawX =
                         x +
                         width -
@@ -448,7 +448,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         StatScope scope,
         int columnIndex
     ) {
-        if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+        if (ExtendedTabStatsColumns.isClientColumn(scope, column)) {
             return getCachedClientType(info) == null ? 0 : CLIENT_ICON_SIZE;
         }
         return mc.fontRendererObj.getStringWidth(
@@ -537,11 +537,15 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
     }
 
-    private boolean isRightAlignedColumn(int column, int columnIndex) {
+    private boolean isRightAlignedColumn(
+        StatScope scope,
+        int column,
+        int columnIndex
+    ) {
         if (isTeamCombinedTargetColumn(columnIndex)) {
             return false;
         }
-        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+        if (ExtendedTabStatsColumns.isTagsColumn(scope, column)) {
             return false;
         }
         return column != 0 && column != 2;
@@ -587,7 +591,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 18;
         }
-        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+        if (ExtendedTabStatsColumns.isTagsColumn(scope, column)) {
             return 20;
         }
 
@@ -607,7 +611,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         if (ExtendedTabStatsColumns.isHealthColumn(scope, column)) {
             return 34;
         }
-        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+        if (ExtendedTabStatsColumns.isTagsColumn(scope, column)) {
             return 110;
         }
 
@@ -734,13 +738,13 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             stats = Mellow.nickUtils.getResolvedTabStatsForNick(playerName, scope);
         }
 
-        if (column == ExtendedTabStatsColumns.TAGS_COLUMN) {
+        if (ExtendedTabStatsColumns.isTagsColumn(scope, column)) {
             return buildTagsColumnValue(info, stats);
         }
-        if (column == ExtendedTabStatsColumns.PING_COLUMN) {
+        if (ExtendedTabStatsColumns.isPingColumn(scope, column)) {
             return buildPingColumnValue(info);
         }
-        if (column == ExtendedTabStatsColumns.CLIENT_COLUMN) {
+        if (ExtendedTabStatsColumns.isClientColumn(scope, column)) {
             return buildClientColumnValue(playerName);
         }
 
@@ -1225,22 +1229,38 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return "";
         }
 
+        UUID playerUuid = getTrustedPlayerUuid(info);
+        if (playerUuid == null) {
+            return "";
+        }
+
         boolean useLuna = PingProviderUtils.shouldUseLuna(Mellow.config);
         boolean useAurora = PingProviderUtils.shouldUseAurora(Mellow.config);
+        boolean useSeraph = PingProviderUtils.shouldUseSeraph(Mellow.config);
 
         int ping = -1;
         if (useLuna && Mellow.lunaPingService != null) {
-            ping = Mellow.lunaPingService.getCachedPing(
-                info.getGameProfile().getId().toString()
-            );
+            String fullUuid = playerUuid.toString();
+            ping = Mellow.lunaPingService.getCachedPing(fullUuid);
+            if (ping < 0 && PingProviderUtils.hasLunaApiKey(Mellow.config)) {
+                Mellow.lunaPingService.fetchAsync(fullUuid, Mellow.config.lunaPingApiKey);
+            }
         } else if (useAurora && Mellow.auroraPingService != null) {
-            ping = Mellow.auroraPingService.getCachedPing(
-                info.getGameProfile().getId().toString().replace("-", "")
-            );
+            String compactUuid = playerUuid.toString().replace("-", "");
+            ping = Mellow.auroraPingService.getCachedPing(compactUuid);
+            if (ping < 0 && PingProviderUtils.hasAuroraApiKey(Mellow.config)) {
+                Mellow.auroraPingService.fetchAsync(compactUuid, Mellow.config.auroraApiKey);
+            }
+        } else if (useSeraph && Mellow.seraphPingService != null) {
+            String fullUuid = playerUuid.toString();
+            ping = Mellow.seraphPingService.getCachedPing(fullUuid);
+            if (ping < 0 && PingProviderUtils.hasSeraphApiKey(Mellow.config)) {
+                Mellow.seraphPingService.fetchAsync(fullUuid, Mellow.config.seraphKey);
+            }
         }
 
         if (ping < 0) {
-            return "";
+            return "§70";
         }
         if (ping < 50) {
             return "§a" + ping;
@@ -1319,7 +1339,41 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
             return null;
         }
 
-        return getCachedClientType(info.getGameProfile().getName());
+        String playerName = info.getGameProfile().getName();
+        SeraphClientType clientType = getCachedClientType(playerName);
+        if (clientType != null) {
+            return clientType;
+        }
+
+        UUID playerUuid = getTrustedPlayerUuid(info);
+        if (
+            playerUuid != null &&
+            Mellow.config != null &&
+            Mellow.config.seraph &&
+            Mellow.config.showSeraphClientInTab &&
+            Mellow.seraphClientCacheService != null
+        ) {
+            Mellow.seraphClientCacheService.refreshClientAsync(
+                playerName,
+                playerUuid.toString().replace("-", "")
+            );
+        }
+
+        return null;
+    }
+
+    private UUID getTrustedPlayerUuid(NetworkPlayerInfo info) {
+        if (
+            info == null ||
+            info.getGameProfile() == null ||
+            info.getGameProfile().getId() == null ||
+            PlayerUtils.isObfuscatedTabEntry(info)
+        ) {
+            return null;
+        }
+
+        UUID playerUuid = info.getGameProfile().getId();
+        return playerUuid.version() == 4 ? playerUuid : null;
     }
 
     private void drawClientIcon(
@@ -1334,23 +1388,26 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
 
         int iconX = columnX + (columnWidth - CLIENT_ICON_SIZE) / 2;
-        int iconY =
-            baselineY + (mc.fontRendererObj.FONT_HEIGHT - CLIENT_ICON_SIZE) / 2;
+        int rowY = baselineY - (ENTRY_HEIGHT - mc.fontRendererObj.FONT_HEIGHT) / 2;
+        int iconY = rowY + (ENTRY_HEIGHT - CLIENT_ICON_SIZE) / 2;
+        int textureSize = Math.round(clientType.getTextureSize());
 
         mc.getTextureManager().bindTexture(clientType.getTexture());
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         GlStateManager.enableBlend();
         GlStateManager.enableAlpha();
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        Gui.drawModalRectWithCustomSizedTexture(
+        Gui.drawScaledCustomSizeModalRect(
             iconX,
             iconY,
             0.0F,
             0.0F,
+            textureSize,
+            textureSize,
             CLIENT_ICON_SIZE,
             CLIENT_ICON_SIZE,
-            clientType.getTextureSize(),
-            clientType.getTextureSize()
+            textureSize,
+            textureSize
         );
     }
 
@@ -1360,14 +1417,14 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
         return !ExtendedTabStatsColumns
             .getConfiguredColumns(scope, Mellow.config)
-            .contains(ExtendedTabStatsColumns.TAGS_COLUMN);
+            .contains(ExtendedTabStatsColumns.getTagsColumnIndex(scope));
     }
 
-    private boolean isCenterAlignedColumn(int column) {
+    private boolean isCenterAlignedColumn(StatScope scope, int column) {
         return (
-            column == ExtendedTabStatsColumns.TAGS_COLUMN ||
-            column == ExtendedTabStatsColumns.PING_COLUMN ||
-            column == ExtendedTabStatsColumns.CLIENT_COLUMN
+            ExtendedTabStatsColumns.isTagsColumn(scope, column) ||
+            ExtendedTabStatsColumns.isPingColumn(scope, column) ||
+            ExtendedTabStatsColumns.isClientColumn(scope, column)
         );
     }
 

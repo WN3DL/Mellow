@@ -125,6 +125,11 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
+                "§r§5/client <username>:§d Show the player's detected client using Seraph data.§r"
+            )
+        );
+        sender.addChatMessage(
+            new ChatComponentText(
                 "§r§5/winstreak <username>:§d Show visible BedWars winstreak first, then Aurora fallback if configured.§r"
             )
         );

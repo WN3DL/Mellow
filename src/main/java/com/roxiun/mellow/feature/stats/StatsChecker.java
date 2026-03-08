@@ -350,9 +350,11 @@ public class StatsChecker {
         boolean shouldWarmClient =
             config.seraph &&
             config.showSeraphClientInTab &&
-            configuredColumns.contains(ExtendedTabStatsColumns.CLIENT_COLUMN);
+            configuredColumns.contains(
+                ExtendedTabStatsColumns.getClientColumnIndex(scope)
+            );
         boolean shouldWarmPing = configuredColumns.contains(
-            ExtendedTabStatsColumns.PING_COLUMN
+            ExtendedTabStatsColumns.getPingColumnIndex(scope)
         );
         boolean shouldWarmHiddenWinstreak =
             scope == StatScope.BEDWARS &&
@@ -426,6 +428,18 @@ public class StatsChecker {
             Mellow.auroraPingService.fetchAsync(
                 playerUuid.toString().replace("-", ""),
                 config.auroraApiKey
+            );
+            return;
+        }
+
+        if (
+            PingProviderUtils.shouldUseSeraph(config) &&
+            PingProviderUtils.hasSeraphApiKey(config) &&
+            Mellow.seraphPingService != null
+        ) {
+            Mellow.seraphPingService.fetchAsync(
+                playerUuid.toString(),
+                config.seraphKey
             );
         }
     }

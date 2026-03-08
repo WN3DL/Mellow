@@ -14,6 +14,7 @@ import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphClientCacheService;
+import com.roxiun.mellow.api.seraph.SeraphPingService;
 import com.roxiun.mellow.api.urchin.UrchinApi;
 import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
@@ -69,6 +70,7 @@ public class Mellow {
     public static AuroraWinstreakService auroraWinstreakService;
     public static LunaPingService lunaPingService;
     public static SeraphClientCacheService seraphClientCacheService;
+    public static SeraphPingService seraphPingService;
     public static MojangApi mojangApi;
     public static UrchinApi urchinApi;
     public static SeraphApi seraphApi;
@@ -96,6 +98,7 @@ public class Mellow {
         auroraPingService = new AuroraPingService();
         auroraWinstreakService = new AuroraWinstreakService();
         lunaPingService = new LunaPingService();
+        seraphPingService = new SeraphPingService();
         mojangApi = new MojangApi();
         providerManager = new ProviderManager();
         providerManager.register(new HypixelPublicApi(mojangApi, config));
@@ -263,6 +266,9 @@ public class Mellow {
         );
         ClientCommandHandler.instance.registerCommand(
             new NameHistoryCommand(mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new ClientCommand(seraphApi, mojangApi, config)
         );
         ClientCommandHandler.instance.registerCommand(
             new WinstreakCommand(playerCache, config)

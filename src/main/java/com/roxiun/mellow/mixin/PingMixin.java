@@ -2,6 +2,7 @@ package com.roxiun.mellow.mixin;
 
 import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.util.player.PlayerUtils;
 import com.roxiun.mellow.util.ping.PingProviderUtils;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,9 +20,19 @@ public class PingMixin {
     @Inject(method = "getResponseTime", at = @At("HEAD"), cancellable = true)
     private void onGetResponseTime(CallbackInfoReturnable<Integer> cir) {
         int original = this.responseTime;
+        NetworkPlayerInfo info = (NetworkPlayerInfo) (Object) this;
 
-        String playerName =
-            ((NetworkPlayerInfo) (Object) this).getGameProfile().getName();
+        if (
+            info == null ||
+            info.getGameProfile() == null ||
+            info.getGameProfile().getId() == null ||
+            PlayerUtils.isObfuscatedTabEntry(info)
+        ) {
+            cir.setReturnValue(original);
+            return;
+        }
+
+        String playerName = info.getGameProfile().getName();
         if (Mellow.nickUtils != null && Mellow.nickUtils.isNicked(playerName)) {
             cir.setReturnValue(original);
             return;
@@ -35,19 +46,14 @@ public class PingMixin {
             return;
         }
 
-        if (original > 1 && original < 999) {
-            cir.setReturnValue(original);
-            return;
-        }
-
-        String uuid = ((NetworkPlayerInfo) (Object) this).getGameProfile()
-            .getId()
-            .toString();
+        String uuid = info.getGameProfile().getId().toString();
+        boolean hasValidVanillaPing = original > 1 && original < 999;
 
         boolean useLuna = PingProviderUtils.shouldUseLuna(Mellow.config);
         boolean useAurora = PingProviderUtils.shouldUseAurora(Mellow.config);
+        boolean useSeraph = PingProviderUtils.shouldUseSeraph(Mellow.config);
 
-        if (!useAurora && !useLuna) {
+        if (!useAurora && !useLuna && !useSeraph) {
             cir.setReturnValue(original);
             return;
         }
@@ -63,16 +69,40 @@ public class PingMixin {
 
             String compactUuid = uuid.replace("-", "");
             int cached = Mellow.auroraPingService.getCachedPing(compactUuid);
-            if (cached >= 0) {
+            if (cached >= 0 && !hasValidVanillaPing) {
                 cir.setReturnValue(cached);
                 return;
             }
 
             cir.setReturnValue(original);
-            Mellow.auroraPingService.fetchAsync(
-                compactUuid,
-                Mellow.config.auroraApiKey
-            );
+            if (cached < 0) {
+                Mellow.auroraPingService.fetchAsync(
+                    compactUuid,
+                    Mellow.config.auroraApiKey
+                );
+            }
+            return;
+        }
+
+        if (useSeraph) {
+            if (
+                Mellow.seraphPingService == null ||
+                !PingProviderUtils.hasSeraphApiKey(Mellow.config)
+            ) {
+                cir.setReturnValue(original);
+                return;
+            }
+
+            int cached = Mellow.seraphPingService.getCachedPing(uuid);
+            if (cached >= 0 && !hasValidVanillaPing) {
+                cir.setReturnValue(cached);
+                return;
+            }
+
+            cir.setReturnValue(original);
+            if (cached < 0) {
+                Mellow.seraphPingService.fetchAsync(uuid, Mellow.config.seraphKey);
+            }
             return;
         }
 
@@ -85,12 +115,14 @@ public class PingMixin {
         }
 
         int cached = Mellow.lunaPingService.getCachedPing(uuid);
-        if (cached >= 0) {
+        if (cached >= 0 && !hasValidVanillaPing) {
             cir.setReturnValue(cached);
             return;
         }
 
         cir.setReturnValue(original);
-        Mellow.lunaPingService.fetchAsync(uuid, Mellow.config.lunaPingApiKey);
+        if (cached < 0) {
+            Mellow.lunaPingService.fetchAsync(uuid, Mellow.config.lunaPingApiKey);
+        }
     }
 }

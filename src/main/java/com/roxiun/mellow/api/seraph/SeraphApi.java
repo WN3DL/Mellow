@@ -169,6 +169,11 @@ public class SeraphApi {
             return null;
         }
 
+        SeraphClientType clientType = parseClientTypeFromJson(response);
+        if (clientType != null) {
+            return clientType;
+        }
+
         String lower = response.toLowerCase();
         int statusIndex = lower.indexOf("currently on ");
         if (statusIndex < 0) {
@@ -186,5 +191,42 @@ public class SeraphApi {
             return null;
         }
         return SeraphClientType.fromDetectedName(clientName);
+    }
+
+    private SeraphClientType parseClientTypeFromJson(String response) {
+        try {
+            JsonObject json = new JsonParser().parse(response).getAsJsonObject();
+            if (!json.has("tags") || !json.get("tags").isJsonArray()) {
+                return null;
+            }
+
+            JsonArray tags = json.getAsJsonArray("tags");
+            for (JsonElement element : tags) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject tag = element.getAsJsonObject();
+                if (tag.has("tag_name") && !tag.get("tag_name").isJsonNull()) {
+                    SeraphClientType clientType = SeraphClientType.fromDetectedName(
+                        tag.get("tag_name").getAsString()
+                    );
+                    if (clientType != null) {
+                        return clientType;
+                    }
+                }
+
+                if (tag.has("tooltip") && !tag.get("tooltip").isJsonNull()) {
+                    SeraphClientType clientType = parseClientTag(
+                        tag.get("tooltip").getAsString()
+                    );
+                    if (clientType != null) {
+                        return clientType;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return null;
     }
 }
