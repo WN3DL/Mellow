@@ -1379,6 +1379,20 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Affect PolyNametag", category = "Hitboxes")
     public boolean coloredNametagAffectPolyNametag = true;
 
+    @Switch(
+        name = "Show Client Icons In Nametags",
+        category = "Hitboxes",
+        description = "Shows a Seraph-detected client icon next to in-world player nametags."
+    )
+    public boolean showClientIconsInNametags = false;
+
+    @Dropdown(
+        name = "Nametag Client Icon Position",
+        options = { "Left", "Right" },
+        category = "Hitboxes"
+    )
+    public int nametagClientIconPosition = 0;
+
     @Dropdown(
         name = "Hue Mode",
         options = { "Offset", "Static" },
@@ -1565,6 +1579,7 @@ public class MellowOneConfig extends Config {
         hitboxHueMode = clampIndex(hitboxHueMode, 2);
         hitboxSaturationMode = clampIndex(hitboxSaturationMode, 2);
         hitboxBrightnessMode = clampIndex(hitboxBrightnessMode, 2);
+        nametagClientIconPosition = clampIndex(nametagClientIconPosition, 2);
     }
 
     private int clampIndex(int value, int optionCount) {

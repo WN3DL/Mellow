@@ -13,6 +13,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import com.roxiun.mellow.util.player.PlayerUtils;
+import com.roxiun.mellow.util.render.SeraphClientIconRenderer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -1451,25 +1452,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         int iconX = columnX + (columnWidth - CLIENT_ICON_SIZE) / 2;
         int rowY = baselineY - (ENTRY_HEIGHT - mc.fontRendererObj.FONT_HEIGHT) / 2;
         int iconY = rowY + (ENTRY_HEIGHT - CLIENT_ICON_SIZE) / 2;
-        int textureSize = Math.round(clientType.getTextureSize());
-
-        mc.getTextureManager().bindTexture(clientType.getTexture());
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableBlend();
-        GlStateManager.enableAlpha();
-        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
-        Gui.drawScaledCustomSizeModalRect(
-            iconX,
-            iconY,
-            0.0F,
-            0.0F,
-            textureSize,
-            textureSize,
-            CLIENT_ICON_SIZE,
-            CLIENT_ICON_SIZE,
-            textureSize,
-            textureSize
-        );
+        SeraphClientIconRenderer.drawIcon(clientType, iconX, iconY, CLIENT_ICON_SIZE);
     }
 
     private boolean shouldKeepTagsInName(StatScope scope) {
