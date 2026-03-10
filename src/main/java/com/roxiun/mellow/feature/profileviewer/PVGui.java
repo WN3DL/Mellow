@@ -1,6 +1,7 @@
 package com.roxiun.mellow.feature.profileviewer;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.minecraft.MinecraftProfileTexture;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.provider.model.ProviderId;
@@ -24,14 +25,11 @@ import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.network.NetworkPlayerInfo;
-import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
@@ -40,6 +38,8 @@ import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EnumPlayerModelParts;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -52,6 +52,21 @@ public class PVGui extends GuiScreen {
     private static final long SEARCH_COOLDOWN_MS = 5000L;
     private static final int SOCIAL_ICON_SIZE = 15;
     private static final int SOCIAL_GAP = 0;
+    private static final int TOP_CARD_TEXT_WIDTH = 170;
+    private static final int PROVIDER_LABEL_WIDTH = 120;
+    private static final int CORNER_CARD_WIDTH = 97;
+    private static final int STATS_TITLE_WIDTH = 220;
+    private static final int CATEGORY_BUTTON_TEXT_WIDTH = 136;
+    private static final int MODE_BUTTON_TEXT_WIDTH = 136;
+    private static final int LEFT_STATS_COLUMN_WIDTH = 92;
+    private static final int MIDDLE_STATS_COLUMN_WIDTH = 92;
+    private static final int RIGHT_STATS_COLUMN_WIDTH = 88;
+    private static final int STATUS_TEXT_WIDTH = WIDTH - 20;
+    private static final int SOCIAL_TOOLTIP_WIDTH = 180;
+    private static final int STATS_COLUMN_LINE_HEIGHT = 9;
+    private static final float MIN_CENTERED_TEXT_SCALE = 0.65F;
+    private static final float MIN_LEFT_TEXT_SCALE = 0.72F;
+    private static final byte ALL_PLAYER_MODEL_PARTS_MASK = allPlayerModelPartsMask();
 
     private static final ResourceLocation TEXTURE_BACKGROUND = new ResourceLocation(
         "mellow:textures/gui/background.png"
@@ -116,6 +131,8 @@ public class PVGui extends GuiScreen {
     private List<SocialButton> socialButtons = new ArrayList<>();
     private EntityOtherPlayerMP previewPlayer;
     private ResourceLocation loadedSkin;
+    private String loadedSkinType;
+    private byte previewModelPartsMask = ALL_PLAYER_MODEL_PARTS_MASK;
 
     public PVGui(
         PlayerProfile profile,
@@ -202,7 +219,6 @@ public class PVGui extends GuiScreen {
         BedwarsPlayer player = profile.getBedwarsPlayer();
         PvComputedStats stats = PvComputedStats.from(sourceData, player, selectedMode);
 
-        renderHead(panelX + 19, panelY + 23, 30);
         renderPreviewEntity(mouseX, mouseY);
         drawTopCard(player, stats);
         drawProviderLabel();
@@ -213,12 +229,14 @@ public class PVGui extends GuiScreen {
         drawSearchFieldText();
 
         if (!statusText.isEmpty() && System.currentTimeMillis() < statusUntil) {
-            drawCenteredString(
-                fontRendererObj,
+            drawCenteredBoundedString(
                 statusText,
                 panelX + WIDTH / 2,
                 panelY + HEIGHT - 11,
-                statusColor
+                STATUS_TEXT_WIDTH,
+                statusColor,
+                1.0F,
+                MIN_CENTERED_TEXT_SCALE
             );
         }
 
@@ -270,7 +288,15 @@ public class PVGui extends GuiScreen {
         int topStartY = panelY + 15;
 
         String rankedName = player.getFormattedNameWithRank();
-        drawCenteredClampedString(rankedName, topCenterX, topStartY, 160, 0xFFFFFF);
+        drawCenteredBoundedString(
+            rankedName,
+            topCenterX,
+            topStartY,
+            TOP_CARD_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
+        );
 
         String currentStar = BedwarsStarFormatter.format(Math.max(0, stats.level));
         String nextStar = BedwarsStarFormatter.format(Math.max(0, stats.level + 1));
@@ -278,55 +304,100 @@ public class PVGui extends GuiScreen {
         int currentExp = PvExperience.getCurrentExperienceInLevel(bedwarsExp);
         int requiredExp = PvExperience.getExperienceRequiredForCurrentLevel(bedwarsExp);
 
-        drawCenteredString(fontRendererObj, "§7Level: " + currentStar, topCenterX, topStartY + 12, 0xFFFFFF);
-        drawCenteredString(
-            fontRendererObj,
+        drawCenteredBoundedString(
+            "§7Level: " + currentStar,
+            topCenterX,
+            topStartY + 12,
+            TOP_CARD_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
+        );
+        drawCenteredBoundedString(
             "§7EXP Progress: §b" + commas(currentExp) + "§7/§a" + commas(requiredExp),
             topCenterX,
             topStartY + 24,
-            0xFFFFFF
+            TOP_CARD_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
         );
-        drawCenteredString(
-            fontRendererObj,
+        drawCenteredBoundedString(
             currentStar + PvExperience.getProgressBar(bedwarsExp) + nextStar,
             topCenterX,
             topStartY + 36,
-            0xFFFFFF
+            TOP_CARD_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            0.55F
         );
     }
 
     private void drawProviderLabel() {
-        fontRendererObj.drawStringWithShadow(
+        drawRightBoundedString(
             "§7Provider: §f" + providerName(),
-            panelX + WIDTH - 130,
+            panelX + WIDTH - 8,
             panelY + 6,
-            0xFFFFFF
+            PROVIDER_LABEL_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            0.75F
         );
     }
 
     private void drawCornerCard() {
         int x = panelX + 323;
         int y = panelY + 20;
-        drawLine(x, y, "§6NW Level: §f" + commas(sourceData.getNetworkLevel()));
-        drawLine(x, y + 12, "§dKarma: §f" + commas(sourceData.getKarma()));
-        drawLine(x, y + 24, "§9Gifted: §f" + commas(sourceData.getGifted()));
-        drawLine(x, y + 36, "§eAP: §f" + commas(sourceData.getAchievementPoints()));
-    }
-
-    private void drawLine(int x, int y, String text) {
-        fontRendererObj.drawStringWithShadow(text, x, y, 0xFFFFFF);
+        drawLeftBoundedString(
+            "§6NW Level: §f" + commas(sourceData.getNetworkLevel()),
+            x,
+            y,
+            CORNER_CARD_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_LEFT_TEXT_SCALE
+        );
+        drawLeftBoundedString(
+            "§dKarma: §f" + commas(sourceData.getKarma()),
+            x,
+            y + 12,
+            CORNER_CARD_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_LEFT_TEXT_SCALE
+        );
+        drawLeftBoundedString(
+            "§9Gifted: §f" + commas(sourceData.getGifted()),
+            x,
+            y + 24,
+            CORNER_CARD_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_LEFT_TEXT_SCALE
+        );
+        drawLeftBoundedString(
+            "§eAP: §f" + commas(sourceData.getAchievementPoints()),
+            x,
+            y + 36,
+            CORNER_CARD_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_LEFT_TEXT_SCALE
+        );
     }
 
     private void drawStatsCard(PvComputedStats s) {
         int centerX = panelX + 205;
         int topY = panelY + 65;
 
-        drawCenteredString(
-            fontRendererObj,
+        drawCenteredBoundedString(
             "§cBedWars §fStats §7(" + selectedMode.getFullName() + ")",
             centerX,
             topY + 5,
-            0xFFFFFF
+            STATS_TITLE_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
         );
 
         int leftX = panelX + 130;
@@ -370,39 +441,68 @@ public class PVGui extends GuiScreen {
         right.add("§e" + d2(s.bedsPerGame) + " §fBeds/Game");
         right.add("§b" + d2(s.bedsPerStar) + " §fBeds/Star");
 
-        drawColumnScaled(leftX, baseY, left, 0.825F);
-        drawColumnScaled(middleX, baseY, middle, 0.825F);
-        drawColumnScaled(rightX, baseY, right, 0.825F);
+        drawColumnFitted(leftX, baseY, left, LEFT_STATS_COLUMN_WIDTH, 0.825F, MIN_LEFT_TEXT_SCALE);
+        drawColumnFitted(
+            middleX,
+            baseY,
+            middle,
+            MIDDLE_STATS_COLUMN_WIDTH,
+            0.825F,
+            MIN_LEFT_TEXT_SCALE
+        );
+        drawColumnFitted(
+            rightX,
+            baseY,
+            right,
+            RIGHT_STATS_COLUMN_WIDTH,
+            0.825F,
+            MIN_LEFT_TEXT_SCALE
+        );
     }
 
-    private void drawColumnScaled(int x, int y, List<String> lines, float scale) {
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(scale, scale, 1F);
-        int dy = Math.round(y / scale);
-        int scaledX = Math.round(x / scale);
+    private void drawColumnFitted(
+        int x,
+        int y,
+        List<String> lines,
+        int maxWidth,
+        float preferredScale,
+        float minScale
+    ) {
+        int lineY = y;
         for (String line : lines) {
             if (!line.isEmpty()) {
-                fontRendererObj.drawStringWithShadow(line, scaledX, dy, 0xFFFFFF);
+                drawLeftBoundedString(
+                    line,
+                    x,
+                    lineY,
+                    maxWidth,
+                    0xFFFFFF,
+                    preferredScale,
+                    minScale
+                );
             }
-            dy += 10;
+            lineY += STATS_COLUMN_LINE_HEIGHT;
         }
-        GlStateManager.popMatrix();
     }
 
     private void drawModeTexts() {
-        drawCenteredString(
-            fontRendererObj,
+        drawCenteredBoundedString(
             "§f" + currentCategory(),
             leftButtonX + leftButtonW / 2,
             leftButtonY + 6,
-            0xFFFFFF
+            CATEGORY_BUTTON_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
         );
-        drawCenteredString(
-            fontRendererObj,
+        drawCenteredBoundedString(
             "§f" + selectedMode.getFullName(),
             rightButtonX + rightButtonW / 2,
             rightButtonY + 6,
-            0xFFFFFF
+            MODE_BUTTON_TEXT_WIDTH,
+            0xFFFFFF,
+            1.0F,
+            MIN_CENTERED_TEXT_SCALE
         );
     }
 
@@ -415,30 +515,6 @@ public class PVGui extends GuiScreen {
             int cursorX = searchX + 4 + fontRendererObj.getStringWidth(visibleSearchText);
             drawRect(cursorX, searchY + 4, cursorX + 1, searchY + searchH - 4, 0xFFFFFFFF);
         }
-    }
-
-    private void drawCenteredClampedString(String text, int centerX, int y, int maxWidth, int color) {
-        if (text == null) {
-            return;
-        }
-
-        int width = fontRendererObj.getStringWidth(text);
-        if (width <= maxWidth || maxWidth <= 0) {
-            drawCenteredString(fontRendererObj, text, centerX, y, color);
-            return;
-        }
-
-        float scale = Math.max(0.65F, (float) maxWidth / (float) width);
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(scale, scale, 1F);
-        drawCenteredString(
-            fontRendererObj,
-            text,
-            Math.round(centerX / scale),
-            Math.round(y / scale),
-            color
-        );
-        GlStateManager.popMatrix();
     }
 
     private void drawSocialButtons(int mouseX, int mouseY) {
@@ -493,7 +569,10 @@ public class PVGui extends GuiScreen {
         String action = button.type.copyOnly ? "copy" : "visit";
         String line1 = "§7Click to " + action + " §a" + actorName + "§7's " + button.type.prettyName + ".";
         String line2 = "§b" + (button.type.copyOnly ? button.value : ensureUrl(button.value));
-        drawHoveringText(Arrays.asList(line1, line2), mouseX, mouseY);
+        List<String> tooltipLines = new ArrayList<>();
+        tooltipLines.addAll(fontRendererObj.listFormattedStringToWidth(line1, SOCIAL_TOOLTIP_WIDTH));
+        tooltipLines.addAll(fontRendererObj.listFormattedStringToWidth(line2, SOCIAL_TOOLTIP_WIDTH));
+        drawHoveringText(tooltipLines, mouseX, mouseY);
     }
 
     @Override
@@ -724,61 +803,28 @@ public class PVGui extends GuiScreen {
         return df.format(value);
     }
 
-    private void renderHead(int x, int y, int size) {
-        ResourceLocation skin = resolveSkin();
-        mc.getTextureManager().bindTexture(skin);
-        drawScaledCustomSizeModalRect(x, y, 8.0F, 8.0F, 8, 8, size, size, 64.0F, 64.0F);
-        drawScaledCustomSizeModalRect(x, y, 40.0F, 8.0F, 8, 8, size, size, 64.0F, 64.0F);
-    }
-
-    private ResourceLocation resolveSkin() {
-        if (loadedSkin != null) {
-            return loadedSkin;
-        }
-
-        UUID uuid;
-        try {
-            uuid = UUIDUtils.fromString(profile.getUuid());
-        } catch (Exception ignored) {
-            return DefaultPlayerSkin.getDefaultSkin(new UUID(0L, 0L));
-        }
-
-        if (mc.getNetHandler() != null) {
-            NetworkPlayerInfo info = mc.getNetHandler().getPlayerInfo(uuid);
-            if (info != null && info.getLocationSkin() != null) {
-                return info.getLocationSkin();
-            }
-        }
-
-        return DefaultPlayerSkin.getDefaultSkin(uuid);
-    }
-
     private void initPreviewPlayer() {
-        if (mc.theWorld == null) {
-            return;
-        }
+        UUID profileUuid = resolveProfileUuid();
+        UUID previewUuid = profileUuid == null ? new UUID(0L, 0L) : profileUuid;
+        GameProfile previewProfile = new GameProfile(previewUuid, profile.getName());
+        previewModelPartsMask = resolvePreviewModelPartsMask(profileUuid);
 
-        UUID uuid;
-        try {
-            uuid = UUIDUtils.fromString(profile.getUuid());
-        } catch (Exception ignored) {
-            uuid = new UUID(0L, 0L);
-        }
-
-        previewPlayer = new EntityOtherPlayerMP(mc.theWorld, new GameProfile(uuid, profile.getName())) {
-            @Override
-            public ResourceLocation getLocationSkin() {
-                return loadedSkin == null ? super.getLocationSkin() : loadedSkin;
-            }
-        };
-
-        try {
-            mc.getSkinManager().loadProfileTextures(previewPlayer.getGameProfile(), (type, location, profileTexture) -> {
-                if ("SKIN".equals(type.name())) {
-                    loadedSkin = location;
+        if (mc.theWorld != null) {
+            previewPlayer = new EntityOtherPlayerMP(mc.theWorld, previewProfile) {
+                @Override
+                public ResourceLocation getLocationSkin() {
+                    return loadedSkin == null ? super.getLocationSkin() : loadedSkin;
                 }
-            }, false);
-        } catch (Exception ignored) {}
+
+                @Override
+                public String getSkinType() {
+                    return loadedSkinType == null ? super.getSkinType() : loadedSkinType;
+                }
+            };
+            previewPlayer.getDataWatcher().updateObject(10, Byte.valueOf(previewModelPartsMask));
+        }
+
+        requestSkinLoad(new GameProfile(profileUuid, profile.getName()));
     }
 
     private void renderPreviewEntity(int mouseX, int mouseY) {
@@ -845,6 +891,220 @@ public class PVGui extends GuiScreen {
         return false;
     }
 
+    private void requestSkinLoad(GameProfile baseProfile) {
+        if (baseProfile == null || mc == null) {
+            return;
+        }
+
+        AsyncExecutor.getInstance().command(() -> {
+            GameProfile hydratedProfile = hydrateProfile(baseProfile);
+            MainThreadDispatcher.run(() -> loadHydratedSkin(hydratedProfile));
+        });
+    }
+
+    private GameProfile hydrateProfile(GameProfile baseProfile) {
+        if (baseProfile == null || mc == null || mc.getSessionService() == null) {
+            return baseProfile;
+        }
+
+        if (baseProfile.isComplete() && baseProfile.getProperties().containsKey("textures")) {
+            return baseProfile;
+        }
+
+        try {
+            GameProfile hydrated = mc.getSessionService().fillProfileProperties(baseProfile, false);
+            return hydrated == null ? baseProfile : hydrated;
+        } catch (Exception ignored) {
+            return baseProfile;
+        }
+    }
+
+    private void loadHydratedSkin(GameProfile hydratedProfile) {
+        if (hydratedProfile == null || mc == null || mc.getSkinManager() == null) {
+            return;
+        }
+
+        try {
+            mc.getSkinManager().loadProfileTextures(
+                hydratedProfile,
+                (type, location, profileTexture) -> {
+                    if (type == MinecraftProfileTexture.Type.SKIN) {
+                        loadedSkin = location;
+                        loadedSkinType = resolveSkinType(profileTexture);
+                    }
+                },
+                false
+            );
+        } catch (Exception ignored) {}
+    }
+
+    private String resolveSkinType(MinecraftProfileTexture profileTexture) {
+        if (profileTexture == null) {
+            return null;
+        }
+
+        String model = profileTexture.getMetadata("model");
+        return "slim".equalsIgnoreCase(model) ? "slim" : "default";
+    }
+
+    private UUID resolveProfileUuid() {
+        try {
+            return UUIDUtils.fromString(profile.getUuid());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private EntityPlayer resolveLivePlayer(UUID uuid) {
+        if (uuid == null || mc == null || mc.theWorld == null) {
+            return null;
+        }
+        return mc.theWorld.getPlayerEntityByUUID(uuid);
+    }
+
+    private byte resolvePreviewModelPartsMask(UUID uuid) {
+        EntityPlayer livePlayer = resolveLivePlayer(uuid);
+        if (livePlayer != null) {
+            return livePlayer.getDataWatcher().getWatchableObjectByte(10);
+        }
+        return ALL_PLAYER_MODEL_PARTS_MASK;
+    }
+
+    private boolean isPreviewModelPartEnabled(EnumPlayerModelParts part) {
+        return (previewModelPartsMask & part.getPartMask()) == part.getPartMask();
+    }
+
+    private void drawCenteredBoundedString(
+        String text,
+        int centerX,
+        int y,
+        int maxWidth,
+        int color,
+        float preferredScale,
+        float minScale
+    ) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        FittedText fitted = fitText(text, maxWidth, preferredScale, minScale);
+        int textWidth = fontRendererObj.getStringWidth(fitted.text);
+        int drawX = centerX - Math.round((textWidth * fitted.scale) / 2.0F);
+        drawScaledString(fitted.text, drawX, y, fitted.scale, color);
+    }
+
+    private void drawLeftBoundedString(
+        String text,
+        int x,
+        int y,
+        int maxWidth,
+        int color,
+        float preferredScale,
+        float minScale
+    ) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        FittedText fitted = fitText(text, maxWidth, preferredScale, minScale);
+        drawScaledString(fitted.text, x, y, fitted.scale, color);
+    }
+
+    private void drawRightBoundedString(
+        String text,
+        int rightX,
+        int y,
+        int maxWidth,
+        int color,
+        float preferredScale,
+        float minScale
+    ) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        FittedText fitted = fitText(text, maxWidth, preferredScale, minScale);
+        int drawX = rightX - Math.round(fontRendererObj.getStringWidth(fitted.text) * fitted.scale);
+        drawScaledString(fitted.text, drawX, y, fitted.scale, color);
+    }
+
+    private void drawScaledString(String text, int x, int y, float scale, int color) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        if (scale >= 0.999F) {
+            fontRendererObj.drawStringWithShadow(text, x, y, color);
+            return;
+        }
+
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scale, scale, 1.0F);
+        fontRendererObj.drawStringWithShadow(text, Math.round(x / scale), Math.round(y / scale), color);
+        GlStateManager.popMatrix();
+    }
+
+    private FittedText fitText(
+        String text,
+        int maxWidth,
+        float preferredScale,
+        float minScale
+    ) {
+        float scale = preferredScale <= 0.0F ? 1.0F : preferredScale;
+        int textWidth = fontRendererObj.getStringWidth(text);
+
+        if (maxWidth <= 0 || textWidth <= 0 || (textWidth * scale) <= maxWidth) {
+            return new FittedText(text, scale);
+        }
+
+        float fitScale = (float) maxWidth / (float) textWidth;
+        if (fitScale >= minScale) {
+            return new FittedText(text, fitScale);
+        }
+
+        float boundedScale = Math.max(0.1F, minScale);
+        String clamped = clampTextWithEllipsis(text, Math.max(0, Math.round(maxWidth / boundedScale)));
+        return new FittedText(clamped, boundedScale);
+    }
+
+    private String clampTextWithEllipsis(String text, int maxWidth) {
+        if (text == null || text.isEmpty() || maxWidth <= 0) {
+            return "";
+        }
+
+        if (fontRendererObj.getStringWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        String ellipsis = "§7...";
+        int ellipsisWidth = fontRendererObj.getStringWidth(ellipsis);
+        if (ellipsisWidth >= maxWidth) {
+            return ellipsisWidth == maxWidth ? ellipsis : "";
+        }
+
+        String trimmed = fontRendererObj.trimStringToWidth(text, Math.max(0, maxWidth - ellipsisWidth));
+        while (trimmed.endsWith("§")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+
+        if (trimmed.isEmpty()) {
+            return ellipsis;
+        }
+
+        return trimmed + ellipsis;
+    }
+
+    private static byte allPlayerModelPartsMask() {
+        int mask = 0;
+        for (EnumPlayerModelParts part : EnumPlayerModelParts.values()) {
+            if (part == EnumPlayerModelParts.CAPE) {
+                continue;
+            }
+            mask |= part.getPartMask();
+        }
+        return (byte) mask;
+    }
+
     private enum SocialType {
         TIKTOK("TIKTOK", "TikTok", false, "tiktok_logo"),
         TWITCH("TWITCH", "Twitch", false, "twitch_logo"),
@@ -882,6 +1142,17 @@ public class PVGui extends GuiScreen {
         private SocialButton(SocialType type, String value) {
             this.type = type;
             this.value = value;
+        }
+    }
+
+    private static class FittedText {
+
+        private final String text;
+        private final float scale;
+
+        private FittedText(String text, float scale) {
+            this.text = text;
+            this.scale = scale;
         }
     }
 }
