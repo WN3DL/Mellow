@@ -49,7 +49,9 @@ public class RequestPopupService {
 
         if (
             config.friendRequestPopupsEnabled &&
-            lower.contains("friend request")
+            lower.contains("friend request") &&
+            !lower.contains("has expired") &&
+            !lower.contains(":")
         ) {
             Matcher friendMatcher = FRIEND_REQUEST_PATTERN.matcher(stripped);
             if (friendMatcher.find()) {

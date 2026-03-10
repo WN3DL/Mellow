@@ -1384,7 +1384,7 @@ public class MellowOneConfig extends Config {
         category = "Hitboxes",
         description = "Shows a Seraph-detected client icon next to in-world player nametags."
     )
-    public boolean showClientIconsInNametags = false;
+    public boolean showClientIconsInNametags = true;
 
     @Dropdown(
         name = "Nametag Client Icon Position",
