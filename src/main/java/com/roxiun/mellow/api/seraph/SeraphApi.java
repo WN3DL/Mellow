@@ -168,9 +168,8 @@ public class SeraphApi {
                             ? tagObj.get("textColor").getAsInt()
                             : 0;
 
-                        // Skip seraph.verified and seraph.advertisement tags
+                        // Skip seraph.advertisement tags
                         if (
-                            "seraph.verified".equals(tagName) ||
                             "seraph.advertisement".equals(tagName)
                         ) {
                             continue;
