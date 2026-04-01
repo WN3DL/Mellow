@@ -9,6 +9,7 @@ import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
 import com.roxiun.mellow.api.urchin.UrchinTag;
 import java.util.List;
+import java.util.Locale;
 
 public class PlayerProfile {
 
@@ -177,8 +178,8 @@ public class PlayerProfile {
                 null,
                 skywarsPlayer.getFormattedWlrWithColor(),
                 null,
-                skywarsPlayer.getFormattedWinsWithColor(),
-                skywarsPlayer.getFormattedKillsWithColor(),
+                formatTabCountForDisplay(skywarsPlayer.getFormattedWinsWithColor()),
+                formatTabCountForDisplay(skywarsPlayer.getFormattedKillsWithColor()),
                 null,
                 null
             );
@@ -191,13 +192,13 @@ public class PlayerProfile {
                 duelsPlayer.getFormattedNameWithRank(),
                 duelsPlayer.getDivision(),
                 duelsPlayer.getFormattedKdrWithColor(),
-                duelsPlayer.getFormattedWinstreakWithColor(),
+                formatTabCountForDisplay(duelsPlayer.getFormattedWinstreakWithColor()),
                 duelsPlayer.getFormattedWlrWithColor(),
                 null,
-                duelsPlayer.getFormattedWinsWithColor(),
-                duelsPlayer.getFormattedLossesWithColor(),
-                duelsPlayer.getFormattedKillsWithColor(),
-                duelsPlayer.getFormattedDeathsWithColor(),
+                formatTabCountForDisplay(duelsPlayer.getFormattedWinsWithColor()),
+                formatTabCountForDisplay(duelsPlayer.getFormattedLossesWithColor()),
+                formatTabCountForDisplay(duelsPlayer.getFormattedKillsWithColor()),
+                formatTabCountForDisplay(duelsPlayer.getFormattedDeathsWithColor()),
                 null,
                 null
             );
@@ -213,7 +214,7 @@ public class PlayerProfile {
                 null,
                 null,
                 null,
-                buildBattlePlayer.getFormattedWinsWithColor(),
+                formatTabCountForDisplay(buildBattlePlayer.getFormattedWinsWithColor()),
                 null,
                 null,
                 null
@@ -230,8 +231,8 @@ public class PlayerProfile {
                 null,
                 tntRunPlayer.getFormattedRatioWithColor(),
                 null,
-                tntRunPlayer.getFormattedWinsWithColor(),
-                tntRunPlayer.getFormattedDeathsWithColor(),
+                formatTabCountForDisplay(tntRunPlayer.getFormattedWinsWithColor()),
+                formatTabCountForDisplay(tntRunPlayer.getFormattedDeathsWithColor()),
                 null,
                 null,
                 null,
@@ -244,14 +245,20 @@ public class PlayerProfile {
         }
 
         // Format numbers with appropriate formatting including colors
-        String formattedWins = getBedwarsPlayer().getFormattedWinsWithColor();
-        String formattedBeds = getBedwarsPlayer().getFormattedBedsWithColor();
-        String formattedFinals =
-            getBedwarsPlayer().getFormattedFinalsWithColor();
+        String formattedWins = formatTabCountForDisplay(
+            getBedwarsPlayer().getFormattedWinsWithColor()
+        );
+        String formattedBeds = formatTabCountForDisplay(
+            getBedwarsPlayer().getFormattedBedsWithColor()
+        );
+        String formattedFinals = formatTabCountForDisplay(
+            getBedwarsPlayer().getFormattedFinalsWithColor()
+        );
         String formattedFkdr =
             bedwarsPlayer.getFkdrColor() + bedwarsPlayer.getFormattedFkdr();
-        String formattedWinstreak =
-            getBedwarsPlayer().getFormattedWinstreakWithColor();
+        String formattedWinstreak = formatTabCountForDisplay(
+            getBedwarsPlayer().getFormattedWinstreakWithColor()
+        );
         String formattedWLR = getBedwarsPlayer().getFormattedWLRWithColor();
         String formattedBBLR = getBedwarsPlayer().getFormattedBBLRWithColor();
 
@@ -269,5 +276,29 @@ public class PlayerProfile {
             formattedBeds,
             formattedFinals
         );
+    }
+
+    public static String formatTabCountForDisplay(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+
+        int index = 0;
+        while (index + 1 < value.length() && value.charAt(index) == '§') {
+            index += 2;
+        }
+
+        String prefix = value.substring(0, index);
+        String numericPart = value.substring(index);
+        if (numericPart.isEmpty()) {
+            return value;
+        }
+
+        try {
+            long parsed = Long.parseLong(numericPart);
+            return prefix + String.format(Locale.US, "%,d", parsed);
+        } catch (NumberFormatException ignored) {
+            return value;
+        }
     }
 }
