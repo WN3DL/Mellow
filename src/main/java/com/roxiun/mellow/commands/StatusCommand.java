@@ -64,18 +64,18 @@ public class StatusCommand extends CommandBase {
 
     @Override
     public String getCommandName() {
-        return "status";
+        return "mstatus";
     }
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/status <username>";
+        return "/mstatus <username>";
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length != 1) {
-            ChatUtils.sendCommandMessage(sender, "§cInvalid usage! Use /status <username>");
+            ChatUtils.sendCommandMessage(sender, "§cInvalid usage! Use /mstatus <username>");
             return;
         }
 

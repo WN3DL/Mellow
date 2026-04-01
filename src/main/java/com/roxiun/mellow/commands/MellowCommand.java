@@ -115,7 +115,7 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/status <username>:§d Show Hypixel online status, last login, and Luna lobby message data.§r"
+                "§r§5/mstatus <username>:§d Show Hypixel online status, last login, and Luna lobby message data.§r"
             )
         );
         sender.addChatMessage(
