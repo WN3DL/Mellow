@@ -11,6 +11,6 @@
     "credits": "melissalmao and xanning for og mod",
     "logoFile": "",
     "screenshots": [],
-    "dependencies": []
+    "dependencies": ["hypixel_mod_api"]
   }
 ]
