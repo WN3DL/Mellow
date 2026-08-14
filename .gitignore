@@ -1,5 +1,6 @@
 # examples/references for when im testing
 examples/
+reference/
 # eclipse
 bin
 *.launch

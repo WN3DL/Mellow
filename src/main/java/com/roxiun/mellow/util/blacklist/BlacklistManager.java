@@ -17,6 +17,8 @@ import net.minecraft.client.Minecraft;
 
 public class BlacklistManager {
 
+    private static final String EXTERNAL_FILE_IMPORT_REASON =
+        "Added from external file";
     private final File blacklistFile;
     private final File blacklistTxtFile;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -197,8 +199,7 @@ public class BlacklistManager {
                                 uuid,
                                 new BlacklistedPlayer(
                                     uuid.toString(),
-                                    "Added from external file: " +
-                                        externalFile.getName()
+                                    EXTERNAL_FILE_IMPORT_REASON
                                 )
                             );
                             newEntriesCount++;
@@ -255,5 +256,12 @@ public class BlacklistManager {
 
     public Map<UUID, BlacklistedPlayer> getBlacklist() {
         return blacklist;
+    }
+
+    public static boolean isExternalFileImportReason(String reason) {
+        return (
+            reason != null &&
+            reason.trim().equalsIgnoreCase(EXTERNAL_FILE_IMPORT_REASON)
+        );
     }
 }

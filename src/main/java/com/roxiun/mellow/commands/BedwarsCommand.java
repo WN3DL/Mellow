@@ -2,11 +2,18 @@ package com.roxiun.mellow.commands;
 
 import com.mojang.authlib.GameProfile;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
+import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.cache.PlayerCache;
+import com.roxiun.mellow.cache.ProfileFetchContext;
+import com.roxiun.mellow.cache.ProfileFetchResult;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.data.PlayerProfile;
+import com.roxiun.mellow.feature.stats.StatsFetchFailureFormatter;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -51,14 +58,24 @@ public class BedwarsCommand extends CommandBase {
             sender,
             "§r§7Fetching stats for " + username + "..."
         );
-        new Thread(() -> {
-            PlayerProfile profile = playerCache.getProfile(username);
+        AsyncExecutor.getInstance().command(() -> {
+            ProfileFetchResult result = playerCache.getScopedProfileResult(
+                username,
+                StatScope.BEDWARS,
+                ProfileFetchContext.GENERAL,
+                true
+            );
+            PlayerProfile profile = result.getProfile();
 
             if (profile == null || profile.getBedwarsPlayer() == null) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
-                        "§cFailed to fetch stats for: §r" + username
+                        "§cFailed to fetch stats for: §r" +
+                            username +
+                            "§c (" +
+                            StatsFetchFailureFormatter.describe(result) +
+                            ")"
                     )
                 );
                 return;
@@ -66,7 +83,7 @@ public class BedwarsCommand extends CommandBase {
 
             BedwarsPlayer player = profile.getBedwarsPlayer();
             List<String> statsLines = Arrays.asList(
-                player.getName() + " §r" + player.getStars(),
+                player.getStars() + " §r" + player.getFormattedNameWithRank(),
                 "§rFKDR: " + player.getFkdrColor() + player.getFormattedFkdr(),
                 "§rWLR: " + player.getFormattedWLRWithColor(),
                 "§rBBLR: " + player.getFormattedBBLRWithColor(),
@@ -75,18 +92,34 @@ public class BedwarsCommand extends CommandBase {
                 "§rFinals: " + player.getFormattedFinalsWithColor()
             );
 
-            Minecraft.getMinecraft().addScheduledTask(() ->
+            MainThreadDispatcher.run(() ->
                 ChatUtils.sendMultilineCommandMessage(sender, statsLines)
             );
 
-            if (config.urchin && profile.isUrchinTagged()) {
-                String tags = FormattingUtils.formatUrchinTags(
-                    profile.getUrchinTags()
-                );
-                String urchinMessage = "§5§lUrchin§r§5: " + tags;
-                Minecraft.getMinecraft().addScheduledTask(() ->
-                    ChatUtils.sendMultilineCommandMessage(sender, urchinMessage)
-                );
+            if (config.isCoralEnabled() && profile.isCoralTagged()) {
+                List<String> coralMessages = new ArrayList<>();
+                profile.getCoralTags().forEach(tag -> {
+                    String formattedTag = FormattingUtils.formatCoralTag(tag);
+                    if (formattedTag == null || formattedTag.trim().isEmpty()) {
+                        return;
+                    }
+
+                    if (coralMessages.isEmpty()) {
+                        coralMessages.add("§5§lCoral§r§5: " + formattedTag);
+                        return;
+                    }
+
+                    coralMessages.add(formattedTag);
+                });
+
+                if (!coralMessages.isEmpty()) {
+                    MainThreadDispatcher.run(() ->
+                        ChatUtils.sendMultilineCommandMessage(
+                            sender,
+                            coralMessages
+                        )
+                    );
+                }
             }
 
             if (config.seraph && profile.isSeraphTagged()) {
@@ -100,7 +133,7 @@ public class BedwarsCommand extends CommandBase {
                 ) {
                     // Send the first tag with the main message
                     String firstMessage = "§3§lSeraph§r§3: " + tagMessages[0];
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendMultilineCommandMessage(
                             sender,
                             firstMessage
@@ -110,7 +143,7 @@ public class BedwarsCommand extends CommandBase {
                     for (int i = 1; i < tagMessages.length; i++) {
                         if (!tagMessages[i].trim().isEmpty()) {
                             String additionalMessage = "§c" + tagMessages[i];
-                            Minecraft.getMinecraft().addScheduledTask(() ->
+                            MainThreadDispatcher.run(() ->
                                 ChatUtils.sendMultilineCommandMessage(
                                     sender,
                                     additionalMessage
@@ -120,8 +153,7 @@ public class BedwarsCommand extends CommandBase {
                     }
                 }
             }
-        })
-            .start();
+        });
     }
 
     @Override

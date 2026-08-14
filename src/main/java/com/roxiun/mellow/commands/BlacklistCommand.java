@@ -1,16 +1,28 @@
 package com.roxiun.mellow.commands;
 
+import com.mojang.authlib.GameProfile;
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.api.seraph.SeraphApi;
+import com.roxiun.mellow.api.seraph.SeraphBlacklistReportType;
+import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
 import com.roxiun.mellow.util.UUIDUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistedPlayer;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
@@ -20,18 +32,26 @@ public class BlacklistCommand extends CommandBase {
 
     private final BlacklistManager blacklistManager;
     private final MojangApi mojangApi;
+    private final SeraphApi seraphApi;
+    private final MellowOneConfig config;
+    private final String baseCommand;
 
     public BlacklistCommand(
         BlacklistManager blacklistManager,
-        MojangApi mojangApi
+        MojangApi mojangApi,
+        SeraphApi seraphApi,
+        MellowOneConfig config
     ) {
         this.blacklistManager = blacklistManager;
         this.mojangApi = mojangApi;
+        this.seraphApi = seraphApi;
+        this.config = config;
+        this.baseCommand = BlacklistCommandResolver.getBaseCommand();
     }
 
     @Override
     public String getCommandName() {
-        return "blacklist";
+        return baseCommand;
     }
 
     @Override
@@ -41,7 +61,7 @@ public class BlacklistCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/blacklist <add | remove | list | import>";
+        return getCommandPrefix() + " <add | remove | list | import>";
     }
 
     @Override
@@ -122,20 +142,24 @@ public class BlacklistCommand extends CommandBase {
             // Show navigation help if there are multiple pages
             if (totalPages > 1) {
                 String navigationMessage =
-                    "§7Use §f/blacklist list <page>§7 to navigate";
+                    "§7Use §f" + getCommandPrefix() + " list <page>§7 to navigate";
                 if (page < totalPages) {
                     navigationMessage +=
-                        " (Next: §f/blacklist list " + (page + 1) + "§7)";
+                        " (Next: §f" +
+                        getCommandPrefix() +
+                        " list " +
+                        (page + 1) +
+                        "§7)";
                 }
                 ChatUtils.sendCommandMessage(sender, navigationMessage);
             }
             return;
         } else if ("import".equalsIgnoreCase(subCommand)) {
-            // Handle sync command: /blacklist import <filename>
+            // Handle sync command: <baseCommand> import <filename>
             if (args.length < 2) {
                 ChatUtils.sendCommandMessage(
                     sender,
-                    "§cUsage: /blacklist import <filename>"
+                    "§cUsage: " + getCommandPrefix() + " import <filename>"
                 );
                 return;
             }
@@ -156,8 +180,8 @@ public class BlacklistCommand extends CommandBase {
                 syncFile = new File(configDir, filename);
             }
 
-            new Thread(() -> {
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+            AsyncExecutor.getInstance().command(() -> {
+                MainThreadDispatcher.run(() -> {
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§eImporting blacklist with file: " +
@@ -183,25 +207,24 @@ public class BlacklistCommand extends CommandBase {
                     } else {
                         message =
                             "§cFile not found: " + syncFile.getAbsolutePath();
-                        Minecraft.getMinecraft().addScheduledTask(() ->
+                        MainThreadDispatcher.run(() ->
                             ChatUtils.sendCommandMessage(sender, message)
                         );
                         return;
                     }
 
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(sender, message)
                     );
                 } catch (Exception e) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§cError importing file: " + e.getMessage()
                         )
                     );
                 }
-            })
-                .start();
+            });
             return;
         }
 
@@ -214,15 +237,26 @@ public class BlacklistCommand extends CommandBase {
         }
 
         String playerName = args[1];
+        final BlacklistAddRequest addRequest;
+        if ("add".equalsIgnoreCase(subCommand)) {
+            try {
+                addRequest = BlacklistAddRequest.parse(getCommandPrefix(), args);
+            } catch (IllegalArgumentException e) {
+                ChatUtils.sendCommandMessage(sender, "§c" + e.getMessage());
+                return;
+            }
+        } else {
+            addRequest = null;
+        }
 
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             String uuidString = mojangApi.getUUIDFromName(playerName);
             if (uuidString == null) {
                 uuidString = mojangApi.fetchUUID(playerName);
             }
 
             if (uuidString == null || uuidString.equals("ERROR")) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cCould not find player: " + playerName
@@ -234,59 +268,112 @@ public class BlacklistCommand extends CommandBase {
             UUID uuid = UUIDUtils.fromString(uuidString);
 
             if ("add".equalsIgnoreCase(subCommand)) {
-                String reason = "";
-                if (args.length < 3) {
-                    reason = "(none)";
-                } else {
-                    reason = String.join(
-                        " ",
-                        Arrays.copyOfRange(args, 2, args.length)
-                    );
-                }
-
                 boolean playerAdded = blacklistManager.addPlayer(
                     uuid,
                     playerName,
-                    reason
+                    addRequest.getLocalReason()
                 );
+                SeraphApi.BlacklistSubmissionResult seraphSubmissionResult = null;
+                String seraphSubmissionError = null;
+
+                if (addRequest.shouldSubmitToSeraph()) {
+                    String seraphApiKey = normalizeApiKey(
+                        config == null ? null : config.seraphKey
+                    );
+                    if (seraphApi == null) {
+                        seraphSubmissionError =
+                            "Seraph integration is unavailable right now.";
+                    } else if (seraphApiKey.isEmpty()) {
+                        seraphSubmissionError =
+                            "Set a Seraph API key in OneConfig to submit reports.";
+                    } else {
+                        try {
+                            seraphSubmissionResult =
+                                seraphApi.submitBlacklistReport(
+                                    uuid.toString(),
+                                    seraphApiKey,
+                                    addRequest.getSeraphReportType(),
+                                    addRequest.getSeraphReason()
+                                );
+                            if (
+                                seraphSubmissionResult != null &&
+                                !seraphSubmissionResult.isSuccess()
+                            ) {
+                                seraphSubmissionError =
+                                    formatSeraphFailure(seraphSubmissionResult);
+                            }
+                        } catch (Exception e) {
+                            seraphSubmissionError = sanitizeFailureDetail(
+                                e.getMessage()
+                            );
+                        }
+                    }
+                }
+
                 if (playerAdded) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
-                        ChatUtils.sendCommandMessage(
-                            sender,
-                            "§aAdded " + playerName + " to the blacklist."
-                        )
+                    SeraphApi.BlacklistSubmissionResult finalSeraphSubmissionResult =
+                        seraphSubmissionResult;
+                    String finalSeraphSubmissionError = seraphSubmissionError;
+                    MainThreadDispatcher.run(() ->
+                        {
+                            ChatUtils.sendCommandMessage(
+                                sender,
+                                "§aAdded " + playerName + " to the blacklist."
+                            );
+                            maybeSendSeraphOutcome(
+                                sender,
+                                addRequest,
+                                finalSeraphSubmissionResult,
+                                finalSeraphSubmissionError
+                            );
+                            maybeAlsoBlockNickedInGamePlayer(sender, playerName);
+                        }
                     );
                 } else {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
-                        ChatUtils.sendCommandMessage(
-                            sender,
-                            "§c" +
-                                playerName +
-                                " is already on the blacklist for reason: " +
-                                blacklistManager
-                                    .getBlacklistedPlayer(uuid)
-                                    .getReason()
-                        )
+                    BlacklistedPlayer existingPlayer =
+                        blacklistManager.getBlacklistedPlayer(uuid);
+                    String existingReason = existingPlayer == null
+                        ? "(unknown)"
+                        : existingPlayer.getReason();
+                    SeraphApi.BlacklistSubmissionResult finalSeraphSubmissionResult =
+                        seraphSubmissionResult;
+                    String finalSeraphSubmissionError = seraphSubmissionError;
+                    MainThreadDispatcher.run(() ->
+                        {
+                            ChatUtils.sendCommandMessage(
+                                sender,
+                                "§c" +
+                                    playerName +
+                                    " is already on the blacklist for reason: " +
+                                    existingReason
+                            );
+                            maybeSendSeraphOutcome(
+                                sender,
+                                addRequest,
+                                finalSeraphSubmissionResult,
+                                finalSeraphSubmissionError
+                            );
+                            maybeAlsoBlockNickedInGamePlayer(sender, playerName);
+                        }
                     );
                 }
             } else if ("remove".equalsIgnoreCase(subCommand)) {
                 blacklistManager.removePlayer(uuid);
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§aRemoved " + playerName + " from the blacklist."
                     )
                 );
             } else {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cInvalid subcommand! Use 'add', 'remove', or 'list'."
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     @Override
@@ -323,7 +410,34 @@ public class BlacklistCommand extends CommandBase {
             ("add".equalsIgnoreCase(args[0]) ||
                 "remove".equalsIgnoreCase(args[0]))
         ) {
-            return null; // Let the game handle player name completion
+            String subCommand = args[0];
+            List<String> suggestions = "remove".equalsIgnoreCase(subCommand)
+                ? getStoredAndOnlinePlayerNames()
+                : getOnlinePlayerNames();
+
+            if (suggestions.isEmpty()) {
+                return null;
+            }
+
+            return getListOfStringsMatchingLastWord(
+                args,
+                suggestions.toArray(new String[0])
+            );
+        }
+
+        if (args.length == 3 && "add".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, "seraph");
+        }
+
+        if (
+            args.length == 4 &&
+            "add".equalsIgnoreCase(args[0]) &&
+            "seraph".equalsIgnoreCase(args[2])
+        ) {
+            return getListOfStringsMatchingLastWord(
+                args,
+                SeraphBlacklistReportType.getCompletionTokens()
+            );
         }
 
         // For import command, return null to allow file name completion (or default behavior)
@@ -337,5 +451,179 @@ public class BlacklistCommand extends CommandBase {
     @Override
     public int getRequiredPermissionLevel() {
         return 0;
+    }
+
+    private String getCommandPrefix() {
+        return "/" + baseCommand;
+    }
+
+    private List<String> getOnlinePlayerNames() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.getNetHandler() == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<String> names = new ArrayList<>();
+        for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+            if (info == null) {
+                continue;
+            }
+            GameProfile profile = info.getGameProfile();
+            if (profile == null) {
+                continue;
+            }
+            String name = profile.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        return names;
+    }
+
+    private List<String> getStoredAndOnlinePlayerNames() {
+        Set<String> names = new LinkedHashSet<>();
+        for (BlacklistedPlayer player : blacklistManager.getBlacklist().values()) {
+            if (player == null) {
+                continue;
+            }
+            String name = player.getName();
+            if (name == null || name.trim().isEmpty()) {
+                continue;
+            }
+            names.add(name);
+        }
+        names.addAll(getOnlinePlayerNames());
+        return new ArrayList<>(names);
+    }
+
+    private void maybeAlsoBlockNickedInGamePlayer(
+        ICommandSender sender,
+        String requestedName
+    ) {
+        String inGameName = resolveInGamePlayerName(requestedName);
+        if (inGameName == null) {
+            return;
+        }
+        if (Mellow.nickUtils == null || !Mellow.nickUtils.isNicked(inGameName)) {
+            return;
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null) {
+            return;
+        }
+
+        mc.thePlayer.sendChatMessage("/block add " + inGameName);
+        ChatUtils.sendCommandMessage(
+            sender,
+            "§7Also ran §f/block add " +
+                inGameName +
+                "§7 because they are nicked in your game."
+        );
+    }
+
+    private String resolveInGamePlayerName(String requestedName) {
+        if (requestedName == null) {
+            return null;
+        }
+        String trimmed = requestedName.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null || mc.getNetHandler() == null) {
+            return null;
+        }
+
+        for (NetworkPlayerInfo info : mc.getNetHandler().getPlayerInfoMap()) {
+            if (info == null || info.getGameProfile() == null) {
+                continue;
+            }
+            String inGameName = info.getGameProfile().getName();
+            if (inGameName != null && inGameName.equalsIgnoreCase(trimmed)) {
+                return inGameName;
+            }
+        }
+
+        return null;
+    }
+
+    private void maybeSendSeraphOutcome(
+        ICommandSender sender,
+        BlacklistAddRequest addRequest,
+        SeraphApi.BlacklistSubmissionResult submissionResult,
+        String submissionError
+    ) {
+        if (addRequest == null || !addRequest.shouldSubmitToSeraph()) {
+            return;
+        }
+
+        if (submissionError != null && !submissionError.trim().isEmpty()) {
+            ChatUtils.sendMultilineCommandMessage(
+                sender,
+                "§7Seraph: §c" + submissionError
+            );
+            return;
+        }
+
+        if (submissionResult != null && submissionResult.isSuccess()) {
+            ChatUtils.sendMultilineCommandMessage(
+                sender,
+                "§7Seraph: §aSubmitted report as §f" +
+                    addRequest.getSeraphReportType().getDisplayLabel() +
+                    "§a."
+            );
+            return;
+        }
+
+        ChatUtils.sendMultilineCommandMessage(
+            sender,
+            "§7Seraph: §cReport was requested but no response was recorded."
+        );
+    }
+
+    private String formatSeraphFailure(
+        SeraphApi.BlacklistSubmissionResult submissionResult
+    ) {
+        if (submissionResult == null) {
+            return "Seraph report failed.";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("Seraph report failed with HTTP ");
+        builder.append(submissionResult.getStatusCode());
+
+        String detail = sanitizeFailureDetail(submissionResult.getResponseBody());
+        if (!detail.isEmpty()) {
+            builder.append(": ");
+            builder.append(detail);
+        }
+
+        return builder.toString();
+    }
+
+    private String sanitizeFailureDetail(String detail) {
+        if (detail == null) {
+            return "";
+        }
+
+        String sanitized = detail
+            .replace('\n', ' ')
+            .replace('\r', ' ')
+            .trim();
+        if (sanitized.isEmpty()) {
+            return "";
+        }
+
+        if (sanitized.length() > 140) {
+            sanitized = sanitized.substring(0, 137) + "...";
+        }
+        return sanitized;
+    }
+
+    private String normalizeApiKey(String apiKey) {
+        return apiKey == null ? "" : apiKey.trim();
     }
 }

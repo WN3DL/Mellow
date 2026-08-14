@@ -23,7 +23,7 @@ This project is a fork continuation of <a href="https://github.com/xanning/Fonta
 - See other players' ping. Recommended to use with [VanillaHUD](https://modrinth.com/mod/vanillahud)
  to view ping numerically instead of as bars.
 
-- Supports Urchin API Tags
+- Supports [Coral API](https://api.urchin.gg/) Tags
 
 - Supports Seraph API Tags
 
@@ -33,7 +33,7 @@ This project is a fork continuation of <a href="https://github.com/xanning/Fonta
 
 - Supports skin denicking and finals/beds denicking.
 
-- Check Classic Duels stats of your opponent when you queue a Classic duels match
+- Auto-check provider-backed Duels stats in Duels matches (mode-aware with division display)
 
 - Pretty & Aesthetic
 
@@ -70,7 +70,19 @@ To check an **individual player’s** BedWars stats, type `/bw <username>`
 
 To add a player to your **blacklist**, type `/blacklist add <username>`
 
+To add a player to your **blacklist** and also submit a Seraph report, type `/blacklist add <username> seraph <cc|bc|s|ps|ls|a|bot|c|al> <reason>` after setting your Seraph API key in OneConfig
+
 You can **import** your own **blacklist** by doing, type `/blacklist import <filename>`, place the file in `.minecraft/config/mellow`
+
+To add a player to your **annoy list**, type `/annoylist add <username>`
+
+You can **import** your own **annoy list** by doing, type `/annoylist import <filename>`, place the file in `.minecraft/config/mellow`
+
+To suppress Coral/Seraph tag alert lines for a player, type `/tagignore add <username>`
+
+To check a player's **Coral tags**, type `/coral <username>` (legacy `/urchin` aliases are also supported)
+
+You can **import** your own **tag ignore list** by doing, type `/tagignore import <filename>`, place the file in `.minecraft/config/mellow`
 
 To **skin denick** type `/skindenick <username>`
 

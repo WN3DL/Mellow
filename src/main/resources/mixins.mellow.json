@@ -8,7 +8,21 @@
   },
   "client": [
     "GuiPlayerTabOverlayMixin",
-    "PingMixin"
+    "hitbox.RenderGlobalHitboxColorMixin",
+    "hitbox.RenderManagerHitboxContextMixin",
+    "nametag.RenderNametagClientIconMixin",
+    "nametag.RenderNametagColorMixin",
+    "nametag.RendererLivingEntityNametagClientIconMixin",
+    "nametag.RendererLivingEntityNametagColorMixin",
+    "OverflowAnimationsTabCompatMixin",
+    "PingMixin",
+    "replay.NetworkManagerReplayCaptureMixin",
+    "replay.NetHandlerPlayClientAccessor",
+    "VanillaHudTabBackgroundCompatMixin"
+  ],
+  "mixins": [
+    "compat.polynametag.PolyNametagRenderingMixin",
+    "compat.polyhitbox.PolyHitboxRendererMixin"
   ],
   "verbose": true
 }

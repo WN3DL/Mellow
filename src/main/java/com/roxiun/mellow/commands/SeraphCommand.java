@@ -5,9 +5,16 @@ import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
+import com.roxiun.mellow.util.player.PlayerUtils;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
@@ -41,6 +48,14 @@ public class SeraphCommand extends CommandBase {
     }
 
     @Override
+    public List<String> getCommandAliases() {
+        if (!BlacklistCommandResolver.isSeraphLoaded()) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList("mseraph");
+    }
+
+    @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length != 1) {
             ChatUtils.sendCommandMessage(
@@ -56,11 +71,11 @@ public class SeraphCommand extends CommandBase {
             sender,
             "§r§3Fetching Seraph tags for §b" + username + "§3..."
         );
-        new Thread(() -> {
+        AsyncExecutor.getInstance().command(() -> {
             try {
-                String uuid = mojangApi.fetchUUID(username);
-                if (uuid == null || uuid.isEmpty()) {
-                    Minecraft.getMinecraft().addScheduledTask(() ->
+                UUID uuid = PlayerUtils.resolveLookupUuid(username, mojangApi);
+                if (uuid == null) {
+                    MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
                             "§cFailed to fetch UUID for: §r" + username
@@ -70,11 +85,11 @@ public class SeraphCommand extends CommandBase {
                 }
 
                 List<SeraphTag> tags = seraphApi.fetchSeraphTags(
-                    uuid,
+                    uuid.toString(),
                     config.seraphKey
                 );
 
-                Minecraft.getMinecraft().addScheduledTask(() -> {
+                MainThreadDispatcher.run(() -> {
                     if (tags == null || tags.isEmpty()) {
                         ChatUtils.sendCommandMessage(
                             sender,
@@ -119,7 +134,7 @@ public class SeraphCommand extends CommandBase {
                     }
                 });
             } catch (Exception e) {
-                Minecraft.getMinecraft().addScheduledTask(() ->
+                MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
                         "§cAn error occurred while fetching Seraph tags for " +
@@ -128,8 +143,7 @@ public class SeraphCommand extends CommandBase {
                     )
                 );
             }
-        })
-            .start();
+        });
     }
 
     @Override

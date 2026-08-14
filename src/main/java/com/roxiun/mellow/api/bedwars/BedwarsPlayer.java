@@ -5,9 +5,11 @@ import java.text.DecimalFormat;
 public class BedwarsPlayer {
 
     private final String name;
+    private final String formattedNameWithRank;
     private final String stars;
     private final double fkdr;
     private final int winstreak;
+    private final boolean hasWinstreakData;
     private final int finalKills;
     private final int finalDeaths;
     private final int wins;
@@ -29,10 +31,106 @@ public class BedwarsPlayer {
         int bedsLost,
         int finals
     ) {
+        this(
+            name,
+            name,
+            stars,
+            fkdr,
+            winstreak,
+            true,
+            finalKills,
+            finalDeaths,
+            wins,
+            losses,
+            bedsBroken,
+            bedsLost,
+            finals
+        );
+    }
+
+    public BedwarsPlayer(
+        String name,
+        String stars,
+        double fkdr,
+        int winstreak,
+        boolean hasWinstreakData,
+        int finalKills,
+        int finalDeaths,
+        int wins,
+        int losses,
+        int bedsBroken,
+        int bedsLost,
+        int finals
+    ) {
+        this(
+            name,
+            name,
+            stars,
+            fkdr,
+            winstreak,
+            hasWinstreakData,
+            finalKills,
+            finalDeaths,
+            wins,
+            losses,
+            bedsBroken,
+            bedsLost,
+            finals
+        );
+    }
+
+    public BedwarsPlayer(
+        String name,
+        String formattedNameWithRank,
+        String stars,
+        double fkdr,
+        int winstreak,
+        int finalKills,
+        int finalDeaths,
+        int wins,
+        int losses,
+        int bedsBroken,
+        int bedsLost,
+        int finals
+    ) {
+        this(
+            name,
+            formattedNameWithRank,
+            stars,
+            fkdr,
+            winstreak,
+            true,
+            finalKills,
+            finalDeaths,
+            wins,
+            losses,
+            bedsBroken,
+            bedsLost,
+            finals
+        );
+    }
+
+    public BedwarsPlayer(
+        String name,
+        String formattedNameWithRank,
+        String stars,
+        double fkdr,
+        int winstreak,
+        boolean hasWinstreakData,
+        int finalKills,
+        int finalDeaths,
+        int wins,
+        int losses,
+        int bedsBroken,
+        int bedsLost,
+        int finals
+    ) {
         this.name = name;
+        this.formattedNameWithRank = formattedNameWithRank;
         this.stars = stars;
         this.fkdr = fkdr;
         this.winstreak = winstreak;
+        this.hasWinstreakData = hasWinstreakData;
         this.finalKills = finalKills;
         this.finalDeaths = finalDeaths;
         this.wins = wins;
@@ -46,6 +144,13 @@ public class BedwarsPlayer {
         return name;
     }
 
+    public String getFormattedNameWithRank() {
+        if (formattedNameWithRank == null || formattedNameWithRank.isEmpty()) {
+            return name;
+        }
+        return formattedNameWithRank;
+    }
+
     public String getStars() {
         return stars;
     }
@@ -56,6 +161,10 @@ public class BedwarsPlayer {
 
     public int getWinstreak() {
         return winstreak;
+    }
+
+    public boolean hasWinstreakData() {
+        return hasWinstreakData;
     }
 
     public int getFinalKills() {
@@ -263,6 +372,10 @@ public class BedwarsPlayer {
     }
 
     public String getWinstreakColor() {
+        if (!hasWinstreakData) {
+            return "§7";
+        }
+
         int winstreak = getWinstreak();
         if (winstreak < 5) {
             return "§7"; // Gray
@@ -304,6 +417,9 @@ public class BedwarsPlayer {
     }
 
     public String getFormattedWinstreakWithColor() {
+        if (!hasWinstreakData) {
+            return "§7?";
+        }
         return getWinstreakColor() + getWinstreak();
     }
 }

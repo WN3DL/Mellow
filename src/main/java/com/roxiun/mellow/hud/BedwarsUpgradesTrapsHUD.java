@@ -6,7 +6,6 @@ import cc.polyfrost.oneconfig.config.core.OneColor;
 import cc.polyfrost.oneconfig.hud.TextHud;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.util.MinecraftColor;
-import com.roxiun.mellow.util.bedwars.BedwarsUpgradesTrapsManager;
 import java.util.List;
 
 public class BedwarsUpgradesTrapsHUD extends TextHud {
@@ -116,7 +115,7 @@ public class BedwarsUpgradesTrapsHUD extends TextHud {
             MinecraftColor textColor = MinecraftColor.fromIndex(textColorIndex);
 
             lines.addAll(
-                BedwarsUpgradesTrapsManager.getInstance().getDisplayLinesWithFormatting(
+                HypixelFeatures.getInstance().getBedwarsUpgradesDisplayLines(
                     shortNames,
                     romanNumerals,
                     headingColor.getRed(),

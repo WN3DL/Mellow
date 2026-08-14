@@ -10,6 +10,7 @@ import com.roxiun.mellow.anticheat.check.impl.ScaffoldCheck;
 import com.roxiun.mellow.anticheat.data.ACPlayerData;
 import com.roxiun.mellow.anticheat.event.AnticheatListener;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
 import java.util.ArrayList;
 import java.util.List;
@@ -108,19 +109,15 @@ public class AnticheatManager {
             if (timeSinceLastAlert >= cooldown) {
                 // Main message component
                 IChatComponent mainMessage = new ChatComponentText(
-                    String.format(
-                        "§8[§cAC§8] §7%s §ffailed §c%s §7(%s) §c[VL: %.1f]",
-                        FormattingUtils.formatNickedPlayerName(
-                            player.getName()
-                        ),
-                        check.getName(),
-                        info,
-                        checkData.violations
-                    )
+                    buildAlertMessage(player, check, info, checkData.violations)
                 );
 
                 // Add WDR button if on Hypixel
                 if (HypixelUtils.INSTANCE.isHypixel()) {
+                    String plainName = player.getName().replaceAll("§.", "").trim();
+                    boolean shouldBlockOnClick =
+                        Mellow.nickUtils != null && Mellow.nickUtils.isNicked(plainName);
+
                     IChatComponent reportButton = new ChatComponentText(
                         " §8[§cWDR§8]"
                     );
@@ -128,15 +125,18 @@ public class AnticheatManager {
                     style.setChatClickEvent(
                         new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
-                            "/wdr " +
-                                player.getName().replaceAll("§.", "").trim()
+                            shouldBlockOnClick
+                                ? "/block add " + plainName
+                                : "/wdr " + plainName
                         )
                     );
                     style.setChatHoverEvent(
                         new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
                             new ChatComponentText(
-                                "Click to report " + player.getName()
+                                shouldBlockOnClick
+                                    ? "Click to block " + plainName + " (nicked)"
+                                    : "Click to report " + player.getName()
                             )
                         )
                     );
@@ -144,10 +144,84 @@ public class AnticheatManager {
                     mainMessage.appendSibling(reportButton);
                 }
 
+                appendBlacklistButton(mainMessage, player, check);
+
                 ChatUtils.sendMessage(mainMessage);
 
                 checkData.lastAlertTime = System.currentTimeMillis();
             }
         }
+    }
+
+    private String buildAlertMessage(
+        EntityPlayer player,
+        Check check,
+        String info,
+        double violations
+    ) {
+        String formattedName = FormattingUtils.formatNickedPlayerName(
+            player.getName()
+        );
+
+        if (!Mellow.config.anticheatVerbose) {
+            return String.format(
+                "§8[§cAC§8] §7%s §ffailed §c%s",
+                formattedName,
+                check.getName()
+            );
+        }
+
+        return String.format(
+            "§8[§cAC§8] §7%s §ffailed §c%s §7(%s) §c[VL: %.1f]",
+            formattedName,
+            check.getName(),
+            info,
+            violations
+        );
+    }
+
+    private void appendBlacklistButton(
+        IChatComponent message,
+        EntityPlayer player,
+        Check check
+    ) {
+        if (Mellow.blacklistManager == null || player == null) {
+            return;
+        }
+
+        if (Mellow.blacklistManager.isBlacklisted(player.getUniqueID())) {
+            message.appendSibling(new ChatComponentText(" §8[§4LIST§8]"));
+            return;
+        }
+
+        String plainName = player.getName().replaceAll("§.", "").trim();
+        boolean shouldBlockOnClick =
+            Mellow.nickUtils != null && Mellow.nickUtils.isNicked(plainName);
+        String reason = "Anticheat flag: " + check.getName();
+        String command = shouldBlockOnClick
+            ? "/block add " + plainName
+            : BlacklistCommandResolver.getCommandPrefix() +
+            " add " +
+            plainName +
+            " " +
+            reason;
+
+        IChatComponent blacklistButton = new ChatComponentText(" §8[§cBL§8]");
+        ChatStyle style = new ChatStyle();
+        style.setChatClickEvent(
+            new ClickEvent(ClickEvent.Action.RUN_COMMAND, command)
+        );
+        style.setChatHoverEvent(
+            new HoverEvent(
+                HoverEvent.Action.SHOW_TEXT,
+                new ChatComponentText(
+                    shouldBlockOnClick
+                        ? "Click to block " + plainName + " (nicked)"
+                        : "Click to add " + plainName + " to your local blacklist"
+                )
+            )
+        );
+        blacklistButton.setChatStyle(style);
+        message.appendSibling(blacklistButton);
     }
 }

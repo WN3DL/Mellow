@@ -2,92 +2,136 @@ package com.roxiun.mellow;
 
 import com.roxiun.mellow.anticheat.AnticheatManager;
 import com.roxiun.mellow.api.aurora.AuroraApi;
-import com.roxiun.mellow.api.bedwars.HypixelApi;
-import com.roxiun.mellow.api.duels.PlanckeApi;
+import com.roxiun.mellow.api.aurora.AuroraPingService;
+import com.roxiun.mellow.api.aurora.AuroraWinstreakService;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
+import com.roxiun.mellow.api.luna.LunaPingService;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.AbyssApi;
+import com.roxiun.mellow.api.provider.HypixelPublicApi;
 import com.roxiun.mellow.api.provider.NadeshikoApi;
+import com.roxiun.mellow.api.provider.ProviderManager;
 import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
-import com.roxiun.mellow.api.urchin.UrchinApi;
+import com.roxiun.mellow.api.seraph.SeraphClientCacheService;
+import com.roxiun.mellow.api.seraph.SeraphPingService;
+import com.roxiun.mellow.api.coral.CoralApi;
+import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
 import com.roxiun.mellow.config.MellowOneConfig;
+import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.core.event.ChatEventRouter;
+import com.roxiun.mellow.core.event.ClientTickRouter;
+import com.roxiun.mellow.core.event.NametagColorRouter;
+import com.roxiun.mellow.core.event.RequestPopupRouter;
+import com.roxiun.mellow.core.event.TabOverlayInputRouter;
+import com.roxiun.mellow.core.event.TabOverlayRouter;
+import com.roxiun.mellow.core.event.WorldLifecycleRouter;
 import com.roxiun.mellow.data.TabStats;
-import com.roxiun.mellow.events.ChatHandler;
-import com.roxiun.mellow.events.EmeraldTimerHandler;
-import com.roxiun.mellow.events.WorldLoadHandler;
-import com.roxiun.mellow.task.StatsChecker;
+import com.roxiun.mellow.feature.nicks.NickUtils;
+import com.roxiun.mellow.feature.nicks.NumberDenicker;
+import com.roxiun.mellow.feature.party.PartyBlacklistWarningService;
+import com.roxiun.mellow.feature.requestpopup.RequestPopupManager;
+import com.roxiun.mellow.feature.requestpopup.RequestPopupService;
+import com.roxiun.mellow.feature.replay.ReplayHudRouter;
+import com.roxiun.mellow.feature.replay.ReplayInputRouter;
+import com.roxiun.mellow.feature.replay.ReplayManager;
+import com.roxiun.mellow.feature.stats.InGameTabStatsSyncService;
+import com.roxiun.mellow.feature.stats.PregameStats;
+import com.roxiun.mellow.feature.stats.ProviderHealthWarningService;
+import com.roxiun.mellow.feature.stats.StatsChecker;
+import com.roxiun.mellow.feature.tags.TagUtils;
+import com.roxiun.mellow.util.annoylist.AnnoylistManager;
 import com.roxiun.mellow.util.blacklist.BlacklistManager;
-import com.roxiun.mellow.util.nicks.NickUtils;
-import com.roxiun.mellow.util.nicks.NumberDenicker;
-import com.roxiun.mellow.util.player.PregameStats;
-import com.roxiun.mellow.util.tags.TagUtils;
-import java.util.HashMap;
+import com.roxiun.mellow.util.tagignore.TagIgnoreManager;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.client.ClientCommandHandler;
+import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import org.lwjgl.input.Keyboard;
 
-@Mod(modid = Mellow.MODID, name = Mellow.NAME, version = Mellow.VERSION)
+@Mod(modid = Mellow.MODID, name = Mellow.NAME, version = Mellow.VERSION, dependencies = "required-after:hypixel_mod_api")
 public class Mellow {
 
     public static final String MODID = "mellow";
     public static final String NAME = "Mellow";
-    public static final String VERSION = "5.2.1";
+    public static final String VERSION = "6.1.0";
 
     public static MellowOneConfig config;
-    public static final Map<String, TabStats> tabStats = new HashMap<>();
+    public static final Map<String, TabStats> tabStats = new ConcurrentHashMap<>();
     public static NickUtils nickUtils;
 
+    public static AuroraPingService auroraPingService;
+    public static AuroraWinstreakService auroraWinstreakService;
+    public static AuroraApi auroraApi;
+    public static LunaPingService lunaPingService;
+    public static SeraphClientCacheService seraphClientCacheService;
+    public static SeraphPingService seraphPingService;
     public static MojangApi mojangApi;
-    public static UrchinApi urchinApi;
+    public static CoralApi coralApi;
     public static SeraphApi seraphApi;
     public static PlayerCache playerCache;
     public static BlacklistManager blacklistManager;
+    public static AnnoylistManager annoylistManager;
+    public static TagIgnoreManager tagIgnoreManager;
     private static AnticheatManager anticheatManager;
 
-    private Map<String, StatsProvider> statsProviders;
+    private ProviderManager providerManager;
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         config = new MellowOneConfig();
+        ModrinthUpdater.init(config);
+        ProviderHealthWarningService.init(config);
 
-        // Anticheat
+        HypixelFeatures.getInstance().initialize();
+
         anticheatManager = new AnticheatManager(this);
-
-        // Blacklist
         blacklistManager = new BlacklistManager();
+        annoylistManager = new AnnoylistManager();
+        tagIgnoreManager = new TagIgnoreManager();
 
-        // APIs
+        auroraPingService = new AuroraPingService();
+        auroraWinstreakService = new AuroraWinstreakService();
+        lunaPingService = new LunaPingService();
+        seraphPingService = new SeraphPingService();
         mojangApi = new MojangApi();
-        statsProviders = new HashMap<>();
-        statsProviders.put("Nadeshiko", new NadeshikoApi(mojangApi));
-        statsProviders.put("Abyss", new AbyssApi(mojangApi));
+        providerManager = new ProviderManager();
+        providerManager.register(new HypixelPublicApi(mojangApi, config));
+        providerManager.register(new NadeshikoApi(mojangApi));
+        providerManager.register(new AbyssApi(mojangApi));
 
-        urchinApi = new UrchinApi(mojangApi);
+        coralApi = new CoralApi();
         seraphApi = new SeraphApi(mojangApi);
-        PlanckeApi planckeApi = new PlanckeApi();
-        AuroraApi auroraApi = new AuroraApi();
+        seraphClientCacheService = new SeraphClientCacheService(seraphApi, config);
+        auroraApi = new AuroraApi();
 
-        // Cache
         playerCache = new PlayerCache(
             mojangApi,
-            getStatsProvider(),
-            urchinApi,
+            providerManager,
+            coralApi,
             seraphApi,
-            config.urchinKey,
-            config.seraphKey,
             config
         );
+        PartyBlacklistWarningService partyBlacklistWarningService =
+            new PartyBlacklistWarningService(
+                blacklistManager,
+                config,
+                playerCache,
+                tagIgnoreManager
+            );
+        HypixelFeatures
+            .getInstance()
+            .addGameStateListener(partyBlacklistWarningService::onSnapshotUpdate);
 
         nickUtils = new NickUtils(playerCache, config);
 
-        // Utils
         TagUtils tagUtils = new TagUtils(this, blacklistManager);
-        HypixelApi hypixelApi = new HypixelApi(this, tagUtils);
         NumberDenicker numberDenicker = new NumberDenicker(
             config,
             nickUtils,
@@ -96,67 +140,148 @@ public class Mellow {
         PregameStats pregameStats = new PregameStats(
             playerCache,
             config,
-            blacklistManager
+            blacklistManager,
+            annoylistManager,
+            tagIgnoreManager
+        );
+        RequestPopupManager requestPopupManager = new RequestPopupManager(config);
+        RequestPopupService requestPopupService = new RequestPopupService(
+            config,
+            requestPopupManager
+        );
+        ReplayManager replayManager = ReplayManager.getInstance();
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        replayManager.onShutdown();
+                        AsyncExecutor.getInstance().shutdownReplayIoAndAwait();
+                    }
+                },
+                "Mellow-Shutdown"
+            )
         );
 
-        // Tasks
+        KeyBinding requestAcceptKeybind = new KeyBinding(
+            "Accept Request",
+            Keyboard.KEY_Y,
+            "Mellow Requests"
+        );
+        KeyBinding requestDenyKeybind = new KeyBinding(
+            "Deny Request",
+            Keyboard.KEY_N,
+            "Mellow Requests"
+        );
+        ClientRegistry.registerKeyBinding(requestAcceptKeybind);
+        ClientRegistry.registerKeyBinding(requestDenyKeybind);
+        MinecraftForge.EVENT_BUS.register(
+            new RequestPopupRouter(
+                config,
+                requestPopupManager,
+                requestAcceptKeybind,
+                requestDenyKeybind
+            )
+        );
+
         StatsChecker statsChecker = new StatsChecker(
             playerCache,
             nickUtils,
             config,
             tabStats,
             tagUtils,
-            blacklistManager
+            blacklistManager,
+            annoylistManager,
+            tagIgnoreManager
         );
+        InGameTabStatsSyncService inGameTabStatsSyncService =
+            new InGameTabStatsSyncService(statsChecker, nickUtils, config, tabStats);
+        HypixelFeatures
+            .getInstance()
+            .addGameStateListener(inGameTabStatsSyncService::onSnapshotUpdate);
+        HypixelFeatures.getInstance().addGameStateListener(replayManager::onGameSnapshot);
 
-        // Event Handlers
         MinecraftForge.EVENT_BUS.register(
-            new ChatHandler(
+            new ChatEventRouter(
                 config,
-                nickUtils,
                 numberDenicker,
                 pregameStats,
-                planckeApi,
-                statsChecker,
-                playerCache
+                requestPopupService
             )
         );
         MinecraftForge.EVENT_BUS.register(
-            new WorldLoadHandler(numberDenicker, pregameStats, nickUtils)
+            new WorldLifecycleRouter(numberDenicker, pregameStats, nickUtils)
         );
         MinecraftForge.EVENT_BUS.register(
-            new EmeraldTimerHandler(HypixelFeatures.getInstance())
+            new ClientTickRouter(HypixelFeatures.getInstance())
+        );
+        MinecraftForge.EVENT_BUS.register(new ReplayHudRouter(replayManager));
+        MinecraftForge.EVENT_BUS.register(new ReplayInputRouter(replayManager));
+        MinecraftForge.EVENT_BUS.register(new NametagColorRouter(config));
+        TabOverlayRouter tabOverlayRouter = new TabOverlayRouter(config);
+        MinecraftForge.EVENT_BUS.register(tabOverlayRouter);
+        MinecraftForge.EVENT_BUS.register(
+            new TabOverlayInputRouter(tabOverlayRouter)
         );
 
-        // Commands
         ClientCommandHandler.instance.registerCommand(
             new BedwarsCommand(playerCache, config)
         );
+        ClientCommandHandler.instance.registerCommand(
+            new SkywarsCommand(playerCache, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new PVCommand(playerCache, config)
+        );
         ClientCommandHandler.instance.registerCommand(new MellowCommand());
+        ClientCommandHandler.instance.registerCommand(new DebugStateCommand());
         ClientCommandHandler.instance.registerCommand(
             new ClearCacheCommand(playerCache, tabStats)
         );
         ClientCommandHandler.instance.registerCommand(
+            new RefreshCommand(inGameTabStatsSyncService)
+        );
+        ClientCommandHandler.instance.registerCommand(
             new DenickCommand(config, auroraApi)
         );
-        ClientCommandHandler.instance.registerCommand(new SkinDenickCommand());
         ClientCommandHandler.instance.registerCommand(
-            new BlacklistCommand(blacklistManager, mojangApi)
+            new SkinDenickCommand(playerCache)
         );
         ClientCommandHandler.instance.registerCommand(
-            new UrchinCommand(urchinApi, mojangApi, config)
+            new BlacklistCommand(blacklistManager, mojangApi, seraphApi, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new AnnoylistCommand(annoylistManager, mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new TagIgnoreCommand(tagIgnoreManager, mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new CoralCommand(coralApi, config)
         );
         ClientCommandHandler.instance.registerCommand(
             new SeraphCommand(seraphApi, mojangApi, config)
         );
+        ClientCommandHandler.instance.registerCommand(
+            new StatusCommand(mojangApi, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new NameHistoryCommand(mojangApi)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new ClientCommand(seraphApi, mojangApi, config)
+        );
+        ClientCommandHandler.instance.registerCommand(
+            new WinstreakCommand(playerCache, config)
+        );
+        ClientCommandHandler.instance.registerCommand(new ReplayCommand(replayManager));
     }
 
     public StatsProvider getStatsProvider() {
-        if (config != null && config.statsProvider == 1) {
-            return statsProviders.get("Abyss");
-        } else {
-            return statsProviders.get("Nadeshiko");
+        if (providerManager == null) {
+            return null;
         }
+        return providerManager.getSelectedProvider(config);
     }
 
     public static AnticheatManager getAnticheatManager() {
