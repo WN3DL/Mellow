@@ -68,12 +68,12 @@ public class StatusCommand extends CommandBase {
 
     @Override
     public String getCommandName() {
-        return "hypixelstatus";
+        return "mstatus";
     }
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/hypixelstatus <username>";
+        return "/mstatus <username>";
     }
 
     @Override
@@ -81,7 +81,7 @@ public class StatusCommand extends CommandBase {
         if (args.length != 1) {
             ChatUtils.sendCommandMessage(
                 sender,
-                "§cInvalid usage! Use /hypixelstatus <username>"
+                "§cInvalid usage! Use /mstatus <username>"
             );
             return;
         }
