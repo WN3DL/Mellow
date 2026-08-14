@@ -83,7 +83,7 @@ public class HypixelPublicApi implements StatsProvider {
 
         ProviderResult<String> result = HypixelApiUtils.fetchPlayerDataResult(
             PLAYER_ENDPOINT + uuid,
-            "Mellow/6.0.0",
+            "Mellow/6.1.0",
             headers
         );
         if (result.isSuccess()) {
