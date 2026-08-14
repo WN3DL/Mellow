@@ -101,7 +101,7 @@ public class StatsChecker {
 
             executor.submit(() -> {
                 // Force a refresh by clearing the player from the cache first
-                playerCache.clearPlayer(playerName);
+                playerCache.clearPlayerStats(playerName);
                 PlayerProfile profile = playerCache.getProfile(playerName);
 
                 if (profile == null || !hasStatsForScope(profile, activeScope)) {
@@ -172,7 +172,7 @@ public class StatsChecker {
             AsyncExecutor.getInstance().profileIo(() -> {
                 try {
                     if (forceRefresh) {
-                        playerCache.clearPlayer(playerName);
+                        playerCache.clearPlayerStats(playerName);
                     }
 
                     ProfileFetchResult result = playerCache.getScopedProfileResult(

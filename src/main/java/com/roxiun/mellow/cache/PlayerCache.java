@@ -675,8 +675,7 @@ public class PlayerCache {
             return;
         }
 
-        String lower = playerName.toLowerCase(Locale.ROOT);
-        cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+        clearPlayerStats(playerName);
         if (mojangApi != null) {
             mojangApi.clearPlayer(playerName);
         }
@@ -694,7 +693,6 @@ public class PlayerCache {
 
         String fullUuid = trustedTabUuid.toString();
         String compactUuid = fullUuid.replace("-", "");
-        rawDataCache.keySet().removeIf(key -> key.endsWith(":" + compactUuid));
         if (Mellow.auroraPingService != null) {
             Mellow.auroraPingService.clearPlayer(compactUuid);
         }
@@ -713,6 +711,24 @@ public class PlayerCache {
         if (Mellow.seraphApi != null) {
             Mellow.seraphApi.clearPlayer(fullUuid);
         }
+    }
+
+    /** Clears only stats-provider data, preserving supplemental API gates. */
+    public void clearPlayerStats(String playerName) {
+        if (playerName == null || playerName.trim().isEmpty()) {
+            return;
+        }
+
+        String lower = playerName.toLowerCase(Locale.ROOT);
+        cache.keySet().removeIf(key -> key.endsWith(":" + lower));
+
+        UUID trustedTabUuid = PlayerUtils.getTrustedTabUuid(playerName);
+        if (trustedTabUuid == null) {
+            return;
+        }
+
+        String compactUuid = trustedTabUuid.toString().replace("-", "");
+        rawDataCache.keySet().removeIf(key -> key.endsWith(":" + compactUuid));
     }
 
     private void maybeInvalidateCacheOnApiKeyChange() {

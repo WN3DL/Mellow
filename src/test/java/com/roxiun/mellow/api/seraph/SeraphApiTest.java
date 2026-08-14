@@ -14,10 +14,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class SeraphApiTest {
+
+    @Before
+    public void resetLimiterBeforeTest() {
+        SeraphRequestLimiter.getInstance().resetForTests();
+    }
+
+    @After
+    public void resetLimiterAfterTest() {
+        SeraphRequestLimiter.getInstance().resetForTests();
+    }
 
     @Test
     public void submitBlacklistReportUsesExpectedHeadersAndPayload()
@@ -119,7 +131,7 @@ public class SeraphApiTest {
     }
 
     @Test
-    public void fetchClientTypeDoesNotCacheTransientFailures() throws Exception {
+    public void fetchClientTypeBacksOffAfterTransientFailures() throws Exception {
         AtomicInteger openedConnections = new AtomicInteger();
 
         SeraphApi api = new SeraphApi(null) {
@@ -143,7 +155,9 @@ public class SeraphApiTest {
         Assert.assertNull(first.getClientType());
         Assert.assertFalse(second.isResolved());
         Assert.assertNull(second.getClientType());
-        Assert.assertEquals(2, openedConnections.get());
+        Assert.assertTrue(first.getRetryAfterMillis() > 0L);
+        Assert.assertTrue(second.getRetryAfterMillis() > 0L);
+        Assert.assertEquals(1, openedConnections.get());
     }
 
     @Test
@@ -195,10 +209,35 @@ public class SeraphApiTest {
     }
 
     @Test
-    public void fetchTagsPropagatesTransientFailures() throws Exception {
+    public void fetchTagsRejectsMissingKeyWithoutOpeningConnection() {
+        AtomicInteger openedConnections = new AtomicInteger();
         SeraphApi api = new SeraphApi(null) {
             @Override
             protected HttpURLConnection openConnection(URL url) {
+                openedConnections.incrementAndGet();
+                return new FakeHttpURLConnection(url, 401, null, null);
+            }
+        };
+
+        try {
+            api.fetchSeraphTags(
+                "00000000-0000-0000-0000-000000000003",
+                ""
+            );
+            Assert.fail("Expected the missing API key to be rejected.");
+        } catch (IOException e) {
+            Assert.assertTrue(e.getMessage().contains("API key"));
+        }
+        Assert.assertEquals(0, openedConnections.get());
+    }
+
+    @Test
+    public void fetchTagsPropagatesTransientFailures() throws Exception {
+        AtomicInteger openedConnections = new AtomicInteger();
+        SeraphApi api = new SeraphApi(null) {
+            @Override
+            protected HttpURLConnection openConnection(URL url) {
+                openedConnections.incrementAndGet();
                 return new FakeHttpURLConnection(url, 503, null, null);
             }
         };
@@ -212,6 +251,17 @@ public class SeraphApiTest {
         } catch (IOException e) {
             Assert.assertTrue(e.getMessage().contains("503"));
         }
+
+        try {
+            api.fetchSeraphTags(
+                "00000000-0000-0000-0000-000000000004",
+                "secret-key"
+            );
+            Assert.fail("Expected the Seraph tag cooldown to reject the retry.");
+        } catch (IOException e) {
+            Assert.assertTrue(e.getMessage().contains("cooling down"));
+        }
+        Assert.assertEquals(1, openedConnections.get());
     }
 
     private static final class FakeHttpURLConnection extends HttpURLConnection {

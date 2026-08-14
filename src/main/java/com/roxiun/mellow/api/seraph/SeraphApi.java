@@ -18,6 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class SeraphApi {
@@ -28,13 +32,32 @@ public class SeraphApi {
     private static final String ADD_SNIPER_URL = "https://api.seraph.si/addsniper";
 
     private final MojangApi mojangApi;
+    private final SeraphRequestLimiter requestLimiter;
     private final TimedValueCache<String, SeraphClientType> clientTypeCache =
         new TimedValueCache<>(CLIENT_CACHE_TTL_MS);
     private final TimedValueCache<String, List<SeraphTag>> tagCache =
         new TimedValueCache<>(TAG_CACHE_TTL_MS);
+    private final RequestFailureBackoff clientFailureBackoff =
+        new RequestFailureBackoff();
+    private final RequestFailureBackoff tagFailureBackoff =
+        new RequestFailureBackoff();
+    private final Map<String, CompletableFuture<ClientTypeLookupResult>>
+        clientLookupsInProgress = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<List<SeraphTag>>>
+        tagLookupsInProgress = new ConcurrentHashMap<>();
 
     public SeraphApi(MojangApi mojangApi) {
+        this(mojangApi, SeraphRequestLimiter.getInstance());
+    }
+
+    SeraphApi(
+        MojangApi mojangApi,
+        SeraphRequestLimiter requestLimiter
+    ) {
         this.mojangApi = mojangApi;
+        this.requestLimiter = requestLimiter == null
+            ? SeraphRequestLimiter.getInstance()
+            : requestLimiter;
     }
 
     public MojangApi.MojangProfile fetchSeraphMojang(String nameOrId) {
@@ -52,17 +75,34 @@ public class SeraphApi {
         String normalizedUuid = normalizeUuid(uuid);
         String normalizedApiKey = normalizeApiKey(seraphApiKey);
         String cacheKey = buildCacheKey(normalizedUuid, normalizedApiKey);
+        if (normalizedUuid.isEmpty() || normalizedApiKey.isEmpty()) {
+            return new ClientTypeLookupResult(null, false, 0L);
+        }
         if (!cacheKey.isEmpty() && clientTypeCache.containsFresh(cacheKey)) {
-            return new ClientTypeLookupResult(clientTypeCache.get(cacheKey), true);
+            return new ClientTypeLookupResult(
+                clientTypeCache.get(cacheKey),
+                true,
+                0L
+            );
         }
 
+        long retryAfterMs = clientFailureBackoff.getRetryAfterMillis(cacheKey);
+        if (retryAfterMs > 0L) {
+            return new ClientTypeLookupResult(null, false, retryAfterMs);
+        }
+
+        CompletableFuture<ClientTypeLookupResult> lookup =
+            new CompletableFuture<>();
+        CompletableFuture<ClientTypeLookupResult> existing =
+            clientLookupsInProgress.putIfAbsent(cacheKey, lookup);
+        if (existing != null) {
+            return awaitClientLookup(existing);
+        }
+
+        ClientTypeLookupResult result;
         SeraphClientType clientType = null;
         boolean resolved = false;
         try {
-            if (normalizedUuid.isEmpty() || normalizedApiKey.isEmpty()) {
-                return new ClientTypeLookupResult(null, false);
-            }
-
             GetResponse response = executeGetRequest(
                 new URL(
                     SERAPH_API_URL +
@@ -81,14 +121,23 @@ public class SeraphApi {
                 clientType = null;
                 resolved = true;
             }
+            clientFailureBackoff.recordSuccess(cacheKey);
         } catch (Exception ignored) {
             clientType = null;
+            clientFailureBackoff.recordFailure(cacheKey);
         }
 
         if (resolved && !cacheKey.isEmpty()) {
             clientTypeCache.put(cacheKey, clientType);
         }
-        return new ClientTypeLookupResult(clientType, resolved);
+        result = new ClientTypeLookupResult(
+            clientType,
+            resolved,
+            clientFailureBackoff.getRetryAfterMillis(cacheKey)
+        );
+        lookup.complete(result);
+        clientLookupsInProgress.remove(cacheKey, lookup);
+        return result;
     }
 
     public List<SeraphTag> fetchSeraphTags(String uuid, String seraphApiKey)
@@ -98,31 +147,56 @@ public class SeraphApi {
         if (normalizedUuid.isEmpty()) {
             throw new IOException("Invalid UUID provided.");
         }
+        if (normalizedApiKey.isEmpty()) {
+            throw new IOException("Missing Seraph API key.");
+        }
 
         String cacheKey = buildCacheKey(normalizedUuid, normalizedApiKey);
         if (!cacheKey.isEmpty() && tagCache.containsFresh(cacheKey)) {
             return copyTags(tagCache.get(cacheKey));
         }
 
-        GetResponse response = executeGetRequest(
-            new URL(
-                SERAPH_API_URL +
-                "/cubelify/blacklist/" +
-                normalizedUuid
-            ),
-            normalizedApiKey
-        );
-        List<SeraphTag> tags;
-        if (response.statusCode == HttpURLConnection.HTTP_OK) {
-            tags = parseTags(response.body);
-        } else {
-            tags = new ArrayList<>();
+        long retryAfterMs = tagFailureBackoff.getRetryAfterMillis(cacheKey);
+        if (retryAfterMs > 0L) {
+            throw new IOException(
+                "Seraph tag lookup is cooling down for " + retryAfterMs + "ms"
+            );
         }
 
-        if (!cacheKey.isEmpty()) {
-            tagCache.put(cacheKey, copyTags(tags));
+        CompletableFuture<List<SeraphTag>> lookup = new CompletableFuture<>();
+        CompletableFuture<List<SeraphTag>> existing =
+            tagLookupsInProgress.putIfAbsent(cacheKey, lookup);
+        if (existing != null) {
+            return awaitTagLookup(existing);
         }
-        return copyTags(tags);
+
+        try {
+            GetResponse response = executeGetRequest(
+                new URL(
+                    SERAPH_API_URL +
+                    "/cubelify/blacklist/" +
+                    normalizedUuid
+                ),
+                normalizedApiKey
+            );
+            List<SeraphTag> tags;
+            if (response.statusCode == HttpURLConnection.HTTP_OK) {
+                tags = parseTags(response.body);
+            } else {
+                tags = new ArrayList<>();
+            }
+
+            tagFailureBackoff.recordSuccess(cacheKey);
+            tagCache.put(cacheKey, copyTags(tags));
+            lookup.complete(copyTags(tags));
+            return copyTags(tags);
+        } catch (IOException e) {
+            tagFailureBackoff.recordFailure(cacheKey);
+            lookup.completeExceptionally(e);
+            throw e;
+        } finally {
+            tagLookupsInProgress.remove(cacheKey, lookup);
+        }
     }
 
     public BlacklistSubmissionResult submitBlacklistReport(
@@ -148,6 +222,7 @@ public class SeraphApi {
             throw new IOException("Reason is required.");
         }
 
+        acquireRequestPermit();
         HttpURLConnection conn = openConnection(new URL(ADD_SNIPER_URL));
         try {
             configureConnection(conn, "POST", normalizedApiKey);
@@ -172,6 +247,10 @@ public class SeraphApi {
             }
 
             int responseCode = conn.getResponseCode();
+            requestLimiter.recordResponse(
+                responseCode,
+                conn.getHeaderField("Retry-After")
+            );
             String responseBody = readResponseBody(conn, responseCode);
             boolean success = responseCode >= 200 && responseCode < 300;
             if (success) {
@@ -330,6 +409,8 @@ public class SeraphApi {
     public void clearCache() {
         clientTypeCache.clear();
         tagCache.clear();
+        clientFailureBackoff.clear();
+        tagFailureBackoff.clear();
     }
 
     public void clearPlayer(String uuid) {
@@ -342,6 +423,12 @@ public class SeraphApi {
             key != null && key.startsWith(normalizedUuid + "|")
         );
         tagCache.removeMatching(key ->
+            key != null && key.startsWith(normalizedUuid + "|")
+        );
+        clientFailureBackoff.removeMatching(key ->
+            key != null && key.startsWith(normalizedUuid + "|")
+        );
+        tagFailureBackoff.removeMatching(key ->
             key != null && key.startsWith(normalizedUuid + "|")
         );
     }
@@ -373,10 +460,15 @@ public class SeraphApi {
 
     private GetResponse executeGetRequest(URL url, String seraphApiKey)
         throws IOException {
+        acquireRequestPermit();
         HttpURLConnection conn = openConnection(url);
         try {
             configureConnection(conn, "GET", normalizeApiKey(seraphApiKey));
             int responseCode = conn.getResponseCode();
+            requestLimiter.recordResponse(
+                responseCode,
+                conn.getHeaderField("Retry-After")
+            );
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 return new GetResponse(
                     responseCode,
@@ -394,6 +486,48 @@ public class SeraphApi {
             );
         } finally {
             conn.disconnect();
+        }
+    }
+
+    private void acquireRequestPermit() throws IOException {
+        if (requestLimiter.tryAcquire()) {
+            return;
+        }
+
+        throw new IOException(
+            "Seraph request budget exhausted; retry in " +
+            requestLimiter.getRetryAfterMillis() +
+            "ms"
+        );
+    }
+
+    private ClientTypeLookupResult awaitClientLookup(
+        CompletableFuture<ClientTypeLookupResult> lookup
+    ) {
+        try {
+            return lookup.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new ClientTypeLookupResult(null, false, 5_000L);
+        } catch (ExecutionException e) {
+            return new ClientTypeLookupResult(null, false, 5_000L);
+        }
+    }
+
+    private List<SeraphTag> awaitTagLookup(
+        CompletableFuture<List<SeraphTag>> lookup
+    ) throws IOException {
+        try {
+            return copyTags(lookup.get());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for Seraph tags", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            }
+            throw new IOException("Seraph tag lookup failed", cause);
         }
     }
 
@@ -482,13 +616,16 @@ public class SeraphApi {
 
         private final SeraphClientType clientType;
         private final boolean resolved;
+        private final long retryAfterMillis;
 
         public ClientTypeLookupResult(
             SeraphClientType clientType,
-            boolean resolved
+            boolean resolved,
+            long retryAfterMillis
         ) {
             this.clientType = clientType;
             this.resolved = resolved;
+            this.retryAfterMillis = Math.max(0L, retryAfterMillis);
         }
 
         public SeraphClientType getClientType() {
@@ -497,6 +634,10 @@ public class SeraphApi {
 
         public boolean isResolved() {
             return resolved;
+        }
+
+        public long getRetryAfterMillis() {
+            return retryAfterMillis;
         }
     }
 }

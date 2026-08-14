@@ -28,6 +28,8 @@ public class SeraphPingService {
     private static final Pattern PING_PATTERN = Pattern.compile("(\\d+)\\s*ms");
 
     private final OkHttpClient client = new OkHttpClient();
+    private final SeraphRequestLimiter requestLimiter =
+        SeraphRequestLimiter.getInstance();
     private final Map<String, Integer> pingCache = new ConcurrentHashMap<>();
     private final SessionPingFetchGate sessionFetchGate =
         new SessionPingFetchGate();
@@ -95,6 +97,13 @@ public class SeraphPingService {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             return -1;
         }
+        if (!requestLimiter.tryAcquire()) {
+            throw new IOException(
+                "Seraph request budget exhausted; retry in " +
+                requestLimiter.getRetryAfterMillis() +
+                "ms"
+            );
+        }
 
         String url = PING_URL + "?key=" + apiKey.trim() + "&id=" + uuid;
         Request request = new Request.Builder()
@@ -103,6 +112,10 @@ public class SeraphPingService {
             .build();
 
         try (Response response = client.newCall(request).execute()) {
+            requestLimiter.recordResponse(
+                response.code(),
+                response.header("Retry-After")
+            );
             if (!response.isSuccessful()) {
                 throw new IOException("HTTP " + response.code());
             }

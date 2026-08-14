@@ -3,6 +3,7 @@ package com.roxiun.mellow.api.mojang;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.roxiun.mellow.Mellow;
+import com.roxiun.mellow.api.seraph.SeraphRequestLimiter;
 import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.BufferedReader;
@@ -12,7 +13,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
@@ -20,6 +25,7 @@ import net.minecraft.client.network.NetworkPlayerInfo;
 public class MojangApi {
 
     private static final long UUID_CACHE_TTL_MS = 300_000L;
+    private static final long FAILURE_CACHE_TTL_MS = 30_000L;
     private static final String MINECRAFT_PROFILE_URL =
         "https://api.minecraftservices.com/minecraft/profile/lookup/name/";
     private static final String SERAPH_MOJANG_URL =
@@ -29,6 +35,18 @@ public class MojangApi {
 
     private final TimedValueCache<String, String> uuidCache =
         new TimedValueCache<>(UUID_CACHE_TTL_MS);
+    private final TimedValueCache<String, Boolean> uuidFailureCache =
+        new TimedValueCache<>(FAILURE_CACHE_TTL_MS);
+    private final TimedValueCache<String, MojangProfile> seraphMojangCache =
+        new TimedValueCache<>(UUID_CACHE_TTL_MS);
+    private final TimedValueCache<String, Boolean> seraphMojangFailureCache =
+        new TimedValueCache<>(FAILURE_CACHE_TTL_MS);
+    private final Map<String, CompletableFuture<String>> uuidLookupsInProgress =
+        new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<MojangProfile>>
+        seraphMojangLookupsInProgress = new ConcurrentHashMap<>();
+    private final SeraphRequestLimiter seraphRequestLimiter =
+        SeraphRequestLimiter.getInstance();
 
     public String fetchUUID(String username) {
         String cacheKey = normalizeUsername(username);
@@ -39,14 +57,43 @@ public class MojangApi {
             String cached = uuidCache.get(cacheKey);
             return cached == null ? "ERROR" : cached;
         }
+        if (uuidFailureCache.containsFresh(cacheKey)) {
+            return "ERROR";
+        }
 
+        CompletableFuture<String> lookup = new CompletableFuture<>();
+        CompletableFuture<String> existing = uuidLookupsInProgress.putIfAbsent(
+            cacheKey,
+            lookup
+        );
+        if (existing != null) {
+            return awaitUuidLookup(existing);
+        }
+
+        String result;
+        try {
+            result = fetchUuidUncached(username, cacheKey);
+            lookup.complete(result);
+        } catch (Exception ignored) {
+            uuidFailureCache.put(cacheKey, true);
+            result = "ERROR";
+            lookup.complete(result);
+        } finally {
+            uuidLookupsInProgress.remove(cacheKey, lookup);
+        }
+        return result;
+    }
+
+    private String fetchUuidUncached(String username, String cacheKey) {
         try {
             HttpResult result = executeGetRequest(
                 new URL(MINECRAFT_PROFILE_URL + username)
             );
             if (result.statusCode == HttpURLConnection.HTTP_OK) {
                 String uuid = extractUuid(result.body);
-                return uuid.isEmpty() ? "ERROR" : cacheUuid(cacheKey, uuid);
+                if (!uuid.isEmpty()) {
+                    return cacheUuid(cacheKey, uuid);
+                }
             }
             if (result.statusCode == HttpURLConnection.HTTP_NOT_FOUND) {
                 return cacheUuid(cacheKey, "ERROR");
@@ -70,6 +117,7 @@ public class MojangApi {
             }
         } catch (Exception ignored) {}
 
+        uuidFailureCache.put(cacheKey, true);
         return "ERROR";
     }
 
@@ -78,11 +126,37 @@ public class MojangApi {
             return null;
         }
 
+        String cacheKey = nameOrId.trim().toLowerCase(Locale.ROOT);
+        if (seraphMojangCache.containsFresh(cacheKey)) {
+            return seraphMojangCache.get(cacheKey);
+        }
+        if (seraphMojangFailureCache.containsFresh(cacheKey)) {
+            return null;
+        }
+
+        CompletableFuture<MojangProfile> lookup = new CompletableFuture<>();
+        CompletableFuture<MojangProfile> existing =
+            seraphMojangLookupsInProgress.putIfAbsent(cacheKey, lookup);
+        if (existing != null) {
+            return awaitSeraphMojangLookup(existing);
+        }
+
+        MojangProfile profile = null;
         try {
+            if (!seraphRequestLimiter.tryAcquire()) {
+                seraphMojangFailureCache.put(cacheKey, true);
+                return null;
+            }
+
             HttpResult result = executeGetRequest(
                 new URL(SERAPH_MOJANG_URL + nameOrId.trim())
             );
+            seraphRequestLimiter.recordResponse(
+                result.statusCode,
+                result.retryAfter
+            );
             if (result.statusCode != HttpURLConnection.HTTP_OK) {
+                seraphMojangFailureCache.put(cacheKey, true);
                 return null;
             }
 
@@ -92,11 +166,19 @@ public class MojangApi {
             String name = getJsonString(json, "name");
             String uuid = extractUuid(json);
             if (name.isEmpty() || uuid.isEmpty()) {
+                seraphMojangFailureCache.put(cacheKey, true);
                 return null;
             }
-            return new MojangProfile(name, UUIDUtils.fromString(uuid));
+            profile = new MojangProfile(name, UUIDUtils.fromString(uuid));
+            seraphMojangFailureCache.remove(cacheKey);
+            seraphMojangCache.put(cacheKey, profile);
+            return profile;
         } catch (Exception ignored) {
+            seraphMojangFailureCache.put(cacheKey, true);
             return null;
+        } finally {
+            lookup.complete(profile);
+            seraphMojangLookupsInProgress.remove(cacheKey, lookup);
         }
     }
 
@@ -163,13 +245,18 @@ public class MojangApi {
                 try {
                     return new HttpResult(
                         responseCode,
-                        reader.lines().collect(Collectors.joining())
+                        reader.lines().collect(Collectors.joining()),
+                        connection.getHeaderField("Retry-After")
                     );
                 } finally {
                     reader.close();
                 }
             }
-            return new HttpResult(responseCode, "");
+            return new HttpResult(
+                responseCode,
+                "",
+                connection.getHeaderField("Retry-After")
+            );
         } finally {
             connection.disconnect();
         }
@@ -188,6 +275,9 @@ public class MojangApi {
 
     public void clearCache() {
         uuidCache.clear();
+        uuidFailureCache.clear();
+        seraphMojangCache.clear();
+        seraphMojangFailureCache.clear();
     }
 
     public void clearPlayer(String username) {
@@ -196,12 +286,41 @@ public class MojangApi {
             return;
         }
         uuidCache.remove(cacheKey);
+        uuidFailureCache.remove(cacheKey);
+        seraphMojangCache.remove(cacheKey);
+        seraphMojangFailureCache.remove(cacheKey);
     }
 
     private String cacheUuid(String cacheKey, String uuid) {
         String resolved = uuid == null || uuid.isEmpty() ? "ERROR" : uuid;
+        uuidFailureCache.remove(cacheKey);
         uuidCache.put(cacheKey, resolved);
         return resolved;
+    }
+
+    private String awaitUuidLookup(CompletableFuture<String> lookup) {
+        try {
+            String result = lookup.get();
+            return result == null || result.isEmpty() ? "ERROR" : result;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return "ERROR";
+        } catch (ExecutionException e) {
+            return "ERROR";
+        }
+    }
+
+    private MojangProfile awaitSeraphMojangLookup(
+        CompletableFuture<MojangProfile> lookup
+    ) {
+        try {
+            return lookup.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (ExecutionException e) {
+            return null;
+        }
     }
 
     private String normalizeUsername(String username) {
@@ -212,10 +331,12 @@ public class MojangApi {
 
         private final int statusCode;
         private final String body;
+        private final String retryAfter;
 
-        private HttpResult(int statusCode, String body) {
+        private HttpResult(int statusCode, String body, String retryAfter) {
             this.statusCode = statusCode;
             this.body = body;
+            this.retryAfter = retryAfter;
         }
     }
 

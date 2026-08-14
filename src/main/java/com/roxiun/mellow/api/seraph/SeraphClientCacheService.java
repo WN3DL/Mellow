@@ -4,6 +4,7 @@ import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,6 +17,8 @@ public class SeraphClientCacheService {
     private final TimedValueCache<String, CachedClientLookup> clientCache =
         new TimedValueCache<>(CLIENT_LOOKUP_TTL_MS);
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
+    private final Map<String, Long> retryAfterByPlayer =
+        new ConcurrentHashMap<>();
 
     public SeraphClientCacheService(
         SeraphApi seraphApi,
@@ -41,6 +44,7 @@ public class SeraphClientCacheService {
     public void clearCache() {
         clientCache.clear();
         fetchInProgress.clear();
+        retryAfterByPlayer.clear();
     }
 
     public void clearPlayer(String playerName) {
@@ -50,12 +54,17 @@ public class SeraphClientCacheService {
         }
         clientCache.remove(normalizedName);
         fetchInProgress.remove(normalizedName);
+        retryAfterByPlayer.remove(normalizedName);
     }
 
     public void refreshClientAsync(String playerName, String uuid) {
         if (
             playerName == null ||
             playerName.trim().isEmpty() ||
+            config == null ||
+            !config.seraph ||
+            normalizeApiKey(config.seraphKey).isEmpty() ||
+            isCoolingDown(normalizePlayerName(playerName)) ||
             hasCachedClient(playerName)
         ) {
             return;
@@ -81,7 +90,8 @@ public class SeraphClientCacheService {
             normalizedName.isEmpty() ||
             config == null ||
             seraphApi == null ||
-            !config.seraph
+            !config.seraph ||
+            normalizeApiKey(config.seraphKey).isEmpty()
         ) {
             clearPlayer(playerName);
             return;
@@ -97,10 +107,16 @@ public class SeraphClientCacheService {
             normalizeApiKey(config.seraphKey)
         );
         if (!result.isResolved()) {
-            clearPlayer(playerName);
+            clientCache.remove(normalizedName);
+            retryAfterByPlayer.put(
+                normalizedName,
+                System.currentTimeMillis() +
+                Math.max(5_000L, result.getRetryAfterMillis())
+            );
             return;
         }
 
+        retryAfterByPlayer.remove(normalizedName);
         clientCache.put(
             normalizedName,
             new CachedClientLookup(result.getClientType())
@@ -115,6 +131,18 @@ public class SeraphClientCacheService {
         return playerName == null
             ? ""
             : playerName.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isCoolingDown(String normalizedName) {
+        Long retryAfter = retryAfterByPlayer.get(normalizedName);
+        if (retryAfter == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() >= retryAfter) {
+            retryAfterByPlayer.remove(normalizedName, retryAfter);
+            return false;
+        }
+        return true;
     }
 
     private static final class CachedClientLookup {

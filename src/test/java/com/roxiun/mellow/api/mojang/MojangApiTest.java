@@ -93,6 +93,22 @@ public class MojangApiTest {
         Assert.assertEquals(1, openedConnections.get());
     }
 
+    @Test
+    public void fetchUuidCachesCompleteFallbackFailure() {
+        AtomicInteger openedConnections = new AtomicInteger();
+        MojangApi api = new MojangApi() {
+            @Override
+            protected HttpURLConnection openConnection(URL url) {
+                openedConnections.incrementAndGet();
+                return connection(503, null);
+            }
+        };
+
+        Assert.assertEquals("ERROR", api.fetchUUID("UnavailablePlayer"));
+        Assert.assertEquals("ERROR", api.fetchUUID("unavailableplayer"));
+        Assert.assertEquals(3, openedConnections.get());
+    }
+
     private static FakeHttpURLConnection connection(
         int responseCode,
         String responseBody
