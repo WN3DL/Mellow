@@ -4,7 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.mojang.MojangApi;
+import com.roxiun.mellow.util.UUIDUtils;
 import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,6 +24,7 @@ public class SeraphApi {
 
     private static final long CLIENT_CACHE_TTL_MS = 300_000L;
     private static final long TAG_CACHE_TTL_MS = 120_000L;
+    private static final String SERAPH_API_URL = "https://api.seraph.si";
     private static final String ADD_SNIPER_URL = "https://api.seraph.si/addsniper";
 
     private final MojangApi mojangApi;
@@ -34,6 +37,10 @@ public class SeraphApi {
         this.mojangApi = mojangApi;
     }
 
+    public MojangApi.MojangProfile fetchSeraphMojang(String nameOrId) {
+        return mojangApi == null ? null : mojangApi.fetchSeraphMojang(nameOrId);
+    }
+
     public SeraphClientType fetchClientType(String uuid, String seraphApiKey) {
         return fetchClientTypeResult(uuid, seraphApiKey).getClientType();
     }
@@ -42,7 +49,9 @@ public class SeraphApi {
         String uuid,
         String seraphApiKey
     ) {
-        String cacheKey = buildCacheKey(uuid, seraphApiKey);
+        String normalizedUuid = normalizeUuid(uuid);
+        String normalizedApiKey = normalizeApiKey(seraphApiKey);
+        String cacheKey = buildCacheKey(normalizedUuid, normalizedApiKey);
         if (!cacheKey.isEmpty() && clientTypeCache.containsFresh(cacheKey)) {
             return new ClientTypeLookupResult(clientTypeCache.get(cacheKey), true);
         }
@@ -50,45 +59,27 @@ public class SeraphApi {
         SeraphClientType clientType = null;
         boolean resolved = false;
         try {
-            if (
-                uuid == null ||
-                uuid.equals("ERROR") ||
-                uuid.isEmpty() ||
-                seraphApiKey == null ||
-                seraphApiKey.isEmpty()
-            ) {
+            if (normalizedUuid.isEmpty() || normalizedApiKey.isEmpty()) {
                 return new ClientTypeLookupResult(null, false);
             }
 
-            String apiUrl =
-                "https://api.seraph.si/private-access/client?key=" +
-                seraphApiKey +
-                "&id=" +
-                uuid;
-            URL url = new URL(apiUrl);
-            HttpURLConnection conn = openConnection(url);
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader in = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream())
-                );
-                String response = in.lines().collect(Collectors.joining());
-                in.close();
-                clientType = parseClientTag(response);
+            GetResponse response = executeGetRequest(
+                new URL(
+                    SERAPH_API_URL +
+                    "/private-access/client/" +
+                    normalizedUuid
+                ),
+                normalizedApiKey
+            );
+            if (response.statusCode == HttpURLConnection.HTTP_OK) {
+                clientType = parseClientTag(response.body);
                 resolved = true;
             } else if (
-                responseCode == HttpURLConnection.HTTP_NOT_FOUND ||
-                responseCode == HttpURLConnection.HTTP_NO_CONTENT
+                response.statusCode == HttpURLConnection.HTTP_NOT_FOUND ||
+                response.statusCode == HttpURLConnection.HTTP_NO_CONTENT
             ) {
                 clientType = null;
                 resolved = true;
-            } else {
-                clientType = null;
             }
         } catch (Exception ignored) {
             clientType = null;
@@ -102,53 +93,33 @@ public class SeraphApi {
 
     public List<SeraphTag> fetchSeraphTags(String uuid, String seraphApiKey)
         throws IOException {
-        String cacheKey = buildCacheKey(uuid, seraphApiKey);
+        String normalizedUuid = normalizeUuid(uuid);
+        String normalizedApiKey = normalizeApiKey(seraphApiKey);
+        if (normalizedUuid.isEmpty()) {
+            throw new IOException("Invalid UUID provided.");
+        }
+
+        String cacheKey = buildCacheKey(normalizedUuid, normalizedApiKey);
         if (!cacheKey.isEmpty() && tagCache.containsFresh(cacheKey)) {
             return copyTags(tagCache.get(cacheKey));
         }
 
-        List<SeraphTag> tags = new ArrayList<>();
-        boolean shouldCache = false;
-        try {
-            // If the UUID is invalid for any reason, throw an exception
-            if (uuid == null || uuid.equals("ERROR") || uuid.isEmpty()) {
-                throw new IOException("Invalid UUID provided.");
-            }
-
-            String apiUrl = "https://api.seraph.si/cubelify/blacklist/" + uuid;
-            if (seraphApiKey != null && !seraphApiKey.isEmpty()) {
-                apiUrl += "?key=" + seraphApiKey;
-            }
-
-            URL url = new URL(apiUrl);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader in = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream())
-                );
-                String response = in.lines().collect(Collectors.joining());
-                in.close();
-                tags = parseTags(response);
-                shouldCache = true;
-            } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                tags = new ArrayList<>(); // Player has no tags
-                shouldCache = true;
-            } else {
-                throw new IOException(
-                    "Seraph API request failed with code: " + responseCode
-                );
-            }
-        } catch (IOException e) {
+        GetResponse response = executeGetRequest(
+            new URL(
+                SERAPH_API_URL +
+                "/cubelify/blacklist/" +
+                normalizedUuid
+            ),
+            normalizedApiKey
+        );
+        List<SeraphTag> tags;
+        if (response.statusCode == HttpURLConnection.HTTP_OK) {
+            tags = parseTags(response.body);
+        } else {
             tags = new ArrayList<>();
         }
 
-        if (shouldCache && !cacheKey.isEmpty()) {
+        if (!cacheKey.isEmpty()) {
             tagCache.put(cacheKey, copyTags(tags));
         }
         return copyTags(tags);
@@ -178,99 +149,103 @@ public class SeraphApi {
         }
 
         HttpURLConnection conn = openConnection(new URL(ADD_SNIPER_URL));
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-        conn.setRequestProperty("Accept", "application/json");
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conn.setRequestProperty("seraph-api-key", normalizedApiKey);
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
+        try {
+            configureConnection(conn, "POST", normalizedApiKey);
+            conn.setDoOutput(true);
+            conn.setRequestProperty(
+                "Content-Type",
+                "application/json; charset=UTF-8"
+            );
 
-        JsonObject payload = new JsonObject();
-        payload.addProperty("uuid", normalizedUuid);
-        payload.addProperty("report_type", reportType.getApiValue());
-        payload.addProperty("reason", normalizedReason);
+            JsonObject payload = new JsonObject();
+            payload.addProperty("uuid", normalizedUuid);
+            payload.addProperty("report_type", reportType.getApiValue());
+            payload.addProperty("reason", normalizedReason);
 
-        try (
-            OutputStreamWriter writer = new OutputStreamWriter(
-                conn.getOutputStream(),
-                StandardCharsets.UTF_8
-            )
-        ) {
-            writer.write(payload.toString());
+            try (
+                OutputStreamWriter writer = new OutputStreamWriter(
+                    conn.getOutputStream(),
+                    StandardCharsets.UTF_8
+                )
+            ) {
+                writer.write(payload.toString());
+            }
+
+            int responseCode = conn.getResponseCode();
+            String responseBody = readResponseBody(conn, responseCode);
+            boolean success = responseCode >= 200 && responseCode < 300;
+            if (success) {
+                clearPlayer(normalizedUuid);
+            }
+
+            return new BlacklistSubmissionResult(
+                success,
+                responseCode,
+                responseBody
+            );
+        } finally {
+            conn.disconnect();
         }
-
-        int responseCode = conn.getResponseCode();
-        String responseBody = readResponseBody(conn, responseCode);
-        boolean success = responseCode >= 200 && responseCode < 300;
-        if (success) {
-            clearPlayer(normalizedUuid);
-        }
-
-        return new BlacklistSubmissionResult(
-            success,
-            responseCode,
-            responseBody
-        );
     }
 
     private List<SeraphTag> parseTags(String response) {
+        List<SeraphTag> tags = new ArrayList<>();
         try {
             JsonObject json = new JsonParser()
                 .parse(response)
                 .getAsJsonObject();
-            if (json.has("tags")) {
-                JsonArray tagsArray = json.getAsJsonArray("tags");
-                if (tagsArray.size() > 0) {
-                    List<SeraphTag> tags = new ArrayList<>();
-                    for (JsonElement tagElement : tagsArray) {
-                        JsonObject tagObj = tagElement.getAsJsonObject();
-
-                        String icon = tagObj.has("icon")
-                            ? tagObj.get("icon").getAsString()
-                            : "";
-                        String tooltip = tagObj.has("tooltip")
-                            ? tagObj.get("tooltip").getAsString()
-                            : "";
-                        int color = tagObj.has("color")
-                            ? tagObj.get("color").getAsInt()
-                            : 0;
-                        String tagName = tagObj.has("tag_name")
-                            ? tagObj.get("tag_name").getAsString()
-                            : "";
-                        String text = tagObj.has("text")
-                            ? tagObj.get("text").getAsString()
-                            : null;
-                        int textColor = tagObj.has("textColor")
-                            ? tagObj.get("textColor").getAsInt()
-                            : 0;
-
-                        // Skip seraph.advertisement tags
-                        if (
-                            "seraph.advertisement".equals(tagName)
-                        ) {
-                            continue;
-                        }
-
-                        tags.add(
-                            new SeraphTag(
-                                icon,
-                                tooltip,
-                                color,
-                                tagName,
-                                text,
-                                textColor
-                            )
-                        );
-                    }
-                    return tags;
-                }
+            if (!json.has("tags") || !json.get("tags").isJsonArray()) {
+                return tags;
             }
-        } catch (Exception e) {
-            // If parsing fails, return empty list
-        }
-        return new ArrayList<>();
+
+            JsonArray tagsArray = json.getAsJsonArray("tags");
+            for (JsonElement tagElement : tagsArray) {
+                if (!tagElement.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject tagObj = tagElement.getAsJsonObject();
+                String tagName = getStringOrDefault(tagObj, "tag_name", "");
+
+                if ("seraph.advertisement".equals(tagName)) {
+                    continue;
+                }
+
+                tags.add(
+                    new SeraphTag(
+                        getStringOrDefault(tagObj, "icon", ""),
+                        getStringOrDefault(tagObj, "tooltip", ""),
+                        getIntOrDefault(tagObj, "color", 0),
+                        tagName,
+                        getStringOrDefault(tagObj, "text", null),
+                        getIntOrDefault(tagObj, "textColor", 0)
+                    )
+                );
+            }
+        } catch (Exception ignored) {}
+        return tags;
+    }
+
+    private String getStringOrDefault(
+        JsonObject object,
+        String propertyName,
+        String fallback
+    ) {
+        return object.has(propertyName) &&
+            !object.get(propertyName).isJsonNull()
+            ? object.get(propertyName).getAsString()
+            : fallback;
+    }
+
+    private int getIntOrDefault(
+        JsonObject object,
+        String propertyName,
+        int fallback
+    ) {
+        return object.has(propertyName) &&
+            !object.get(propertyName).isJsonNull()
+            ? object.get(propertyName).getAsInt()
+            : fallback;
     }
 
     private SeraphClientType parseClientTag(String response) {
@@ -340,15 +315,12 @@ public class SeraphApi {
     }
 
     private String buildCacheKey(String uuid, String seraphApiKey) {
-        if (uuid == null || uuid.trim().isEmpty() || "ERROR".equals(uuid)) {
+        String normalizedUuid = normalizeUuid(uuid);
+        if (normalizedUuid.isEmpty()) {
             return "";
         }
 
-        return (
-            uuid.trim().toLowerCase(Locale.ROOT) +
-            "|" +
-            normalizeApiKey(seraphApiKey)
-        );
+        return normalizedUuid + "|" + normalizeApiKey(seraphApiKey);
     }
 
     private String normalizeApiKey(String apiKey) {
@@ -380,7 +352,15 @@ public class SeraphApi {
         }
 
         String normalized = uuid.trim().toLowerCase(Locale.ROOT);
-        return "error".equals(normalized) ? "" : normalized;
+        if (normalized.isEmpty() || "error".equals(normalized)) {
+            return "";
+        }
+
+        try {
+            return UUIDUtils.fromString(normalized).toString();
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
     }
 
     private List<SeraphTag> copyTags(List<SeraphTag> tags) {
@@ -389,6 +369,50 @@ public class SeraphApi {
 
     protected HttpURLConnection openConnection(URL url) throws IOException {
         return (HttpURLConnection) url.openConnection();
+    }
+
+    private GetResponse executeGetRequest(URL url, String seraphApiKey)
+        throws IOException {
+        HttpURLConnection conn = openConnection(url);
+        try {
+            configureConnection(conn, "GET", normalizeApiKey(seraphApiKey));
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                return new GetResponse(
+                    responseCode,
+                    readResponseBody(conn, responseCode)
+                );
+            }
+            if (
+                responseCode == HttpURLConnection.HTTP_NOT_FOUND ||
+                responseCode == HttpURLConnection.HTTP_NO_CONTENT
+            ) {
+                return new GetResponse(responseCode, "");
+            }
+            throw new IOException(
+                "Seraph API request failed with code: " + responseCode
+            );
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private void configureConnection(
+        HttpURLConnection conn,
+        String method,
+        String seraphApiKey
+    ) throws IOException {
+        conn.setRequestMethod(method);
+        conn.setRequestProperty(
+            "User-Agent",
+            Mellow.NAME + "/" + Mellow.VERSION
+        );
+        conn.setRequestProperty("Accept", "application/json");
+        if (seraphApiKey != null && !seraphApiKey.isEmpty()) {
+            conn.setRequestProperty("seraph-api-key", seraphApiKey);
+        }
+        conn.setConnectTimeout(5000);
+        conn.setReadTimeout(5000);
     }
 
     private String readResponseBody(HttpURLConnection conn, int responseCode)
@@ -411,6 +435,17 @@ public class SeraphApi {
             return in.lines().collect(Collectors.joining());
         } finally {
             in.close();
+        }
+    }
+
+    private static final class GetResponse {
+
+        private final int statusCode;
+        private final String body;
+
+        private GetResponse(int statusCode, String body) {
+            this.statusCode = statusCode;
+            this.body = body;
         }
     }
 

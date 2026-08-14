@@ -2,6 +2,7 @@ package com.roxiun.mellow.api.seraph;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.roxiun.mellow.Mellow;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -10,10 +11,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -60,6 +59,10 @@ public class SeraphApiTest {
             "application/json; charset=UTF-8",
             connection.getRequestProperty("Content-Type")
         );
+        Assert.assertEquals(
+            Mellow.NAME + "/" + Mellow.VERSION,
+            connection.getRequestProperty("User-Agent")
+        );
 
         JsonObject payload = new JsonParser()
             .parse(connection.getWrittenBody())
@@ -75,21 +78,23 @@ public class SeraphApiTest {
     @Test
     public void fetchClientTypeCachesResolvedMissingResponses() throws Exception {
         AtomicInteger openedConnections = new AtomicInteger();
-        Queue<FakeHttpURLConnection> connections = new ArrayDeque<>();
-        connections.add(
-            new FakeHttpURLConnection(
-                new URL("https://api.seraph.si/private-access/client"),
-                404,
-                null,
-                null
-            )
+        FakeHttpURLConnection connection = new FakeHttpURLConnection(
+            new URL("https://api.seraph.si/private-access/client"),
+            404,
+            null,
+            null
         );
 
         SeraphApi api = new SeraphApi(null) {
             @Override
             protected HttpURLConnection openConnection(URL url) {
+                Assert.assertEquals(
+                    "https://api.seraph.si/private-access/client/" +
+                    "00000000-0000-0000-0000-000000000001",
+                    url.toString()
+                );
                 openedConnections.incrementAndGet();
-                return connections.remove();
+                return connection;
             }
         };
 
@@ -107,6 +112,10 @@ public class SeraphApiTest {
         Assert.assertTrue(second.isResolved());
         Assert.assertNull(second.getClientType());
         Assert.assertEquals(1, openedConnections.get());
+        Assert.assertEquals(
+            "secret-key",
+            connection.getRequestProperty("seraph-api-key")
+        );
     }
 
     @Test
@@ -135,6 +144,74 @@ public class SeraphApiTest {
         Assert.assertFalse(second.isResolved());
         Assert.assertNull(second.getClientType());
         Assert.assertEquals(2, openedConnections.get());
+    }
+
+    @Test
+    public void fetchTagsUsesHeaderAuthenticationAndCanonicalUuidPath()
+        throws Exception {
+        FakeHttpURLConnection connection = new FakeHttpURLConnection(
+            new URL("https://api.seraph.si/cubelify/blacklist"),
+            200,
+            "{\"tags\":[{" +
+            "\"tag_name\":\"seraph.sniper\"," +
+            "\"tooltip\":\"Sniper\"," +
+            "\"color\":123}]} ",
+            null
+        );
+
+        SeraphApi api = new SeraphApi(null) {
+            @Override
+            protected HttpURLConnection openConnection(URL url) {
+                Assert.assertEquals(
+                    "https://api.seraph.si/cubelify/blacklist/" +
+                    "00000000-0000-0000-0000-000000000003",
+                    url.toString()
+                );
+                return connection;
+            }
+        };
+
+        Assert.assertEquals(
+            1,
+            api
+                .fetchSeraphTags(
+                    "00000000000000000000000000000003",
+                    "secret-key"
+                )
+                .size()
+        );
+        Assert.assertEquals(
+            "secret-key",
+            connection.getRequestProperty("seraph-api-key")
+        );
+        Assert.assertEquals(
+            Mellow.NAME + "/" + Mellow.VERSION,
+            connection.getRequestProperty("User-Agent")
+        );
+        Assert.assertEquals(
+            "application/json",
+            connection.getRequestProperty("Accept")
+        );
+    }
+
+    @Test
+    public void fetchTagsPropagatesTransientFailures() throws Exception {
+        SeraphApi api = new SeraphApi(null) {
+            @Override
+            protected HttpURLConnection openConnection(URL url) {
+                return new FakeHttpURLConnection(url, 503, null, null);
+            }
+        };
+
+        try {
+            api.fetchSeraphTags(
+                "00000000-0000-0000-0000-000000000004",
+                "secret-key"
+            );
+            Assert.fail("Expected a transient Seraph failure to propagate.");
+        } catch (IOException e) {
+            Assert.assertTrue(e.getMessage().contains("503"));
+        }
     }
 
     private static final class FakeHttpURLConnection extends HttpURLConnection {
