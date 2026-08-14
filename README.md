@@ -70,6 +70,8 @@ To check an **individual player’s** BedWars stats, type `/bw <username>`
 
 To add a player to your **blacklist**, type `/blacklist add <username>`
 
+To add a player to your **blacklist** and also submit a Seraph report, type `/blacklist add <username> seraph <cc|bc|s|ps|ls|a|bot|c|al> <reason>` after setting your Seraph API key in OneConfig
+
 You can **import** your own **blacklist** by doing, type `/blacklist import <filename>`, place the file in `.minecraft/config/mellow`
 
 To add a player to your **annoy list**, type `/annoylist add <username>`

@@ -97,7 +97,6 @@ public class PlayerCache {
         );
         CachedProfile cached = cache.get(cacheKey);
         if (cached != null && !cached.isExpired()) {
-            maybeWarmSeraphClientCache(playerName, cached.profile);
             return ProfileFetchResult.success(
                 cached.profile,
                 provider.getDisplayName()
@@ -137,7 +136,6 @@ public class PlayerCache {
         );
         if (result.isSuccess()) {
             cache.put(cacheKey, new CachedProfile(result.getProfile()));
-            maybeWarmSeraphClientCache(playerName, result.getProfile());
         }
         return result;
     }
@@ -170,7 +168,6 @@ public class PlayerCache {
         );
         CachedProfile cached = cache.get(cacheKey);
         if (cached != null && !cached.isExpired()) {
-            maybeWarmSeraphClientCache(playerName, cached.profile);
             return ProfileFetchResult.success(
                 cached.profile,
                 provider.getDisplayName()
@@ -214,7 +211,6 @@ public class PlayerCache {
         );
         if (result.isSuccess()) {
             cache.put(cacheKey, new CachedProfile(result.getProfile()));
-            maybeWarmSeraphClientCache(playerName, result.getProfile());
         }
         return result;
     }
@@ -639,28 +635,6 @@ public class PlayerCache {
                 " is selected but no API key is configured. " +
                 "Set a key in OneConfig or switch your Stats Provider to §bAbyss§e."
             )
-        );
-    }
-
-    private void maybeWarmSeraphClientCache(
-        String playerName,
-        PlayerProfile profile
-    ) {
-        if (
-            playerName == null ||
-            playerName.trim().isEmpty() ||
-            profile == null ||
-            profile.getUuid() == null ||
-            profile.getUuid().trim().isEmpty() ||
-            Mellow.seraphClientCacheService == null ||
-            !config.seraph
-        ) {
-            return;
-        }
-
-        Mellow.seraphClientCacheService.refreshClientAsync(
-            playerName,
-            profile.getUuid()
         );
     }
 

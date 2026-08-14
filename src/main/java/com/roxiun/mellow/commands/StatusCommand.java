@@ -8,8 +8,8 @@ import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
-import com.roxiun.mellow.util.cache.TimedValueCache;
 import com.roxiun.mellow.util.ChatUtils;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import com.roxiun.mellow.util.player.PlayerUtils;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -41,7 +41,11 @@ public class StatusCommand extends CommandBase {
         this(mojangApi, config, new OkHttpClient());
     }
 
-    StatusCommand(MojangApi mojangApi, MellowOneConfig config, OkHttpClient client) {
+    StatusCommand(
+        MojangApi mojangApi,
+        MellowOneConfig config,
+        OkHttpClient client
+    ) {
         this.mojangApi = mojangApi;
         this.config = config;
         this.hypixelApiKey = null;
@@ -64,18 +68,21 @@ public class StatusCommand extends CommandBase {
 
     @Override
     public String getCommandName() {
-        return "mstatus";
+        return "hypixelstatus";
     }
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/mstatus <username>";
+        return "/hypixelstatus <username>";
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length != 1) {
-            ChatUtils.sendCommandMessage(sender, "§cInvalid usage! Use /mstatus <username>");
+            ChatUtils.sendCommandMessage(
+                sender,
+                "§cInvalid usage! Use /hypixelstatus <username>"
+            );
             return;
         }
 
@@ -178,13 +185,17 @@ public class StatusCommand extends CommandBase {
         if (player.has("lastLogin") && !player.get("lastLogin").isJsonNull()) {
             lines.add(
                 "§7Last login: §f" +
-                formatDateTime(player.get("lastLogin").getAsLong())
+                    formatDateTime(player.get("lastLogin").getAsLong())
             );
         }
     }
 
     private void addLunaLobbyMessage(List<String> lines, JsonObject json) {
-        if (json == null || !json.has("history") || !json.get("history").isJsonArray()) {
+        if (
+            json == null ||
+            !json.has("history") ||
+            !json.get("history").isJsonArray()
+        ) {
             return;
         }
 
@@ -352,11 +363,15 @@ public class StatusCommand extends CommandBase {
                 String iso = object.get(field).getAsString();
                 Date parsed = null;
                 try {
-                    parsed = isoFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(iso);
+                    parsed = isoFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(
+                        iso
+                    );
                 } catch (Exception ignored) {}
                 if (parsed == null) {
                     try {
-                        parsed = isoFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(iso);
+                        parsed = isoFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").parse(
+                            iso
+                        );
                     } catch (Exception ignored) {}
                 }
                 if (parsed != null) {
@@ -375,7 +390,11 @@ public class StatusCommand extends CommandBase {
         return value != null && !value.trim().isEmpty();
     }
 
-    private String buildResponseCacheKey(String scope, String value, String apiKey) {
+    private String buildResponseCacheKey(
+        String scope,
+        String value,
+        String apiKey
+    ) {
         return scope + "|" + value + "|" + apiKey;
     }
 
@@ -384,11 +403,15 @@ public class StatusCommand extends CommandBase {
     }
 
     private String getHypixelApiKey() {
-        return config == null ? hypixelApiKey : normalizeApiKey(config.hypixelApiKey);
+        return config == null
+            ? hypixelApiKey
+            : normalizeApiKey(config.hypixelApiKey);
     }
 
     private String getLunaApiKey() {
-        return config == null ? lunaPingApiKey : normalizeApiKey(config.lunaPingApiKey);
+        return config == null
+            ? lunaPingApiKey
+            : normalizeApiKey(config.lunaPingApiKey);
     }
 
     private String getString(JsonObject json, String key) {

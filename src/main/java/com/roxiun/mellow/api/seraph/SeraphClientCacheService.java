@@ -2,17 +2,19 @@ package com.roxiun.mellow.api.seraph;
 
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
+import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SeraphClientCacheService {
 
+    private static final long CLIENT_LOOKUP_TTL_MS = 300_000L;
+
     private final SeraphApi seraphApi;
     private final MellowOneConfig config;
-    private final Map<String, SeraphClientType> clientCache =
-        new ConcurrentHashMap<>();
+    private final TimedValueCache<String, CachedClientLookup> clientCache =
+        new TimedValueCache<>(CLIENT_LOOKUP_TTL_MS);
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
 
     public SeraphClientCacheService(
@@ -24,17 +26,16 @@ public class SeraphClientCacheService {
     }
 
     public SeraphClientType getCachedClient(String playerName) {
-        if (playerName == null) {
+        String normalizedName = normalizePlayerName(playerName);
+        if (normalizedName.isEmpty()) {
             return null;
         }
-        return clientCache.get(playerName);
+        CachedClientLookup cached = clientCache.get(normalizedName);
+        return cached == null ? null : cached.clientType;
     }
 
     public boolean hasCachedClient(String playerName) {
-        if (playerName == null) {
-            return false;
-        }
-        return clientCache.containsKey(playerName);
+        return clientCache.containsFresh(normalizePlayerName(playerName));
     }
 
     public void clearCache() {
@@ -43,11 +44,12 @@ public class SeraphClientCacheService {
     }
 
     public void clearPlayer(String playerName) {
-        if (playerName == null || playerName.trim().isEmpty()) {
+        String normalizedName = normalizePlayerName(playerName);
+        if (normalizedName.isEmpty()) {
             return;
         }
-        clientCache.remove(playerName);
-        fetchInProgress.remove(playerName.toLowerCase(Locale.ROOT));
+        clientCache.remove(normalizedName);
+        fetchInProgress.remove(normalizedName);
     }
 
     public void refreshClientAsync(String playerName, String uuid) {
@@ -59,7 +61,7 @@ public class SeraphClientCacheService {
             return;
         }
 
-        String normalizedName = playerName.toLowerCase(Locale.ROOT);
+        String normalizedName = normalizePlayerName(playerName);
         if (!fetchInProgress.add(normalizedName)) {
             return;
         }
@@ -74,9 +76,9 @@ public class SeraphClientCacheService {
     }
 
     public void refreshClient(String playerName, String uuid) {
+        String normalizedName = normalizePlayerName(playerName);
         if (
-            playerName == null ||
-            playerName.trim().isEmpty() ||
+            normalizedName.isEmpty() ||
             config == null ||
             seraphApi == null ||
             !config.seraph
@@ -90,19 +92,37 @@ public class SeraphClientCacheService {
             return;
         }
 
-        SeraphClientType clientType = seraphApi.fetchClientType(
+        SeraphApi.ClientTypeLookupResult result = seraphApi.fetchClientTypeResult(
             uuid,
             normalizeApiKey(config.seraphKey)
         );
-        if (clientType == null) {
+        if (!result.isResolved()) {
             clearPlayer(playerName);
             return;
         }
 
-        clientCache.put(playerName, clientType);
+        clientCache.put(
+            normalizedName,
+            new CachedClientLookup(result.getClientType())
+        );
     }
 
     private String normalizeApiKey(String apiKey) {
         return apiKey == null ? "" : apiKey.trim();
+    }
+
+    private String normalizePlayerName(String playerName) {
+        return playerName == null
+            ? ""
+            : playerName.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static final class CachedClientLookup {
+
+        private final SeraphClientType clientType;
+
+        private CachedClientLookup(SeraphClientType clientType) {
+            this.clientType = clientType;
+        }
     }
 }

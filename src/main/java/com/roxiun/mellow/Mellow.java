@@ -248,7 +248,7 @@ public class Mellow {
             new SkinDenickCommand(playerCache)
         );
         ClientCommandHandler.instance.registerCommand(
-            new BlacklistCommand(blacklistManager, mojangApi)
+            new BlacklistCommand(blacklistManager, mojangApi, seraphApi, config)
         );
         ClientCommandHandler.instance.registerCommand(
             new AnnoylistCommand(annoylistManager, mojangApi)

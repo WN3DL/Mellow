@@ -67,7 +67,7 @@ public class MellowCommand extends CommandBase {
             new ChatComponentText(
                 "§r§5" +
                     BlacklistCommandResolver.getCommandPrefix() +
-                    " <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist.§r"
+                    " <add | remove | list | import>:§d Add/remove/sync a player to your local blacklist. Use §fseraph <type> <reason>§d after the username to also report to Seraph.§r"
             )
         );
         sender.addChatMessage(
@@ -115,7 +115,7 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/mstatus <username>:§d Show Hypixel online status, last login, and Luna lobby message data.§r"
+                "§r§5/hypixelstatus <username>:§d Show Hypixel online status, last login, and Luna lobby message data.§r"
             )
         );
         sender.addChatMessage(
