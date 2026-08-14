@@ -1,7 +1,7 @@
 package com.roxiun.mellow.util.formatting;
 
 import com.roxiun.mellow.api.seraph.SeraphTag;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralTag;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -65,14 +65,14 @@ public class FormattingUtils {
         return color + text;
     }
 
-    public static String formatUrchinTags(List<UrchinTag> tags) {
+    public static String formatCoralTags(List<CoralTag> tags) {
         return tags
             .stream()
-            .map(FormattingUtils::formatUrchinTag)
+            .map(FormattingUtils::formatCoralTag)
             .collect(Collectors.joining(", "));
     }
 
-    public static String formatUrchinTag(UrchinTag tag) {
+    public static String formatCoralTag(CoralTag tag) {
         if (tag == null || tag.getType() == null) {
             return "";
         }
@@ -118,7 +118,7 @@ public class FormattingUtils {
         return formattedType + " §7(" + tag.getReason() + ")";
     }
 
-    public static String formatUrchinTagIcon(UrchinTag tag) {
+    public static String formatCoralTagIcon(CoralTag tag) {
         String type = tag.getType().toLowerCase();
         switch (type) {
             case "sniper":

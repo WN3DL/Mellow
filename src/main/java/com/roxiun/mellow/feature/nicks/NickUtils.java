@@ -127,20 +127,20 @@ public class NickUtils {
                                     }
 
                                     if (
-                                        config.urchin &&
-                                        profile.isUrchinTagged()
+                                        config.isCoralEnabled() &&
+                                        profile.isCoralTagged()
                                     ) {
                                         String tags =
-                                            FormattingUtils.formatUrchinTags(
-                                                profile.getUrchinTags()
+                                            FormattingUtils.formatCoralTags(
+                                                profile.getCoralTags()
                                             );
-                                        String urchinMessage =
+                                        String coralMessage =
                                             "§c" +
                                             finalRealName +
-                                            " is tagged on §5Urchin§c for: " +
+                                            " is tagged on §5Coral§c for: " +
                                             tags;
                                         MainThreadDispatcher.run(() ->
-                                            ChatUtils.sendMessage(urchinMessage)
+                                            ChatUtils.sendMessage(coralMessage)
                                         );
                                     }
 

@@ -4,7 +4,7 @@ import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralTag;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.feature.stats.StatScopeResolver;
 import com.roxiun.mellow.feature.stats.tab.ExtendedTabStatsColumns;
@@ -80,7 +80,7 @@ public class GuiPlayerTabOverlayMixin {
 
                 // Create a minimal TabStats object for the nick case
                 TabStats emptyStats = new TabStats(
-                    null, // urchinTags
+                    null, // coralTags
                     null, // seraphTags
                     null, // formattedNameWithRank
                     null, // stars
@@ -115,7 +115,7 @@ public class GuiPlayerTabOverlayMixin {
 
                 // Create a minimal TabStats object for the nick case
                 TabStats emptyStats = new TabStats(
-                    null, // urchinTags
+                    null, // coralTags
                     null, // seraphTags
                     null, // formattedNameWithRank
                     null, // stars
@@ -194,10 +194,10 @@ public class GuiPlayerTabOverlayMixin {
             resolvedRealName
         );
 
-        if (Mellow.config.showUrchinTagsInTab && stats.isUrchinTagged()) {
-            for (UrchinTag tag : stats.getUrchinTags()) {
+        if (Mellow.config.shouldShowCoralTagsInTab() && stats.isCoralTagged()) {
+            for (CoralTag tag : stats.getCoralTags()) {
                 newDisplayName +=
-                    " " + FormattingUtils.formatUrchinTagIcon(tag);
+                    " " + FormattingUtils.formatCoralTagIcon(tag);
             }
         }
 

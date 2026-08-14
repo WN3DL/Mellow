@@ -95,13 +95,13 @@ public class SkywarsCommand extends CommandBase {
                 ChatUtils.sendMultilineCommandMessage(sender, statsLines)
             );
 
-            if (config.urchin && profile.isUrchinTagged()) {
-                String tags = FormattingUtils.formatUrchinTags(
-                    profile.getUrchinTags()
+            if (config.isCoralEnabled() && profile.isCoralTagged()) {
+                String tags = FormattingUtils.formatCoralTags(
+                    profile.getCoralTags()
                 );
-                String urchinMessage = "§5§lUrchin§r§5: " + tags;
+                String coralMessage = "§5§lCoral§r§5: " + tags;
                 MainThreadDispatcher.run(() ->
-                    ChatUtils.sendMultilineCommandMessage(sender, urchinMessage)
+                    ChatUtils.sendMultilineCommandMessage(sender, coralMessage)
                 );
             }
 

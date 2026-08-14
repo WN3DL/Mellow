@@ -1,59 +1,45 @@
 package com.roxiun.mellow.commands;
 
 import com.mojang.authlib.GameProfile;
-import com.roxiun.mellow.api.mojang.MojangApi;
-import com.roxiun.mellow.api.urchin.UrchinApi;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralApi;
+import com.roxiun.mellow.api.coral.CoralTag;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.core.async.AsyncExecutor;
 import com.roxiun.mellow.core.async.MainThreadDispatcher;
 import com.roxiun.mellow.util.ChatUtils;
-import com.roxiun.mellow.util.blacklist.BlacklistCommandResolver;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
-import com.roxiun.mellow.util.player.PlayerUtils;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.BlockPos;
 
-public class UrchinCommand extends CommandBase {
+public class CoralCommand extends CommandBase {
 
-    private final UrchinApi urchinApi;
-    private final MojangApi mojangApi;
+    private final CoralApi coralApi;
     private final MellowOneConfig config;
 
-    public UrchinCommand(
-        UrchinApi urchinApi,
-        MojangApi mojangApi,
-        MellowOneConfig config
-    ) {
-        this.urchinApi = urchinApi;
-        this.mojangApi = mojangApi;
+    public CoralCommand(CoralApi coralApi, MellowOneConfig config) {
+        this.coralApi = coralApi;
         this.config = config;
     }
 
     @Override
     public String getCommandName() {
-        return "urchin";
+        return "coral";
     }
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/urchin <username>";
+        return "/coral <username>";
     }
 
     @Override
     public List<String> getCommandAliases() {
-        if (!BlacklistCommandResolver.isSeraphLoaded()) {
-            return Collections.emptyList();
-        }
-        return Arrays.asList("murchin");
+        return Arrays.asList("urchin", "murchin");
     }
 
     @Override
@@ -61,7 +47,7 @@ public class UrchinCommand extends CommandBase {
         if (args.length != 1) {
             ChatUtils.sendCommandMessage(
                 sender,
-                "§cInvalid usage! Use /urchin <username>"
+                "§cInvalid usage! Use /coral <username>"
             );
             return;
         }
@@ -69,47 +55,37 @@ public class UrchinCommand extends CommandBase {
         String username = args[0];
         AsyncExecutor.getInstance().command(() -> {
             try {
-                UUID uuid = PlayerUtils.resolveLookupUuid(username, mojangApi);
-                if (uuid == null) {
-                    MainThreadDispatcher.run(() ->
-                        ChatUtils.sendCommandMessage(
-                            sender,
-                            "§cCould not find UUID for: §r" + username
-                        )
-                    );
-                    return;
-                }
-
-                List<UrchinTag> tags = urchinApi.fetchUrchinTags(
-                    uuid.toString(),
+                List<CoralTag> tags = coralApi.fetchCoralTags(
+                    null,
                     username,
-                    config.urchinKey
+                    config.getCoralApiKey()
                 );
 
                 if (tags == null || tags.isEmpty()) {
                     MainThreadDispatcher.run(() ->
                         ChatUtils.sendCommandMessage(
                             sender,
-                            "§aNo Urchin tags found for: §r" + username
+                            "§aNo Coral tags found for: §r" + username
                         )
                     );
                 } else {
-                    String formattedTags = FormattingUtils.formatUrchinTags(
+                    String formattedTags = FormattingUtils.formatCoralTags(
                         tags
                     );
-                    String urchinMessage =
+                    String coralMessage =
                         "§c" + username + " is tagged for: " + formattedTags;
                     MainThreadDispatcher.run(() ->
-                        ChatUtils.sendCommandMessage(sender, urchinMessage)
+                        ChatUtils.sendCommandMessage(sender, coralMessage)
                     );
                 }
             } catch (IOException e) {
                 MainThreadDispatcher.run(() ->
                     ChatUtils.sendCommandMessage(
                         sender,
-                        "§cAn error occurred while fetching Urchin tags for " +
+                        "§cCould not fetch Coral tags for " +
                             username +
-                            "."
+                            ": " +
+                            e.getMessage()
                     )
                 );
             }

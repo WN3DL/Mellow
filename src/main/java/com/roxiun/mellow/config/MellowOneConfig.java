@@ -1015,12 +1015,13 @@ public class MellowOneConfig extends Config {
     public String lunaPingApiKey = "";
 
     @Text(
-        name = "Urchin API Key",
+        name = "Coral API Key",
         category = "API Keys",
-        subcategory = "Urchin",
+        subcategory = "Coral",
         secure = true,
         multiline = false
     )
+    // Keep the legacy field name so existing OneConfig profiles migrate in place.
     public String urchinKey = "";
 
     @Text(
@@ -1084,36 +1085,42 @@ public class MellowOneConfig extends Config {
     @Switch(name = "Auto Skin Denicker", subcategory = "Denicker")
     public boolean autoSkinDenick = true;
 
-    // Urchin Configs
+    // Coral Configs
     @Info(
-        text = "Urchin is a community blacklist, allowing you to see potential cheaters in your game",
+        text = "Coral is a community blacklist, allowing you to see potential cheaters in your game",
         size = OptionSize.DUAL,
         type = InfoType.INFO,
-        category = "Urchin"
+        category = "Coral"
     )
-    public static boolean ignoredUrchinDescription;
+    public static boolean ignoredCoralDescription;
 
-    @Switch(name = "Enable Urchin", category = "Urchin")
+    @Switch(name = "Enable Coral", category = "Coral")
+    // Keep the legacy field name so existing OneConfig profiles migrate in place.
     public boolean urchin = false;
 
-    @Switch(name = "Show Urchin Tags in Tab", category = "Urchin")
+    @Switch(name = "Show Coral Tags in Tab", category = "Coral")
+    // Keep the legacy field name so existing OneConfig profiles migrate in place.
     public boolean showUrchinTagsInTab = true;
 
     @Info(
-        text = "Enabling Urchin will send requests to them and be subject to their ToS, this could enable tracking of your data (IP, Urchin API Key, Game Info). Configure the key in API Keys > Urchin.",
+        text = "Coral requires an API key. Enabling it sends player identifiers to api.urchin.gg and is subject to their ToS. Configure the key in API Keys > Coral.",
         size = OptionSize.DUAL,
         type = InfoType.WARNING,
-        category = "Urchin"
+        category = "Coral"
     )
-    public static boolean ignoredUrchinWarning;
+    public static boolean ignoredCoralWarning;
 
-    // @Info(
-    //     text = "Urchin does not require a key to view tags, these settings are deprecated",
-    //     size = OptionSize.DUAL,
-    //     type = InfoType.INFO,
-    //     category = "Urchin"
-    // )
-    // public static boolean ignoredUrchinDeprecated;
+    public String getCoralApiKey() {
+        return urchinKey;
+    }
+
+    public boolean isCoralEnabled() {
+        return urchin;
+    }
+
+    public boolean shouldShowCoralTagsInTab() {
+        return showUrchinTagsInTab;
+    }
 
     // Seraph Configs
     @Info(

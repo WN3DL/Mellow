@@ -7,7 +7,7 @@ import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralTag;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,7 +20,7 @@ public class PlayerProfile {
     private final DuelsPlayer duelsPlayer;
     private final BuildBattlePlayer buildBattlePlayer;
     private final TntRunPlayer tntRunPlayer;
-    private final List<UrchinTag> urchinTags;
+    private final List<CoralTag> coralTags;
     private final List<SeraphTag> seraphTags;
     private final long lastUpdated;
 
@@ -28,19 +28,19 @@ public class PlayerProfile {
         String uuid,
         String name,
         BedwarsPlayer bedwarsPlayer,
-        List<UrchinTag> urchinTags
+        List<CoralTag> coralTags
     ) {
-        this(uuid, name, bedwarsPlayer, null, null, urchinTags, null);
+        this(uuid, name, bedwarsPlayer, null, null, coralTags, null);
     }
 
     public PlayerProfile(
         String uuid,
         String name,
         BedwarsPlayer bedwarsPlayer,
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags
     ) {
-        this(uuid, name, bedwarsPlayer, null, null, urchinTags, seraphTags);
+        this(uuid, name, bedwarsPlayer, null, null, coralTags, seraphTags);
     }
 
     public PlayerProfile(
@@ -48,9 +48,9 @@ public class PlayerProfile {
         String name,
         BedwarsPlayer bedwarsPlayer,
         SkywarsPlayer skywarsPlayer,
-        List<UrchinTag> urchinTags
+        List<CoralTag> coralTags
     ) {
-        this(uuid, name, bedwarsPlayer, skywarsPlayer, null, urchinTags, null);
+        this(uuid, name, bedwarsPlayer, skywarsPlayer, null, coralTags, null);
     }
 
     public PlayerProfile(
@@ -59,7 +59,7 @@ public class PlayerProfile {
         BedwarsPlayer bedwarsPlayer,
         SkywarsPlayer skywarsPlayer,
         DuelsPlayer duelsPlayer,
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags
     ) {
         this(
@@ -70,7 +70,7 @@ public class PlayerProfile {
             duelsPlayer,
             null,
             null,
-            urchinTags,
+            coralTags,
             seraphTags
         );
     }
@@ -83,7 +83,7 @@ public class PlayerProfile {
         DuelsPlayer duelsPlayer,
         BuildBattlePlayer buildBattlePlayer,
         TntRunPlayer tntRunPlayer,
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags
     ) {
         this.uuid = uuid;
@@ -93,7 +93,7 @@ public class PlayerProfile {
         this.duelsPlayer = duelsPlayer;
         this.buildBattlePlayer = buildBattlePlayer;
         this.tntRunPlayer = tntRunPlayer;
-        this.urchinTags = urchinTags;
+        this.coralTags = coralTags;
         this.seraphTags = seraphTags;
         this.lastUpdated = System.currentTimeMillis();
     }
@@ -126,8 +126,8 @@ public class PlayerProfile {
         return tntRunPlayer;
     }
 
-    public List<UrchinTag> getUrchinTags() {
-        return urchinTags;
+    public List<CoralTag> getCoralTags() {
+        return coralTags;
     }
 
     public List<SeraphTag> getSeraphTags() {
@@ -139,7 +139,7 @@ public class PlayerProfile {
     }
 
     public PlayerProfile withTags(
-        List<UrchinTag> updatedUrchinTags,
+        List<CoralTag> updatedCoralTags,
         List<SeraphTag> updatedSeraphTags
     ) {
         return new PlayerProfile(
@@ -150,13 +150,13 @@ public class PlayerProfile {
             duelsPlayer,
             buildBattlePlayer,
             tntRunPlayer,
-            updatedUrchinTags,
+            updatedCoralTags,
             updatedSeraphTags
         );
     }
 
-    public boolean isUrchinTagged() {
-        return urchinTags != null && !urchinTags.isEmpty();
+    public boolean isCoralTagged() {
+        return coralTags != null && !coralTags.isEmpty();
     }
 
     public boolean isSeraphTagged() {
@@ -170,7 +170,7 @@ public class PlayerProfile {
     public TabStats getTabStats(StatScope scope) {
         if (scope == StatScope.SKYWARS && skywarsPlayer != null) {
             return new TabStats(
-                urchinTags,
+                coralTags,
                 seraphTags,
                 skywarsPlayer.getFormattedNameWithRank(),
                 skywarsPlayer.getLevelFormattedWithBrackets(),
@@ -187,7 +187,7 @@ public class PlayerProfile {
 
         if (scope == StatScope.DUELS && duelsPlayer != null) {
             return new TabStats(
-                urchinTags,
+                coralTags,
                 seraphTags,
                 duelsPlayer.getFormattedNameWithRank(),
                 duelsPlayer.getDivision(),
@@ -206,7 +206,7 @@ public class PlayerProfile {
 
         if (scope == StatScope.BUILD_BATTLE && buildBattlePlayer != null) {
             return new TabStats(
-                urchinTags,
+                coralTags,
                 seraphTags,
                 buildBattlePlayer.getFormattedNameWithRank(),
                 buildBattlePlayer.getFormattedTitle(),
@@ -223,7 +223,7 @@ public class PlayerProfile {
 
         if (scope == StatScope.TNT_RUN && tntRunPlayer != null) {
             return new TabStats(
-                urchinTags,
+                coralTags,
                 seraphTags,
                 tntRunPlayer.getFormattedNameWithRank(),
                 null,
@@ -263,7 +263,7 @@ public class PlayerProfile {
         String formattedBBLR = getBedwarsPlayer().getFormattedBBLRWithColor();
 
         return new TabStats(
-            urchinTags,
+            coralTags,
             seraphTags,
             bedwarsPlayer.getFormattedNameWithRank(),
             bedwarsPlayer.getStars(),

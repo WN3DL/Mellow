@@ -96,27 +96,27 @@ public class BedwarsCommand extends CommandBase {
                 ChatUtils.sendMultilineCommandMessage(sender, statsLines)
             );
 
-            if (config.urchin && profile.isUrchinTagged()) {
-                List<String> urchinMessages = new ArrayList<>();
-                profile.getUrchinTags().forEach(tag -> {
-                    String formattedTag = FormattingUtils.formatUrchinTag(tag);
+            if (config.isCoralEnabled() && profile.isCoralTagged()) {
+                List<String> coralMessages = new ArrayList<>();
+                profile.getCoralTags().forEach(tag -> {
+                    String formattedTag = FormattingUtils.formatCoralTag(tag);
                     if (formattedTag == null || formattedTag.trim().isEmpty()) {
                         return;
                     }
 
-                    if (urchinMessages.isEmpty()) {
-                        urchinMessages.add("§5§lUrchin§r§5: " + formattedTag);
+                    if (coralMessages.isEmpty()) {
+                        coralMessages.add("§5§lCoral§r§5: " + formattedTag);
                         return;
                     }
 
-                    urchinMessages.add(formattedTag);
+                    coralMessages.add(formattedTag);
                 });
 
-                if (!urchinMessages.isEmpty()) {
+                if (!coralMessages.isEmpty()) {
                     MainThreadDispatcher.run(() ->
                         ChatUtils.sendMultilineCommandMessage(
                             sender,
-                            urchinMessages
+                            coralMessages
                         )
                     );
                 }

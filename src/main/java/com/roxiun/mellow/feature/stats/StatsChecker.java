@@ -245,11 +245,11 @@ public class StatsChecker {
             return false;
         }
 
-        boolean tabNeedsUrchinTags = config.showUrchinTagsInTab && config.urchin;
+        boolean tabNeedsCoralTags = config.shouldShowCoralTagsInTab() && config.isCoralEnabled();
         boolean tabNeedsSeraphTags = config.showSeraphTagsInTab && config.seraph;
         boolean warningNeedsTags =
-            config.printBlacklistTags && (config.urchin || config.seraph);
-        return tabNeedsUrchinTags || tabNeedsSeraphTags || warningNeedsTags;
+            config.printBlacklistTags && (config.isCoralEnabled() || config.seraph);
+        return tabNeedsCoralTags || tabNeedsSeraphTags || warningNeedsTags;
     }
 
     private void maybeReportLiveFetchFailure(
@@ -312,7 +312,7 @@ public class StatsChecker {
         ) {
             return true;
         }
-        return config.printBlacklistTags && (config.urchin || config.seraph);
+        return config.printBlacklistTags && (config.isCoralEnabled() || config.seraph);
     }
 
     private void warmSupplementalCaches(
@@ -754,16 +754,16 @@ public class StatsChecker {
         boolean tagsIgnored =
             tagIgnoreManager != null && tagIgnoreManager.isTagIgnored(uuid);
 
-        boolean urchinTagged =
-            config.urchin &&
+        boolean coralTagged =
+            config.isCoralEnabled() &&
             config.printBlacklistTags &&
-            profile.isUrchinTagged();
-        boolean shouldPrintUrchinTagAlert = urchinTagged && !tagsIgnored;
-        if (shouldPrintUrchinTagAlert) {
-            String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
-            String urchinMessage =
-                "§c" + profile.getName() + " is tagged on §5Urchin§c for: " + tags;
-            mc.addScheduledTask(() -> ChatUtils.sendMessage(urchinMessage));
+            profile.isCoralTagged();
+        boolean shouldPrintCoralTagAlert = coralTagged && !tagsIgnored;
+        if (shouldPrintCoralTagAlert) {
+            String tags = FormattingUtils.formatCoralTags(profile.getCoralTags());
+            String coralMessage =
+                "§c" + profile.getName() + " is tagged on §5Coral§c for: " + tags;
+            mc.addScheduledTask(() -> ChatUtils.sendMessage(coralMessage));
         }
 
         boolean seraphTagged =
@@ -838,7 +838,7 @@ public class StatsChecker {
                 uuid,
                 tabPlayerName,
                 blacklisted,
-                shouldPrintUrchinTagAlert,
+                shouldPrintCoralTagAlert,
                 shouldPrintSeraphTagAlert
             )
         ) {
@@ -847,7 +847,7 @@ public class StatsChecker {
                 tabPlayerName,
                 blacklistedPlayer,
                 blacklisted,
-                shouldPrintUrchinTagAlert,
+                shouldPrintCoralTagAlert,
                 shouldPrintSeraphTagAlert
             );
         }
@@ -855,7 +855,7 @@ public class StatsChecker {
         if (
             blacklisted ||
             annoylisted ||
-            shouldPrintUrchinTagAlert ||
+            shouldPrintCoralTagAlert ||
             shouldPrintSeraphTagAlert
         ) {
             mc.addScheduledTask(() ->
@@ -868,13 +868,13 @@ public class StatsChecker {
         UUID uuid,
         String tabPlayerName,
         boolean blacklisted,
-        boolean urchinTagged,
+        boolean coralTagged,
         boolean seraphTagged
     ) {
         if (uuid == null) {
             return false;
         }
-        if (!blacklisted && !urchinTagged && !seraphTagged) {
+        if (!blacklisted && !coralTagged && !seraphTagged) {
             return false;
         }
         if (!isInBedwarsMatch()) {
@@ -901,7 +901,7 @@ public class StatsChecker {
         String tabPlayerName,
         BlacklistedPlayer blacklistedPlayer,
         boolean blacklisted,
-        boolean urchinTagged,
+        boolean coralTagged,
         boolean seraphTagged
     ) {
         InGameBlacklistWarningDestination destination = resolveWarningDestination();
@@ -920,8 +920,8 @@ public class StatsChecker {
         if (blacklisted) {
             sourceLabels.add("Local");
         }
-        if (urchinTagged) {
-            sourceLabels.add("Urchin");
+        if (coralTagged) {
+            sourceLabels.add("Coral");
         }
         if (seraphTagged) {
             sourceLabels.add("Seraph");
@@ -933,11 +933,11 @@ public class StatsChecker {
                 "Local: " + formatOutboundBlacklistReason(blacklistedPlayer)
             );
         }
-        if (urchinTagged) {
+        if (coralTagged) {
             detailParts.add(
-                "Urchin: " +
+                "Coral: " +
                 normalizeOutboundDetail(
-                    FormattingUtils.formatUrchinTags(profile.getUrchinTags())
+                    FormattingUtils.formatCoralTags(profile.getCoralTags())
                 )
             );
         }

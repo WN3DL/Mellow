@@ -1,12 +1,12 @@
 package com.roxiun.mellow.data;
 
 import com.roxiun.mellow.api.seraph.SeraphTag;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralTag;
 import java.util.List;
 
 public class TabStats {
 
-    private final List<UrchinTag> urchinTags;
+    private final List<CoralTag> coralTags;
     private final List<SeraphTag> seraphTags;
     private final String formattedNameWithRank;
     private final String stars;
@@ -22,7 +22,7 @@ public class TabStats {
     private final String finals;
 
     public TabStats(
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         String stars,
         String fkdr,
         String winstreak,
@@ -34,7 +34,7 @@ public class TabStats {
         String finals
     ) {
         this(
-            urchinTags,
+            coralTags,
             null,
             null,
             stars,
@@ -52,7 +52,7 @@ public class TabStats {
     }
 
     public TabStats(
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags,
         String formattedNameWithRank,
         String stars,
@@ -66,7 +66,7 @@ public class TabStats {
         String finals
     ) {
         this(
-            urchinTags,
+            coralTags,
             seraphTags,
             formattedNameWithRank,
             stars,
@@ -84,7 +84,7 @@ public class TabStats {
     }
 
     public TabStats(
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         String stars,
         String fkdr,
         String winstreak,
@@ -95,7 +95,7 @@ public class TabStats {
         String finals
     ) {
         this(
-            urchinTags,
+            coralTags,
             null,
             null,
             stars,
@@ -113,7 +113,7 @@ public class TabStats {
     }
 
     public TabStats(
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags,
         String formattedNameWithRank,
         String stars,
@@ -126,7 +126,7 @@ public class TabStats {
         String finals
     ) {
         this(
-            urchinTags,
+            coralTags,
             seraphTags,
             formattedNameWithRank,
             stars,
@@ -144,7 +144,7 @@ public class TabStats {
     }
 
     public TabStats(
-        List<UrchinTag> urchinTags,
+        List<CoralTag> coralTags,
         List<SeraphTag> seraphTags,
         String formattedNameWithRank,
         String stars,
@@ -159,7 +159,7 @@ public class TabStats {
         String beds,
         String finals
     ) {
-        this.urchinTags = urchinTags;
+        this.coralTags = coralTags;
         this.seraphTags = seraphTags;
         this.formattedNameWithRank = formattedNameWithRank;
         this.stars = stars;
@@ -175,16 +175,16 @@ public class TabStats {
         this.finals = finals;
     }
 
-    public boolean isUrchinTagged() {
-        return urchinTags != null && !urchinTags.isEmpty();
+    public boolean isCoralTagged() {
+        return coralTags != null && !coralTags.isEmpty();
     }
 
     public boolean isSeraphTagged() {
         return seraphTags != null && !seraphTags.isEmpty();
     }
 
-    public List<UrchinTag> getUrchinTags() {
-        return urchinTags;
+    public List<CoralTag> getCoralTags() {
+        return coralTags;
     }
 
     public List<SeraphTag> getSeraphTags() {

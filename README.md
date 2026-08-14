@@ -23,7 +23,7 @@ This project is a fork continuation of <a href="https://github.com/xanning/Fonta
 - See other players' ping. Recommended to use with [VanillaHUD](https://modrinth.com/mod/vanillahud)
  to view ping numerically instead of as bars.
 
-- Supports Urchin API Tags
+- Supports [Coral API](https://api.urchin.gg/) Tags
 
 - Supports Seraph API Tags
 
@@ -78,7 +78,9 @@ To add a player to your **annoy list**, type `/annoylist add <username>`
 
 You can **import** your own **annoy list** by doing, type `/annoylist import <filename>`, place the file in `.minecraft/config/mellow`
 
-To suppress Urchin/Seraph tag alert lines for a player, type `/tagignore add <username>`
+To suppress Coral/Seraph tag alert lines for a player, type `/tagignore add <username>`
+
+To check a player's **Coral tags**, type `/coral <username>` (legacy `/urchin` aliases are also supported)
 
 You can **import** your own **tag ignore list** by doing, type `/tagignore import <filename>`, place the file in `.minecraft/config/mellow`
 

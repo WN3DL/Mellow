@@ -30,7 +30,7 @@ public class PartyBlacklistWarningService {
 
     private enum FlagSource {
         LOCAL("§cLocal"),
-        URCHIN("§5Urchin"),
+        CORAL("§5Coral"),
         SERAPH("§3Seraph");
 
         private final String coloredLabel;
@@ -149,11 +149,11 @@ public class PartyBlacklistWarningService {
             return;
         }
 
-        boolean shouldCheckUrchin = config.urchin;
+        boolean shouldCheckCoral = config.isCoralEnabled();
         boolean shouldCheckSeraph = config.seraph;
         long evaluationId = ++evaluationVersion;
 
-        if ((!shouldCheckUrchin && !shouldCheckSeraph) || playerCache == null) {
+        if ((!shouldCheckCoral && !shouldCheckSeraph) || playerCache == null) {
             applyDetectionResult(evaluationId, localFlags);
             return;
         }
@@ -186,11 +186,11 @@ public class PartyBlacklistWarningService {
                     detection = new MemberFlagDetection();
                 }
 
-                if (shouldCheckUrchin && profile.isUrchinTagged()) {
-                    detection.addSource(FlagSource.URCHIN);
+                if (shouldCheckCoral && profile.isCoralTagged()) {
+                    detection.addSource(FlagSource.CORAL);
                     detection.setDetail(
-                        FlagSource.URCHIN,
-                        formatUrchinTagDetails(profile)
+                        FlagSource.CORAL,
+                        formatCoralTagDetails(profile)
                     );
                 }
                 if (shouldCheckSeraph && profile.isSeraphTagged()) {
@@ -312,11 +312,11 @@ public class PartyBlacklistWarningService {
                 );
             }
         }
-        if (detection.sources.contains(FlagSource.URCHIN)) {
+        if (detection.sources.contains(FlagSource.CORAL)) {
             sourceDetails.add(
-                FlagSource.URCHIN.coloredLabel +
+                FlagSource.CORAL.coloredLabel +
                 "§7: " +
-                formatDetailWithFallback(detection.getDetail(FlagSource.URCHIN))
+                formatDetailWithFallback(detection.getDetail(FlagSource.CORAL))
             );
         }
         if (detection.sources.contains(FlagSource.SERAPH)) {
@@ -347,9 +347,9 @@ public class PartyBlacklistWarningService {
         return normalizeDetailText(blacklistedPlayer.getReason());
     }
 
-    private String formatUrchinTagDetails(PlayerProfile profile) {
+    private String formatCoralTagDetails(PlayerProfile profile) {
         return normalizeDetailText(
-            FormattingUtils.formatUrchinTags(profile.getUrchinTags())
+            FormattingUtils.formatCoralTags(profile.getCoralTags())
         );
     }
 
@@ -388,8 +388,8 @@ public class PartyBlacklistWarningService {
         if (sources.contains(FlagSource.LOCAL)) {
             labels.add(FlagSource.LOCAL.coloredLabel);
         }
-        if (sources.contains(FlagSource.URCHIN)) {
-            labels.add(FlagSource.URCHIN.coloredLabel);
+        if (sources.contains(FlagSource.CORAL)) {
+            labels.add(FlagSource.CORAL.coloredLabel);
         }
         if (sources.contains(FlagSource.SERAPH)) {
             labels.add(FlagSource.SERAPH.coloredLabel);

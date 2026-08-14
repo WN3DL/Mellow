@@ -16,8 +16,8 @@ import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphTag;
 import com.roxiun.mellow.api.skywars.SkywarsPlayer;
 import com.roxiun.mellow.api.tnt.TntRunPlayer;
-import com.roxiun.mellow.api.urchin.UrchinApi;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralApi;
+import com.roxiun.mellow.api.coral.CoralTag;
 import com.roxiun.mellow.api.util.HypixelApiUtils;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.PlayerProfile;
@@ -40,10 +40,10 @@ public class PlayerCache {
         new ConcurrentHashMap<>();
     private final MojangApi mojangApi;
     private final ProviderManager providerManager;
-    private final UrchinApi urchinApi;
+    private final CoralApi coralApi;
     private final SeraphApi seraphApi;
     private final MellowOneConfig config;
-    private volatile String lastUrchinApiKey;
+    private volatile String lastCoralApiKey;
     private volatile String lastSeraphApiKey;
 
     private long lastMissingApiKeyWarnAt;
@@ -51,16 +51,16 @@ public class PlayerCache {
     public PlayerCache(
         MojangApi mojangApi,
         ProviderManager providerManager,
-        UrchinApi urchinApi,
+        CoralApi coralApi,
         SeraphApi seraphApi,
         MellowOneConfig config
     ) {
         this.mojangApi = mojangApi;
         this.providerManager = providerManager;
-        this.urchinApi = urchinApi;
+        this.coralApi = coralApi;
         this.seraphApi = seraphApi;
         this.config = config;
-        this.lastUrchinApiKey = normalizeApiKey(config.urchinKey);
+        this.lastCoralApiKey = normalizeApiKey(config.getCoralApiKey());
         this.lastSeraphApiKey = normalizeApiKey(config.seraphKey);
     }
 
@@ -225,13 +225,13 @@ public class PlayerCache {
             return profile;
         }
 
-        List<UrchinTag> urchinTags = profile.getUrchinTags();
-        if (config.urchin) {
+        List<CoralTag> coralTags = profile.getCoralTags();
+        if (config.isCoralEnabled()) {
             try {
-                urchinTags = urchinApi.fetchUrchinTags(
+                coralTags = coralApi.fetchCoralTags(
                     uuid,
                     profile.getName(),
-                    normalizeApiKey(config.urchinKey)
+                    normalizeApiKey(config.getCoralApiKey())
                 );
             } catch (IOException ignored) {}
         }
@@ -246,7 +246,7 @@ public class PlayerCache {
             } catch (IOException ignored) {}
         }
 
-        return profile.withTags(urchinTags, seraphTags);
+        return profile.withTags(coralTags, seraphTags);
     }
 
     public StatsProvider getSelectedProvider() {
@@ -644,8 +644,8 @@ public class PlayerCache {
         if (mojangApi != null) {
             mojangApi.clearCache();
         }
-        if (Mellow.urchinApi != null) {
-            Mellow.urchinApi.clearCache();
+        if (Mellow.coralApi != null) {
+            Mellow.coralApi.clearCache();
         }
         if (Mellow.seraphApi != null) {
             Mellow.seraphApi.clearCache();
@@ -680,8 +680,8 @@ public class PlayerCache {
         if (mojangApi != null) {
             mojangApi.clearPlayer(playerName);
         }
-        if (Mellow.urchinApi != null) {
-            Mellow.urchinApi.clearPlayer(null, playerName);
+        if (Mellow.coralApi != null) {
+            Mellow.coralApi.clearPlayer(null, playerName);
         }
         if (Mellow.seraphClientCacheService != null) {
             Mellow.seraphClientCacheService.clearPlayer(playerName);
@@ -707,8 +707,8 @@ public class PlayerCache {
         if (Mellow.seraphPingService != null) {
             Mellow.seraphPingService.clearPlayer(fullUuid);
         }
-        if (Mellow.urchinApi != null) {
-            Mellow.urchinApi.clearPlayer(fullUuid, playerName);
+        if (Mellow.coralApi != null) {
+            Mellow.coralApi.clearPlayer(fullUuid, playerName);
         }
         if (Mellow.seraphApi != null) {
             Mellow.seraphApi.clearPlayer(fullUuid);
@@ -716,16 +716,16 @@ public class PlayerCache {
     }
 
     private void maybeInvalidateCacheOnApiKeyChange() {
-        String currentUrchinApiKey = normalizeApiKey(config.urchinKey);
+        String currentCoralApiKey = normalizeApiKey(config.getCoralApiKey());
         String currentSeraphApiKey = normalizeApiKey(config.seraphKey);
 
-        boolean urchinChanged = !currentUrchinApiKey.equals(lastUrchinApiKey);
+        boolean coralChanged = !currentCoralApiKey.equals(lastCoralApiKey);
         boolean seraphChanged = !currentSeraphApiKey.equals(lastSeraphApiKey);
-        if (!urchinChanged && !seraphChanged) {
+        if (!coralChanged && !seraphChanged) {
             return;
         }
 
-        lastUrchinApiKey = currentUrchinApiKey;
+        lastCoralApiKey = currentCoralApiKey;
         lastSeraphApiKey = currentSeraphApiKey;
         clearCache();
     }

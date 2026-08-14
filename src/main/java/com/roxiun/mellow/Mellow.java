@@ -15,7 +15,7 @@ import com.roxiun.mellow.api.provider.StatsProvider;
 import com.roxiun.mellow.api.seraph.SeraphApi;
 import com.roxiun.mellow.api.seraph.SeraphClientCacheService;
 import com.roxiun.mellow.api.seraph.SeraphPingService;
-import com.roxiun.mellow.api.urchin.UrchinApi;
+import com.roxiun.mellow.api.coral.CoralApi;
 import com.roxiun.mellow.autoupdate.ModrinthUpdater;
 import com.roxiun.mellow.cache.PlayerCache;
 import com.roxiun.mellow.commands.*;
@@ -73,7 +73,7 @@ public class Mellow {
     public static SeraphClientCacheService seraphClientCacheService;
     public static SeraphPingService seraphPingService;
     public static MojangApi mojangApi;
-    public static UrchinApi urchinApi;
+    public static CoralApi coralApi;
     public static SeraphApi seraphApi;
     public static PlayerCache playerCache;
     public static BlacklistManager blacklistManager;
@@ -106,7 +106,7 @@ public class Mellow {
         providerManager.register(new NadeshikoApi(mojangApi));
         providerManager.register(new AbyssApi(mojangApi));
 
-        urchinApi = new UrchinApi(mojangApi);
+        coralApi = new CoralApi();
         seraphApi = new SeraphApi(mojangApi);
         seraphClientCacheService = new SeraphClientCacheService(seraphApi, config);
         auroraApi = new AuroraApi();
@@ -114,7 +114,7 @@ public class Mellow {
         playerCache = new PlayerCache(
             mojangApi,
             providerManager,
-            urchinApi,
+            coralApi,
             seraphApi,
             config
         );
@@ -257,7 +257,7 @@ public class Mellow {
             new TagIgnoreCommand(tagIgnoreManager, mojangApi)
         );
         ClientCommandHandler.instance.registerCommand(
-            new UrchinCommand(urchinApi, mojangApi, config)
+            new CoralCommand(coralApi, config)
         );
         ClientCommandHandler.instance.registerCommand(
             new SeraphCommand(seraphApi, mojangApi, config)

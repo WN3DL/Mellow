@@ -77,16 +77,14 @@ public class MellowCommand extends CommandBase {
         );
         sender.addChatMessage(
             new ChatComponentText(
-                "§r§5/tagignore <add | remove | list | import>:§d Suppress Urchin/Seraph tag alert lines for selected players.§r"
+                "§r§5/tagignore <add | remove | list | import>:§d Suppress Coral/Seraph tag alert lines for selected players.§r"
             )
         );
         sender.addChatMessage(
             new ChatComponentText(
                 "§r§5" +
-                    (BlacklistCommandResolver.isSeraphLoaded()
-                        ? "/urchin|/murchin <username>"
-                        : "/urchin <username>") +
-                    ":§d View a player's urchin tags.§r"
+                    "/coral|/urchin <username>" +
+                    ":§d View a player's Coral tags.§r"
             )
         );
         sender.addChatMessage(

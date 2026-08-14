@@ -214,9 +214,9 @@ public class PregameStats {
             annoylistManager != null && annoylistManager.isAnnoylisted(uuid);
         boolean tagsIgnored =
             tagIgnoreManager != null && tagIgnoreManager.isTagIgnored(uuid);
-        boolean urchinTagged = config.urchin && profile.isUrchinTagged();
+        boolean coralTagged = config.isCoralEnabled() && profile.isCoralTagged();
         boolean seraphTagged = config.seraph && profile.isSeraphTagged();
-        boolean shouldPrintUrchinTagAlert = urchinTagged && !tagsIgnored;
+        boolean shouldPrintCoralTagAlert = coralTagged && !tagsIgnored;
         boolean shouldPrintSeraphTagAlert = seraphTagged && !tagsIgnored;
         if (blacklisted || annoylisted) {
             BlacklistedPlayer blacklistedPlayer = blacklisted
@@ -265,11 +265,11 @@ public class PregameStats {
             MainThreadDispatcher.run(() -> ChatUtils.sendMessage(stats));
         }
 
-        if (shouldPrintUrchinTagAlert) {
-            String tags = FormattingUtils.formatUrchinTags(profile.getUrchinTags());
-            String urchinMessage =
-                "§c" + username + " is tagged on §5Urchin§c for: " + tags;
-            MainThreadDispatcher.run(() -> ChatUtils.sendMessage(urchinMessage));
+        if (shouldPrintCoralTagAlert) {
+            String tags = FormattingUtils.formatCoralTags(profile.getCoralTags());
+            String coralMessage =
+                "§c" + username + " is tagged on §5Coral§c for: " + tags;
+            MainThreadDispatcher.run(() -> ChatUtils.sendMessage(coralMessage));
         }
 
         if (shouldPrintSeraphTagAlert) {
@@ -295,7 +295,7 @@ public class PregameStats {
         if (
             blacklisted ||
             annoylisted ||
-            shouldPrintUrchinTagAlert ||
+            shouldPrintCoralTagAlert ||
             shouldPrintSeraphTagAlert
         ) {
             MainThreadDispatcher.run(() ->

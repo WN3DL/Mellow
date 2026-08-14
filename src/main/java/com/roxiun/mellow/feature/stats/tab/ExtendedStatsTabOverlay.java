@@ -8,7 +8,7 @@ import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.provider.model.StatScope;
 import com.roxiun.mellow.api.seraph.SeraphClientType;
 import com.roxiun.mellow.api.seraph.SeraphTag;
-import com.roxiun.mellow.api.urchin.UrchinTag;
+import com.roxiun.mellow.api.coral.CoralTag;
 import com.roxiun.mellow.config.MellowOneConfig;
 import com.roxiun.mellow.data.TabStats;
 import com.roxiun.mellow.util.formatting.FormattingUtils;
@@ -1209,9 +1209,9 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
 
         String safe = value == null ? "" : value;
 
-        if (Mellow.config.showUrchinTagsInTab && stats.isUrchinTagged()) {
-            for (UrchinTag tag : stats.getUrchinTags()) {
-                safe += " " + FormattingUtils.formatUrchinTagIcon(tag);
+        if (Mellow.config.shouldShowCoralTagsInTab() && stats.isCoralTagged()) {
+            for (CoralTag tag : stats.getCoralTags()) {
+                safe += " " + FormattingUtils.formatCoralTagIcon(tag);
             }
         }
 
@@ -1243,7 +1243,7 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         String playerName = info.getGameProfile().getName();
         if (playerName != null) {
             TabStats stats = Mellow.tabStats.get(playerName);
-            if (stats != null && (stats.isUrchinTagged() || stats.isSeraphTagged())) {
+            if (stats != null && (stats.isCoralTagged() || stats.isSeraphTagged())) {
                 return true;
             }
         }
@@ -1290,12 +1290,12 @@ public class ExtendedStatsTabOverlay extends GuiPlayerTabOverlay {
         }
 
         if (stats != null && Mellow.config != null) {
-            if (Mellow.config.showUrchinTagsInTab && stats.isUrchinTagged()) {
-                for (UrchinTag tag : stats.getUrchinTags()) {
+            if (Mellow.config.shouldShowCoralTagsInTab() && stats.isCoralTagged()) {
+                for (CoralTag tag : stats.getCoralTags()) {
                     if (builder.length() > 0) {
                         builder.append(" ");
                     }
-                    builder.append(FormattingUtils.formatUrchinTagIcon(tag));
+                    builder.append(FormattingUtils.formatCoralTagIcon(tag));
                 }
             }
             if (Mellow.config.showSeraphTagsInTab && stats.isSeraphTagged()) {
