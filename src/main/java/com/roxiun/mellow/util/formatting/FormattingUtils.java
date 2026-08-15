@@ -94,14 +94,17 @@ public class FormattingUtils {
             case "confirmed_cheater":
                 formattedType = "§4§lConfirmed Cheater";
                 break;
+            case "replays_needed":
+                formattedType = "§7§lReplays Needed";
+                break;
+            case "caution":
+                formattedType = "§e§lCaution";
+                break;
             case "possible_sniper":
                 formattedType = "§e§lPossible Sniper";
                 break;
             case "legit_sniper":
                 formattedType = "§e§lLegit Sniper";
-                break;
-            case "caution":
-                formattedType = "§e§lCaution";
                 break;
             case "account":
                 formattedType = "§e§lAccount";
