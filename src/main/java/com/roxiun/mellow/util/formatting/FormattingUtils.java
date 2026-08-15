@@ -79,6 +79,7 @@ public class FormattingUtils {
 
         String type = tag.getType();
         String formattedType;
+        String reason = tag.getReason() != null ? tag.getReason() : "No reason provided";
 
         // Use exact string matches to avoid substring replacement issues
         switch (type.toLowerCase()) {
@@ -118,7 +119,7 @@ public class FormattingUtils {
                 break;
         }
 
-        return formattedType + " §7(" + tag.getReason() + ")";
+        return formattedType + " §7(" + reason + ")";
     }
 
     public static String formatCoralTagIcon(CoralTag tag) {
