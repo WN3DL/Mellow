@@ -55,7 +55,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import org.lwjgl.input.Keyboard;
 
-@Mod(modid = Mellow.MODID, name = Mellow.NAME, version = Mellow.VERSION, dependencies = "required-after:hypixel_mod_api")
+@Mod(modid = Mellow.MODID, name = Mellow.NAME, version = Mellow.VERSION)
 public class Mellow {
 
     public static final String MODID = "mellow";
