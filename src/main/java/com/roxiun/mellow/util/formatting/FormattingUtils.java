@@ -126,12 +126,14 @@ public class FormattingUtils {
         switch (type) {
             case "sniper":
                 return "§8[§4S§8]";
-            case "confirmed_cheater":
-                return "§8[§cCC§8]";
             case "blatant_cheater":
                 return "§8[§4BC§8]";
             case "closet_cheater":
+                return "§8[§6CC§8]";
+            case "confirmed_cheater":
                 return "§8[§cCC§8]";
+            case "replays_needed":
+                return "§8[§7RN§8]";
             case "possible_sniper":
                 return "§8[§ePS§8]";
             case "legit_sniper":
