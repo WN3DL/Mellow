@@ -79,7 +79,7 @@ public class FormattingUtils {
 
         String type = tag.getType();
         String formattedType;
-        String reason = tag.getReason() != null ? tag.getReason() : "No reason provided";
+        String reason = tag.getReason() != null && !tag.getReason().isEmpty() ? tag.getReason() : "No reason provided";
 
         // Use exact string matches to avoid substring replacement issues
         switch (type.toLowerCase()) {
