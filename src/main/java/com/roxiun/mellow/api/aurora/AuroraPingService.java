@@ -24,12 +24,20 @@ public class AuroraPingService {
     private static final String PING_URL =
         "https://bordic.xyz/api/v2/resources/ping";
 
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
     private final Map<String, Integer> pingCache = new ConcurrentHashMap<>();
     private final SessionPingFetchGate sessionFetchGate =
         new SessionPingFetchGate();
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean errorShownThisSession = new AtomicBoolean(false);
+
+    public AuroraPingService() {
+        this(new OkHttpClient());
+    }
+
+    AuroraPingService(OkHttpClient client) {
+        this.client = client == null ? new OkHttpClient() : client;
+    }
 
     public int getCachedPing(String compactUuid) {
         return pingCache.getOrDefault(compactUuid, -1);
@@ -71,13 +79,8 @@ public class AuroraPingService {
         errorShownThisSession.set(true);
     }
 
-    public void fetchAsync(String compactUuid, String apiKey) {
-        if (
-            compactUuid == null ||
-            compactUuid.isEmpty() ||
-            apiKey == null ||
-            apiKey.trim().isEmpty()
-        ) {
+    public void fetchAsync(String compactUuid) {
+        if (compactUuid == null || compactUuid.isEmpty()) {
             return;
         }
         if (!sessionFetchGate.tryMarkRequested(compactUuid)) {
@@ -89,7 +92,7 @@ public class AuroraPingService {
 
         AsyncExecutor.getInstance().supplementalIo(() -> {
             try {
-                int ping = fetchPingBlocking(compactUuid, apiKey);
+                int ping = fetchPingBlocking(compactUuid);
                 if (ping >= 0) {
                     storeInCache(compactUuid, ping);
                 }
@@ -101,13 +104,8 @@ public class AuroraPingService {
         });
     }
 
-    public int fetchPingBlocking(String compactUuid, String apiKey)
-        throws IOException {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            return -1;
-        }
-
-        String url = PING_URL + "?key=" + apiKey.trim() + "&uuid=" + compactUuid;
+    public int fetchPingBlocking(String compactUuid) throws IOException {
+        String url = PING_URL + "?uuid=" + compactUuid;
         Request request = new Request.Builder()
             .url(url)
             .header("User-Agent", "Mellow/" + Mellow.VERSION)

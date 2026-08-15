@@ -996,7 +996,7 @@ public class MellowOneConfig extends Config {
 
     @Text(
         name = "Aurora API Key",
-        placeholder = "Enter your Aurora API key",
+        placeholder = "Required only for player lookups",
         category = "API Keys",
         subcategory = "Aurora",
         secure = true,
@@ -1163,7 +1163,7 @@ public class MellowOneConfig extends Config {
     public static boolean ignoredWinstreaksDescription;
 
     @Switch(name = "Show Hidden Winstreaks", category = "Winstreaks")
-    public boolean showHiddenWinstreaks = false;
+    public boolean showHiddenWinstreaks = true;
 
     @Info(
         text = "When hidden winstreaks are enabled, Mellow only uses Aurora when the visible BedWars winstreak is missing or hidden.",
@@ -1174,7 +1174,7 @@ public class MellowOneConfig extends Config {
     public static boolean ignoredWinstreaksVisibleFirstInfo;
 
     @Info(
-        text = "Enabling this will send requests to Bordic and be subject to their ToS, this could enable tracking of your data (IP, Aurora API Key, Game Info). Configure the key in API Keys > Aurora.",
+        text = "Enabling this sends player UUIDs to Bordic and is subject to their ToS. Hidden winstreak lookups do not require or send an Aurora API key.",
         size = OptionSize.DUAL,
         type = InfoType.WARNING,
         category = "Winstreaks"
@@ -1266,23 +1266,16 @@ public class MellowOneConfig extends Config {
     )
     public int winstreakMinFkdr = 0;
 
-    @Switch(
-        name = "Use Luna's API for Ping",
-        category = "Winstreaks",
-        description = "When hidden winstreaks are enabled, use Luna to keep the Ping column populated."
-    )
-    public boolean useLunaPingForWinstreaks = false;
-
     // Ping Configs
     @Dropdown(
         name = "Ping Provider",
         category = "Ping",
         options = { "None", "Aurora API", "Luna's API", "Seraph API" }
     )
-    public int pingProvider = 0;
+    public int pingProvider = 1;
 
     @Info(
-        text = "Aurora API provides historical ping averages per player UUID. Configure the key in API Keys > Aurora.",
+        text = "Aurora API provides historical ping averages per player UUID without requiring or sending an API key.",
         type = InfoType.INFO,
         size = OptionSize.DUAL,
         category = "Ping"

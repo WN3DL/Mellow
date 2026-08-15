@@ -402,8 +402,6 @@ public class StatsChecker {
             config == null ||
             scope != StatScope.BEDWARS ||
             !config.showHiddenWinstreaks ||
-            config.auroraApiKey == null ||
-            config.auroraApiKey.trim().isEmpty() ||
             Mellow.auroraWinstreakService == null
         ) {
             return;
@@ -436,8 +434,7 @@ public class StatsChecker {
         AsyncExecutor.getInstance().supplementalIo(() -> {
             try {
                 int winstreak = Mellow.auroraWinstreakService.fetchWinstreakBlocking(
-                    compactUuid,
-                    config.auroraApiKey
+                    compactUuid
                 );
                 Mellow.auroraWinstreakService.storeInCache(compactUuid, winstreak);
             } catch (Exception e) {

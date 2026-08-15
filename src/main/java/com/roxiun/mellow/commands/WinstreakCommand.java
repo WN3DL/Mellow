@@ -108,11 +108,7 @@ public class WinstreakCommand extends CommandBase {
             return visibleWinstreak;
         }
 
-        if (
-            Mellow.auroraWinstreakService == null ||
-            config.auroraApiKey == null ||
-            config.auroraApiKey.trim().isEmpty()
-        ) {
+        if (Mellow.auroraWinstreakService == null) {
             return visibleWinstreak == null || visibleWinstreak.isEmpty()
                 ? "§7N/A"
                 : visibleWinstreak;
@@ -141,8 +137,7 @@ public class WinstreakCommand extends CommandBase {
         ) {
             try {
                 auroraWs = Mellow.auroraWinstreakService.fetchWinstreakBlocking(
-                    compactUuid,
-                    config.auroraApiKey
+                    compactUuid
                 );
                 Mellow.auroraWinstreakService.storeInCache(compactUuid, auroraWs);
             } catch (Exception e) {

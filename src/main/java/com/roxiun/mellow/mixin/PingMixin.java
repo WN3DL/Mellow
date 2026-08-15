@@ -61,10 +61,7 @@ public class PingMixin {
         }
 
         if (useAurora) {
-            if (
-                Mellow.auroraPingService == null ||
-                !PingProviderUtils.hasAuroraApiKey(Mellow.config)
-            ) {
+            if (Mellow.auroraPingService == null) {
                 cir.setReturnValue(original);
                 return;
             }
@@ -78,10 +75,7 @@ public class PingMixin {
 
             cir.setReturnValue(original);
             if (cached < 0 && !hasValidVanillaPing) {
-                Mellow.auroraPingService.fetchAsync(
-                    compactUuid,
-                    Mellow.config.auroraApiKey
-                );
+                Mellow.auroraPingService.fetchAsync(compactUuid);
             }
             return;
         }

@@ -15,33 +15,19 @@ public final class PingProviderUtils {
     public static boolean shouldUseAurora(MellowOneConfig config) {
         return (
             config != null &&
-            !config.showHiddenWinstreaks &&
             config.pingProvider == PROVIDER_AURORA
         );
     }
 
     public static boolean shouldUseLuna(MellowOneConfig config) {
-        return (
-            config != null &&
-            (
-                (config.showHiddenWinstreaks &&
-                    config.useLunaPingForWinstreaks) ||
-                (!config.showHiddenWinstreaks &&
-                    config.pingProvider == PROVIDER_LUNA)
-            )
-        );
+        return config != null && config.pingProvider == PROVIDER_LUNA;
     }
 
     public static boolean shouldUseSeraph(MellowOneConfig config) {
         return (
             config != null &&
-            !config.showHiddenWinstreaks &&
             config.pingProvider == PROVIDER_SERAPH
         );
-    }
-
-    public static boolean hasAuroraApiKey(MellowOneConfig config) {
-        return hasValue(config == null ? null : config.auroraApiKey);
     }
 
     public static boolean hasLunaApiKey(MellowOneConfig config) {

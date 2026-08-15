@@ -19,11 +19,19 @@ public class AuroraWinstreakService {
     private static final String WINSTREAK_URL =
         "https://bordic.xyz/api/v2/resources/winstreak";
 
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
     private final TimedValueCache<String, Integer> winstreakCache =
         new TimedValueCache<>(WINSTREAK_CACHE_TTL_MS);
     private final Set<String> fetchInProgress = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean errorShownThisSession = new AtomicBoolean(false);
+
+    public AuroraWinstreakService() {
+        this(new OkHttpClient());
+    }
+
+    AuroraWinstreakService(OkHttpClient client) {
+        this.client = client == null ? new OkHttpClient() : client;
+    }
 
     public int getCachedWinstreak(String compactUuid) {
         Integer cached = winstreakCache.get(compactUuid);
@@ -68,13 +76,8 @@ public class AuroraWinstreakService {
         errorShownThisSession.set(true);
     }
 
-    public int fetchWinstreakBlocking(String compactUuid, String apiKey)
-        throws IOException {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            return -1;
-        }
-
-        String url = WINSTREAK_URL + "?key=" + apiKey.trim() + "&uuid=" + compactUuid;
+    public int fetchWinstreakBlocking(String compactUuid) throws IOException {
+        String url = WINSTREAK_URL + "?uuid=" + compactUuid;
         Request request = new Request.Builder()
             .url(url)
             .header("User-Agent", "Mellow/" + Mellow.VERSION)
