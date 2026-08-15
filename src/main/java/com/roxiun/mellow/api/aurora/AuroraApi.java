@@ -2,6 +2,7 @@ package com.roxiun.mellow.api.aurora;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.util.cache.TimedValueCache;
 import java.io.IOException;
 import java.util.List;
@@ -65,7 +66,7 @@ public class AuroraApi {
 
         Request request = new Request.Builder()
             .url(url)
-            .header("User-Agent", "Mellow/4.1.0")
+            .header("User-Agent", Mellow.NAME + "/" + Mellow.VERSION)
             .build();
 
         try (Response response = client.newCall(request).execute()) {

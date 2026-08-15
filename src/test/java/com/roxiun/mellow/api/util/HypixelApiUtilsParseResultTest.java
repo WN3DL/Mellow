@@ -35,4 +35,14 @@ public class HypixelApiUtilsParseResultTest {
             result.getFailureReason()
         );
     }
+
+    @Test
+    public void parsePlayerDataResultAcceptsBordicHypixelShape() {
+        ProviderResult<?> result = HypixelApiUtils.parsePlayerDataResult(
+            "{\"success\":true,\"player\":{\"displayname\":\"BordicPlayer\",\"stats\":{\"Bedwars\":{}},\"achievements\":{}}}",
+            ProviderId.BORDIC
+        );
+
+        Assert.assertTrue(result.isSuccess());
+    }
 }

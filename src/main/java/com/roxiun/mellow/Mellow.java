@@ -8,6 +8,7 @@ import com.roxiun.mellow.api.hypixel.HypixelFeatures;
 import com.roxiun.mellow.api.luna.LunaPingService;
 import com.roxiun.mellow.api.mojang.MojangApi;
 import com.roxiun.mellow.api.provider.AbyssApi;
+import com.roxiun.mellow.api.provider.BordicApi;
 import com.roxiun.mellow.api.provider.HypixelPublicApi;
 import com.roxiun.mellow.api.provider.NadeshikoApi;
 import com.roxiun.mellow.api.provider.ProviderManager;
@@ -105,6 +106,7 @@ public class Mellow {
         providerManager.register(new HypixelPublicApi(mojangApi, config));
         providerManager.register(new NadeshikoApi(mojangApi));
         providerManager.register(new AbyssApi(mojangApi));
+        providerManager.register(new BordicApi(mojangApi));
 
         coralApi = new CoralApi();
         seraphApi = new SeraphApi(mojangApi);

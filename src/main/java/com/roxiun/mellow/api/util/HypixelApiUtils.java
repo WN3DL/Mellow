@@ -148,6 +148,8 @@ public class HypixelApiUtils {
             providerId = ProviderId.ABYSS;
         } else if ("Nadeshiko".equalsIgnoreCase(provider)) {
             providerId = ProviderId.NADESHIKO;
+        } else if ("Bordic".equalsIgnoreCase(provider)) {
+            providerId = ProviderId.BORDIC;
         } else {
             providerId = ProviderId.HYPIXEL_PUBLIC;
         }
@@ -782,7 +784,10 @@ public class HypixelApiUtils {
             return getObject(root, "player");
         }
 
-        if (providerId == ProviderId.HYPIXEL_PUBLIC) {
+        if (
+            providerId == ProviderId.HYPIXEL_PUBLIC ||
+            providerId == ProviderId.BORDIC
+        ) {
             if (!getBoolean(root, "success", false)) {
                 return null;
             }

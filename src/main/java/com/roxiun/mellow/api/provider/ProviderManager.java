@@ -25,6 +25,8 @@ public class ProviderManager {
                 selected = ProviderId.NADESHIKO;
             } else if (config.statsProvider == 2) {
                 selected = ProviderId.ABYSS;
+            } else if (config.statsProvider == 3) {
+                selected = ProviderId.BORDIC;
             }
         }
 
@@ -39,6 +41,9 @@ public class ProviderManager {
         if (providers.containsKey(ProviderId.NADESHIKO)) {
             return providers.get(ProviderId.NADESHIKO);
         }
-        return providers.get(ProviderId.ABYSS);
+        if (providers.containsKey(ProviderId.ABYSS)) {
+            return providers.get(ProviderId.ABYSS);
+        }
+        return providers.get(ProviderId.BORDIC);
     }
 }

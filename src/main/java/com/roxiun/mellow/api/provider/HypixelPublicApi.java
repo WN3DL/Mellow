@@ -1,5 +1,6 @@
 package com.roxiun.mellow.api.provider;
 
+import com.roxiun.mellow.Mellow;
 import com.roxiun.mellow.api.bedwars.BedwarsPlayer;
 import com.roxiun.mellow.api.buildbattle.BuildBattlePlayer;
 import com.roxiun.mellow.api.duels.DuelsMode;
@@ -83,7 +84,7 @@ public class HypixelPublicApi implements StatsProvider {
 
         ProviderResult<String> result = HypixelApiUtils.fetchPlayerDataResult(
             PLAYER_ENDPOINT + uuid,
-            "Mellow/6.1.0",
+            Mellow.NAME + "/" + Mellow.VERSION,
             headers
         );
         if (result.isSuccess()) {

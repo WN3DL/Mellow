@@ -4,4 +4,5 @@ public enum ProviderId {
     HYPIXEL_PUBLIC,
     NADESHIKO,
     ABYSS,
+    BORDIC,
 }

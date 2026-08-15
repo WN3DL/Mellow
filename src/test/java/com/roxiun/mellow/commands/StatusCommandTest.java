@@ -74,6 +74,56 @@ public class StatusCommandTest {
         Assert.assertEquals(3, requestCount.get());
     }
 
+    @Test
+    public void getStatusLinesUsesBordicWithoutApiKeys() {
+        AtomicInteger requestCount = new AtomicInteger();
+        OkHttpClient client = new OkHttpClient.Builder()
+            .addInterceptor(chain -> {
+                Request request = chain.request();
+                requestCount.incrementAndGet();
+
+                Assert.assertEquals("api.bordic.xyz", request.url().host());
+                Assert.assertEquals(
+                    "/v3/cache/hypixel",
+                    request.url().encodedPath()
+                );
+                Assert.assertEquals(
+                    "00000000-0000-0000-0000-000000000003",
+                    request.url().queryParameter("uuid")
+                );
+                return response(
+                    request,
+                    200,
+                    "{\"success\":true,\"lastUpdated\":1700000000000,\"player\":{\"displayname\":\"BordicPlayer\",\"stats\":{}}}"
+                );
+            })
+            .build();
+
+        StatusCommand command = new StatusCommand(
+            null,
+            "",
+            "",
+            true,
+            client
+        );
+        UUID uuid = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
+        List<String> lines = command.getStatusLines(
+            "BordicPlayer",
+            uuid,
+            false,
+            false
+        );
+
+        Assert.assertEquals("§fBordicPlayer", lines.get(0));
+        Assert.assertTrue(
+            lines
+                .stream()
+                .anyMatch(line -> line.startsWith("§7Bordic cache updated: §f"))
+        );
+        Assert.assertEquals(1, requestCount.get());
+    }
+
     private static Response response(Request request, int code, String body) {
         return new Response.Builder()
             .request(request)

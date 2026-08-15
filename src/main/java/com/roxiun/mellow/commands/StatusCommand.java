@@ -33,6 +33,7 @@ public class StatusCommand extends CommandBase {
     private final MellowOneConfig config;
     private final String hypixelApiKey;
     private final String lunaPingApiKey;
+    private final boolean bordicStatusProvider;
     private final OkHttpClient client;
     private final TimedValueCache<String, JsonObject> responseCache =
         new TimedValueCache<>(STATUS_CACHE_TTL_MS);
@@ -50,6 +51,7 @@ public class StatusCommand extends CommandBase {
         this.config = config;
         this.hypixelApiKey = null;
         this.lunaPingApiKey = null;
+        this.bordicStatusProvider = false;
         this.client = client == null ? new OkHttpClient() : client;
     }
 
@@ -59,10 +61,21 @@ public class StatusCommand extends CommandBase {
         String lunaPingApiKey,
         OkHttpClient client
     ) {
+        this(mojangApi, hypixelApiKey, lunaPingApiKey, false, client);
+    }
+
+    StatusCommand(
+        MojangApi mojangApi,
+        String hypixelApiKey,
+        String lunaPingApiKey,
+        boolean bordicStatusProvider,
+        OkHttpClient client
+    ) {
         this.mojangApi = mojangApi;
         this.config = null;
         this.hypixelApiKey = normalizeApiKey(hypixelApiKey);
         this.lunaPingApiKey = normalizeApiKey(lunaPingApiKey);
+        this.bordicStatusProvider = bordicStatusProvider;
         this.client = client == null ? new OkHttpClient() : client;
     }
 
@@ -88,10 +101,11 @@ public class StatusCommand extends CommandBase {
 
         boolean hasHypixelKey = hasValue(getHypixelApiKey());
         boolean hasLunaKey = hasValue(getLunaApiKey());
-        if (!hasHypixelKey && !hasLunaKey) {
+        boolean useBordic = useBordicStatusProvider();
+        if (!hasHypixelKey && !hasLunaKey && !useBordic) {
             ChatUtils.sendCommandMessage(
                 sender,
-                "§cSet a Hypixel API key or Luna API key in OneConfig first."
+                "§cSet a Hypixel or Luna API key, or select Bordic as your Stats Provider in OneConfig first."
             );
             return;
         }
@@ -138,8 +152,21 @@ public class StatusCommand extends CommandBase {
 
         if (hasHypixelKey) {
             addHypixelStatus(lines, fetchHypixelStatus(uuid));
-            addHypixelLastLogin(lines, fetchHypixelLastLogin(uuid));
         }
+
+        boolean useBordic = useBordicStatusProvider();
+        JsonObject playerData = null;
+        if (useBordic) {
+            playerData = fetchBordicPlayer(uuid);
+        } else if (hasHypixelKey) {
+            playerData = fetchHypixelLastLogin(uuid);
+        }
+
+        if (useBordic) {
+            addBordicStatus(lines, playerData, !hasHypixelKey);
+        }
+        addHypixelLastLogin(lines, playerData);
+
         if (hasLunaKey) {
             addLunaLobbyMessage(lines, fetchLunaLobbyHistory(uuid));
         }
@@ -186,6 +213,44 @@ public class StatusCommand extends CommandBase {
             lines.add(
                 "§7Last login: §f" +
                     formatDateTime(player.get("lastLogin").getAsLong())
+            );
+        }
+    }
+
+    private void addBordicStatus(
+        List<String> lines,
+        JsonObject json,
+        boolean inferOnlineStatus
+    ) {
+        if (json == null || !isSuccess(json) || !json.has("player")) {
+            return;
+        }
+
+        JsonObject player = json.getAsJsonObject("player");
+        boolean hasLastLogin =
+            player.has("lastLogin") && !player.get("lastLogin").isJsonNull();
+        boolean hasLastLogout =
+            player.has("lastLogout") && !player.get("lastLogout").isJsonNull();
+        if (!hasLastLogin || !hasLastLogout) {
+            if (
+                json.has("lastUpdated") &&
+                !json.get("lastUpdated").isJsonNull()
+            ) {
+                lines.add(
+                    "§7Bordic cache updated: §f" +
+                        formatDateTime(json.get("lastUpdated").getAsLong())
+                );
+            }
+            return;
+        }
+
+        long lastLogin = player.get("lastLogin").getAsLong();
+        long lastLogout = player.get("lastLogout").getAsLong();
+        if (inferOnlineStatus) {
+            lines.add(
+                lastLogin > lastLogout
+                    ? "§rStatus: §aOnline"
+                    : "§rStatus: §7Hidden / Offline"
             );
         }
     }
@@ -266,6 +331,24 @@ public class StatusCommand extends CommandBase {
             buildResponseCacheKey("hypixel-player", uuid.toString(), apiKey),
             request,
             false
+        );
+    }
+
+    private JsonObject fetchBordicPlayer(UUID uuid) {
+        if (uuid == null) {
+            return null;
+        }
+
+        String url =
+            "https://api.bordic.xyz/v3/cache/hypixel?uuid=" + uuid;
+        Request request = new Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mellow/" + Mellow.VERSION)
+            .build();
+        return fetchJsonResponse(
+            buildResponseCacheKey("bordic-player", uuid.toString(), ""),
+            request,
+            true
         );
     }
 
@@ -412,6 +495,12 @@ public class StatusCommand extends CommandBase {
         return config == null
             ? lunaPingApiKey
             : normalizeApiKey(config.lunaPingApiKey);
+    }
+
+    private boolean useBordicStatusProvider() {
+        return config == null
+            ? bordicStatusProvider
+            : config.statsProvider == 3;
     }
 
     private String getString(JsonObject json, String key) {

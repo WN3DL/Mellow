@@ -964,7 +964,7 @@ public class MellowOneConfig extends Config {
 
     @Dropdown(
         name = "Stats Provider",
-        options = { "Hypixel Public API", "Nadeshiko", "Abyss" },
+        options = { "Hypixel Public API", "Nadeshiko", "Abyss", "Bordic" },
         subcategory = "Stats"
     )
     public int statsProvider = 2;
@@ -1565,7 +1565,7 @@ public class MellowOneConfig extends Config {
             4
         );
         requestPopupPosition = clampIndex(requestPopupPosition, 3);
-        statsProvider = clampIndex(statsProvider, 3);
+        statsProvider = clampIndex(statsProvider, 4);
         inGameBlacklistWarningDestination = clampIndex(
             inGameBlacklistWarningDestination,
             3
