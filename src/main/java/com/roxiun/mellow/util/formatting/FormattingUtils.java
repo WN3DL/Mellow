@@ -79,6 +79,7 @@ public class FormattingUtils {
 
         String type = tag.getType();
         String formattedType;
+        String reason = tag.getReason() != null && !tag.getReason().isEmpty() ? tag.getReason() : "No reason provided";
 
         // Use exact string matches to avoid substring replacement issues
         switch (type.toLowerCase()) {
@@ -94,14 +95,17 @@ public class FormattingUtils {
             case "confirmed_cheater":
                 formattedType = "§4§lConfirmed Cheater";
                 break;
+            case "replays_needed":
+                formattedType = "§7§lReplays Needed";
+                break;
+            case "caution":
+                formattedType = "§e§lCaution";
+                break;
             case "possible_sniper":
                 formattedType = "§e§lPossible Sniper";
                 break;
             case "legit_sniper":
                 formattedType = "§e§lLegit Sniper";
-                break;
-            case "caution":
-                formattedType = "§e§lCaution";
                 break;
             case "account":
                 formattedType = "§e§lAccount";
@@ -115,7 +119,7 @@ public class FormattingUtils {
                 break;
         }
 
-        return formattedType + " §7(" + tag.getReason() + ")";
+        return formattedType + " §7(" + reason + ")";
     }
 
     public static String formatCoralTagIcon(CoralTag tag) {
@@ -123,12 +127,14 @@ public class FormattingUtils {
         switch (type) {
             case "sniper":
                 return "§8[§4S§8]";
-            case "confirmed_cheater":
-                return "§8[§cCC§8]";
             case "blatant_cheater":
                 return "§8[§4BC§8]";
             case "closet_cheater":
+                return "§8[§6CC§8]";
+            case "confirmed_cheater":
                 return "§8[§cCC§8]";
+            case "replays_needed":
+                return "§8[§7RN§8]";
             case "possible_sniper":
                 return "§8[§ePS§8]";
             case "legit_sniper":
