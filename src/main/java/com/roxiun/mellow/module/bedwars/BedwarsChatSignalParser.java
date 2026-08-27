@@ -9,6 +9,7 @@ public final class BedwarsChatSignalParser {
             message.contains("Protect your bed and destroy the enemy beds.") ||
             message.contains("保护你的床并摧毁敌人的床。") &&
             !message.contains(":") &&
+            !message.contains("：") &&
             !message.contains("SHOUT") &&
             !message.contains("喊话");
     }
@@ -17,6 +18,7 @@ public final class BedwarsChatSignalParser {
         return
             message.contains("You will respawn because you still have a bed!") &&
             !message.contains(":") &&
+            !message.contains("：") &&
             !message.contains("SHOUT") &&
             !message.contains("喊话");
     }
