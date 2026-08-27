@@ -9,7 +9,7 @@ import net.minecraft.util.IChatComponent;
 public class ChatUtils {
 
     private static final String PREFIX = "§r§8[§5Mellow§8]§r ";
-    private static final String MULTILINE_PREFIX = "§r§5▐§r ";
+    private static final String MULTILINE_PREFIX = "§r§5|§r ";
     private static final int MAX_OUTBOUND_CHAT_LENGTH = 240;
 
     public static void sendMessage(String message) {
