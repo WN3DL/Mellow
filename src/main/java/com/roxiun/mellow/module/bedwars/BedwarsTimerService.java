@@ -173,8 +173,8 @@ public class BedwarsTimerService {
         if (normalized.startsWith("next event:")) {
             normalized = normalized.substring("next event:".length()).trim();
         }
-        if (normalized.startsWith("下个事件:")) {
-            normalized = normalized.substring("下个事件:".length()).trim();
+        if (normalized.startsWith("下个事件：")) {
+            normalized = normalized.substring("下个事件：".length()).trim();
         }
         return normalized;
     }
@@ -257,7 +257,7 @@ public class BedwarsTimerService {
         }
 
         for (String line : lines) {
-            if (line.contains("Pink:") || line.contains("粉队:")) {
+            if (line.contains("Pink:") || line.contains("粉队：")) {
                 return "eight";
             }
         }
