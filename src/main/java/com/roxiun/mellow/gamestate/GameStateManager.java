@@ -40,6 +40,14 @@ public class GameStateManager implements GameContext {
         BEDWARS_STAGE_EVENTS.add("sudden death");
         BEDWARS_STAGE_EVENTS.add("game end");
         BEDWARS_STAGE_EVENTS.add("end game");
+        BEDWARS_STAGE_EVENTS.add("钻石生成点ii级");
+        BEDWARS_STAGE_EVENTS.add("绿宝石生成点ii级");
+        BEDWARS_STAGE_EVENTS.add("钻石生成点iii级");
+        BEDWARS_STAGE_EVENTS.add("绿宝石生成点iii级");
+        BEDWARS_STAGE_EVENTS.add("床自毁");
+        BEDWARS_STAGE_EVENTS.add("床已被破坏");
+        BEDWARS_STAGE_EVENTS.add("绝杀模式");
+        BEDWARS_STAGE_EVENTS.add("游戏结束");
     }
 
     private final AtomicReference<GameSnapshot> snapshot =
@@ -251,7 +259,10 @@ public class GameStateManager implements GameContext {
             if (
                 normalized.startsWith("players:") ||
                 normalized.startsWith("players ") ||
-                normalized.equals("players")
+                normalized.equals("players") ||
+                normalized.startsWith("玩家:") ||
+                normalized.startsWith("玩家 ") ||
+                normalized.equals("玩家")
             ) {
                 return true;
             }
@@ -274,19 +285,19 @@ public class GameStateManager implements GameContext {
         String title = scoreboard.title == null
             ? ""
             : scoreboard.title.toLowerCase(Locale.ROOT);
-        if (title.contains("bed wars")) {
+        if (title.contains("bed wars") || title.contains("起床战争")) {
             return GameType.BEDWARS;
         }
-        if (title.contains("skywars") || title.contains("sky wars")) {
+        if (title.contains("skywars") || title.contains("sky wars") || title.contains("空岛战争")) {
             return GameType.SKYWARS;
         }
-        if (title.contains("duels") || title.contains("duel")) {
+        if (title.contains("duels") || title.contains("duel") || title.contains("决斗游戏")) {
             return GameType.DUELS;
         }
-        if (title.contains("build battle")) {
+        if (title.contains("build battle") || title.contains("建筑大师")) {
             return GameType.BUILD_BATTLE;
         }
-        if (title.contains("tnt games") || title.contains("tnt run")) {
+        if (title.contains("tnt games") || title.contains("tnt run") || title.contains("方块掘战")) {
             return GameType.TNTGAMES;
         }
         return null;
@@ -328,7 +339,10 @@ public class GameStateManager implements GameContext {
             if (
                 normalized.startsWith("players:") ||
                 normalized.startsWith("players ") ||
-                normalized.equals("players")
+                normalized.equals("players") ||
+                normalized.startsWith("玩家:") ||
+                normalized.startsWith("玩家 ") ||
+                normalized.equals("玩家")
             ) {
                 return true;
             }
@@ -348,8 +362,11 @@ public class GameStateManager implements GameContext {
 
             String eventName = normalized;
             int inIndex = normalized.indexOf(" in ");
+            int dashIndex = normalized.indexOf(" - ");
             if (inIndex >= 0) {
                 eventName = normalized.substring(0, inIndex).trim();
+            } else if (dashIndex >= 0) {
+                eventName = normalized.substring(0, dashIndex).trim();
             } else {
                 int timerStart = normalized.lastIndexOf(' ');
                 if (timerStart > 0) {
@@ -358,6 +375,9 @@ public class GameStateManager implements GameContext {
             }
             if (eventName.startsWith("next event:")) {
                 eventName = eventName.substring("next event:".length()).trim();
+            }
+            if (eventName.startsWith("下个事件:")) {
+                eventName = eventName.substring("下个事件:".length()).trim();
             }
             if (BEDWARS_STAGE_EVENTS.contains(eventName)) {
                 return true;
