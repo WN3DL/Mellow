@@ -295,7 +295,7 @@ public class GameStateManager implements GameContext {
         if (title.contains("duels") || title.contains("duel") || title.contains("决斗游戏")) {
             return GameType.DUELS;
         }
-        if (title.contains("build battle") || title.contains("建筑大师")) {
+        if (title.contains("build battle") || title.contains("建筑大师") || title.contains("guess the build") || title.contains("建筑猜猜乐")) {
             return GameType.BUILD_BATTLE;
         }
         if (title.contains("tnt games") || title.contains("tnt run") || title.contains("方块掘战")) {
