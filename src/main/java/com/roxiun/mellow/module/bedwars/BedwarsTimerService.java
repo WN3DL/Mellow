@@ -28,6 +28,14 @@ public class BedwarsTimerService {
         STAGE_SCHEDULE.put("sudden death", 40 * 60);
         STAGE_SCHEDULE.put("game end", 50 * 60);
         STAGE_SCHEDULE.put("end game", 50 * 60);
+        STAGE_SCHEDULE.put("钻石生成点ii级", 6 * 60);
+        STAGE_SCHEDULE.put("绿宝石生成点ii级", 12 * 60);
+        STAGE_SCHEDULE.put("钻石生成点iii级", 18 * 60);
+        STAGE_SCHEDULE.put("绿宝石生成点iii级", 24 * 60);
+        STAGE_SCHEDULE.put("床自毁", 30 * 60);
+        STAGE_SCHEDULE.put("床已被破坏", 30 * 60);
+        STAGE_SCHEDULE.put("绝杀模式", 40 * 60);
+        STAGE_SCHEDULE.put("游戏结束", 50 * 60);
     }
 
     private BedwarsTimerState state = BedwarsTimerState.empty();
@@ -132,12 +140,18 @@ public class BedwarsTimerService {
         String eventName;
 
         int explicitIn = lower.indexOf(" in ");
+        int explicitDash = lower.indexOf(" - ");
         if (explicitIn >= 0 && explicitIn < timerStart) {
             eventName = raw.substring(0, explicitIn).trim();
+        } else if (explicitDash >= 0 && explicitDash < timerStart) {
+            eventName = raw.substring(0, explicitDash).trim();
         } else {
             int looseIn = lower.indexOf("in ");
+            int looseDash = lower.indexOf("- ");
             if (looseIn >= 0 && looseIn < timerStart) {
                 eventName = raw.substring(0, looseIn).trim();
+            } else if (looseDash >= 0 && looseDash < timerStart) {
+                eventName = raw.substring(0, looseDash).trim();
             } else {
                 eventName = raw.substring(0, timerStart).trim();
             }
@@ -159,6 +173,9 @@ public class BedwarsTimerService {
         if (normalized.startsWith("next event:")) {
             normalized = normalized.substring("next event:".length()).trim();
         }
+        if (normalized.startsWith("下个事件:")) {
+            normalized = normalized.substring("下个事件:".length()).trim();
+        }
         return normalized;
     }
 
@@ -173,7 +190,7 @@ public class BedwarsTimerService {
             .replaceAll("\\s+", " ")
             .trim();
 
-        if (normalized.contains("diamond")) {
+        if (normalized.contains("diamond") || normalized.contains("钻石")) {
             if (containsTier(normalized, 2)) {
                 return 6 * 60;
             }
@@ -182,7 +199,7 @@ public class BedwarsTimerService {
             }
         }
 
-        if (normalized.contains("emerald")) {
+        if (normalized.contains("emerald") || normalized.contains("绿宝石")) {
             if (containsTier(normalized, 2)) {
                 return 12 * 60;
             }
@@ -191,11 +208,11 @@ public class BedwarsTimerService {
             }
         }
 
-        if (normalized.contains("sudden death")) {
+        if (normalized.contains("sudden death") || normalized.contains("绝杀模式")) {
             return 40 * 60;
         }
         if (
-            normalized.contains("game end") || normalized.contains("end game")
+            normalized.contains("game end") || normalized.contains("end game") || normalized.contains("游戏结束")
         ) {
             return 50 * 60;
         }
@@ -203,7 +220,9 @@ public class BedwarsTimerService {
             normalized.contains("bed gone") ||
             normalized.contains("beds gone") ||
             normalized.contains("bed destroyed") ||
-            normalized.contains("beds destroyed")
+            normalized.contains("beds destroyed") ||
+            normalized.contains("床自毁") ||
+            normalized.contains("床已被破坏")
         ) {
             return 30 * 60;
         }
@@ -238,7 +257,7 @@ public class BedwarsTimerService {
         }
 
         for (String line : lines) {
-            if (line.contains("Pink:")) {
+            if (line.contains("Pink:") || line.contains("粉队:")) {
                 return "eight";
             }
         }
