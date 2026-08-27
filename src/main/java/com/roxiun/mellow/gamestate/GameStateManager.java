@@ -261,6 +261,7 @@ public class GameStateManager implements GameContext {
                 normalized.startsWith("players ") ||
                 normalized.equals("players") ||
                 normalized.startsWith("玩家:") ||
+                normalized.startsWith("玩家：") ||
                 normalized.startsWith("玩家 ") ||
                 normalized.equals("玩家")
             ) {
@@ -341,6 +342,7 @@ public class GameStateManager implements GameContext {
                 normalized.startsWith("players ") ||
                 normalized.equals("players") ||
                 normalized.startsWith("玩家:") ||
+                normalized.startsWith("玩家：") ||
                 normalized.startsWith("玩家 ") ||
                 normalized.equals("玩家")
             ) {
@@ -376,8 +378,8 @@ public class GameStateManager implements GameContext {
             if (eventName.startsWith("next event:")) {
                 eventName = eventName.substring("next event:".length()).trim();
             }
-            if (eventName.startsWith("下个事件:")) {
-                eventName = eventName.substring("下个事件:".length()).trim();
+            if (eventName.startsWith("下个事件：")) {
+                eventName = eventName.substring("下个事件：".length()).trim();
             }
             if (BEDWARS_STAGE_EVENTS.contains(eventName)) {
                 return true;
